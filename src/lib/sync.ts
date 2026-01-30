@@ -3,18 +3,29 @@ import { supabase } from './supabase';
 import { SyncTestDocument } from './db';
 
 let syncInterval: NodeJS.Timeout | null = null;
+let isSyncing = false;
+let syncQueue = new Set<string>();
 
 export async function setupSync(collection: RxCollection<SyncTestDocument>) {
   // Pull from Supabase on load
   await pullFromSupabase(collection);
 
-  // Push ALL local changes to Supabase on startup (catch any missed syncs)
+  // Initial push of all local items (only once on startup)
   await pushAllToSupabase(collection);
 
-  // Push to Supabase on local changes
+  // Push to Supabase on local changes (but avoid duplicates)
   collection.$.subscribe(async (changeEvent) => {
     if (changeEvent.operation === 'INSERT' || changeEvent.operation === 'UPDATE') {
+      const docId = changeEvent.documentData.id;
+      
+      // Skip if already in queue
+      if (syncQueue.has(docId)) {
+        return;
+      }
+      
+      syncQueue.add(docId);
       await pushToSupabase(changeEvent.documentData);
+      syncQueue.delete(docId);
     } else if (changeEvent.operation === 'DELETE') {
       await deleteFromSupabase(changeEvent.documentData.id);
     }
@@ -36,16 +47,30 @@ export async function setupSync(collection: RxCollection<SyncTestDocument>) {
 
 // Push ALL local items that might not be in Supabase yet
 async function pushAllToSupabase(collection: RxCollection<SyncTestDocument>) {
+  if (isSyncing) {
+    console.log('Sync already in progress, skipping...');
+    return;
+  }
+
+  isSyncing = true;
+  
   try {
     const allDocs = await collection.find().exec();
     
+    console.log(`Syncing ${allDocs.length} items to Supabase...`);
+    
     for (const doc of allDocs) {
-      await pushToSupabase(doc.toJSON());
+      const docData = doc.toJSON();
+      syncQueue.add(docData.id);
+      await pushToSupabase(docData);
+      syncQueue.delete(docData.id);
     }
     
-    console.log(`Synced ${allDocs.length} items to Supabase`);
+    console.log(`✓ Synced ${allDocs.length} items successfully`);
   } catch (error) {
     console.error('Push all error:', error);
+  } finally {
+    isSyncing = false;
   }
 }
 
@@ -79,21 +104,37 @@ async function pullFromSupabase(collection: RxCollection<SyncTestDocument>) {
 
 async function pushToSupabase(doc: SyncTestDocument) {
   try {
-    const { error } = await supabase
-      .from('sync_test')
-      .upsert({
-        id: doc.id,
-        content: doc.content,
-        updated_at: doc.updated_at,
-        is_deleted: doc.is_deleted,
-      });
+    const payload = {
+      id: doc.id,
+      content: doc.content,
+      updated_at: doc.updated_at,
+      is_deleted: doc.is_deleted,
+    };
 
-    if (error) throw error;
-    console.log('Pushed to Supabase:', doc.id);
+    console.log('Pushing to Supabase:', payload); // Debug log
+
+    const { data, error } = await supabase
+      .from('sync_test')
+      .upsert(payload);
+
+    if (error) {
+      console.error('❌ Push FAILED:', {
+        itemId: doc.id,
+        itemContent: doc.content,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        fullError: JSON.stringify(error, null, 2)
+      });
+      throw error;
+    }
+    
+    console.log('✓ Pushed successfully:', doc.id);
   } catch (error) {
     // Only log if it's not a network error
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
-      console.error('Push error:', error);
+      console.error('Push exception:', error);
     }
   }
 }
