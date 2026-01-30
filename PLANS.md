@@ -18,8 +18,8 @@ Last updated: January 30, 2026
 - [x] Agent files (architecture, frontend, execplans)
 
 ### 🚧 In Progress
-- [ ] Verify sync works offline→online
-- [ ] Test on two browser tabs
+- [x] Verify sync works offline→online
+- [x] Test on two browser tabs
 - [ ] Test on mobile device
 
 ### ⏳ Next Up
