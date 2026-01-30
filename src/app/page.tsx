@@ -1,66 +1,93 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useDatabase } from '@/hooks/useDatabase';
+import { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { SyncTestDocument } from '@/lib/db';
 
 export default function Home() {
+  const { db, isReady } = useDatabase();
+  const [items, setItems] = useState<SyncTestDocument[]>([]);
+  const [newContent, setNewContent] = useState('');
+
+  // Subscribe to items
+  useEffect(() => {
+    if (!isReady || !db) return;
+
+    const subscription = db.sync_test
+      .find({
+        selector: { is_deleted: false },
+        sort: [{ updated_at: 'desc' }],
+      })
+      .$.subscribe((docs) => {
+        setItems(docs.map((doc) => doc.toJSON()));
+      });
+
+    return () => subscription.unsubscribe();
+  }, [db, isReady]);
+
+  const addItem = async () => {
+    if (!db || !newContent.trim()) return;
+
+    await db.sync_test.insert({
+      id: uuidv4(),
+      content: newContent,
+      updated_at: new Date().toISOString(),
+      is_deleted: false,
+    });
+
+    setNewContent('');
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!db) return;
+
+    const doc = await db.sync_test.findOne(id).exec();
+    if (doc) {
+      await doc.patch({ is_deleted: true });
+    }
+  };
+
+  if (!isReady) {
+    return <div style={{ padding: 20 }}>Loading database...</div>;
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div style={{ padding: 20 }}>
+      <h1>Sync Test</h1>
+
+      <div style={{ marginBottom: 20 }}>
+        <input
+          type="text"
+          value={newContent}
+          onChange={(e) => setNewContent(e.target.value)}
+          placeholder="Enter something..."
+          style={{ padding: 8, marginRight: 8, width: 300 }}
         />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <button onClick={addItem} style={{ padding: 8 }}>
+          Add Item
+        </button>
+      </div>
+
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {items.map((item) => (
+          <li
+            key={item.id}
+            style={{
+              padding: 10,
+              marginBottom: 8,
+              border: '1px solid #ccc',
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            <span>{item.content}</span>
+            <button onClick={() => deleteItem(item.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+
+      {items.length === 0 && <p>No items yet. Add one above!</p>}
     </div>
   );
 }
