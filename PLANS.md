@@ -2,7 +2,7 @@
 
 ## Current Status: MVP Phase - Sync Proof of Concept ✅
 
-Last updated: January 30, 2026
+Last updated: January 31, 2026
 
 ---
 
@@ -28,16 +28,41 @@ Last updated: January 30, 2026
 
 ---
 
-## Phase 2: Core Schema + Full Sync
+## Phase 2: Core Schema + Full Sync (with Minimal CRUD Validation)
 
 **Goal:** All data models syncing correctly
 
-### Tasks
-- [ ] Create all Supabase tables (projects, tasks, notes, habits, time_entries, habit_completions)
-- [ ] Create matching RxDB collections
-- [ ] Setup sync for each collection
+### Day 1: Data Model + Docs
+- [ ] Update `docs/schema.md` conventions to use `is_deleted` (canonical) + `deleted_at`
+- [ ] Add `deleted_at TIMESTAMPTZ DEFAULT NULL` to **all** tables (including `habit_completions` and `sync_test`); set only on delete
+- [ ] Create/verify Supabase tables for: projects, tasks, notes, habits, habit_completions, time_entries
+- [ ] Add indexes for `is_deleted` + `deleted_at` where appropriate
+- [ ] Decide/confirm `deleted_at` default behavior (see risks)
+
+### Day 2: RxDB Collections + Migrations
+- [ ] Define RxDB schemas for all collections (with `is_deleted` + `deleted_at`)
+- [ ] Add collection registration in `src/lib/db.ts`
+- [ ] Add migration strategy for any schema version bumps (greenfield, but keep structure)
+- [ ] Add shared TypeScript types per collection
+
+### Day 3: Sync Expansion
+- [ ] Generalize sync logic to handle multiple collections (avoid duplicate polling/subscriptions)
+- [ ] Ensure soft deletes sync across devices (`is_deleted` + `deleted_at`)
+- [ ] Add per-collection pull/push with conflict resolution (LWW on `updated_at`)
+- [ ] Add offline→online recovery hooks
+
+### Day 4: Minimal CRUD Validation UI
+- [ ] Add a single `/app/dev` validation page with minimal CRUD for each collection (create/list/update/delete)
+- [ ] Keep UI simple and mobile-first; use 44px touch targets
+- [ ] Validate relationships: tasks → projects, time_entries → tasks, habit_completions → habits
+- [ ] Add basic empty/loading states
+
+### Day 5: Verification + Hardening
 - [ ] Test multi-table sync (create project → add task → sync both)
-- [ ] Verify referential integrity (task.project_id)
+- [ ] Verify referential integrity (task.project_id, time_entries.task_id, habit_completions.habit_id)
+- [ ] Test offline→online for each collection
+- [ ] Verify soft delete propagation across two tabs/devices
+- [ ] Run lint + type-check (add missing scripts if needed)
 
 **Completion criteria:**
 - Can create/edit/delete in each table offline
