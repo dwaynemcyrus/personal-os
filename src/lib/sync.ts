@@ -109,11 +109,13 @@ let syncInterval: NodeJS.Timeout | null = null;
 const syncQueueByCollection = new Map<CollectionName, Set<string>>();
 const syncInProgress = new Set<CollectionName>();
 let onlineListenerAttached = false;
+let visibilityListenerAttached = false;
 const remoteUpdateByCollection = new Map<
   CollectionName,
   Map<string, { updatedAt: string; ts: number }>
 >();
 const REMOTE_SUPPRESSION_MS = 2000;
+const ACTIVE_PULL_INTERVAL_MS = 5000;
 
 function getQueue(name: CollectionName) {
   const existing = syncQueueByCollection.get(name);
@@ -149,6 +151,17 @@ function isRecentRemoteUpdate(
     return false;
   }
   return marker.updatedAt === updatedAt;
+}
+
+function startSyncInterval(db: RxDatabase<DatabaseCollections>) {
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(() => pullAll(db), ACTIVE_PULL_INTERVAL_MS);
+}
+
+function stopSyncInterval() {
+  if (!syncInterval) return;
+  clearInterval(syncInterval);
+  syncInterval = null;
 }
 
 function buildPayload<T extends Record<string, unknown>>(
@@ -224,14 +237,33 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
       });
     }
 
-    if (syncInterval) clearInterval(syncInterval);
-    syncInterval = setInterval(() => pullAll(db), 5000);
+    if (typeof window !== 'undefined') {
+      if (document.visibilityState === 'visible') {
+        startSyncInterval(db);
+      } else {
+        stopSyncInterval();
+      }
+    } else {
+      startSyncInterval(db);
+    }
 
     if (typeof window !== 'undefined' && !onlineListenerAttached) {
       onlineListenerAttached = true;
       window.addEventListener('online', async () => {
         await pushAll(db);
         await pullAll(db);
+      });
+    }
+
+    if (typeof window !== 'undefined' && !visibilityListenerAttached) {
+      visibilityListenerAttached = true;
+      window.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible') {
+          startSyncInterval(db);
+          await pullAll(db);
+        } else {
+          stopSyncInterval();
+        }
       });
     }
   })();
