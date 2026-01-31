@@ -10,6 +10,9 @@ export async function setupSync(collection: RxCollection<SyncTestDocument>) {
   // Pull from Supabase on load
   await pullFromSupabase(collection);
 
+  // Clean up any invalid UUIDs from local database
+  await cleanupInvalidUUIDs(collection);
+
   // Initial push of all local items (only once on startup)
   await pushAllToSupabase(collection);
 
@@ -45,6 +48,27 @@ export async function setupSync(collection: RxCollection<SyncTestDocument>) {
   }
 }
 
+// Clean up invalid UUIDs from local database
+async function cleanupInvalidUUIDs(collection: RxCollection<SyncTestDocument>) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  const allDocs = await collection.find().exec();
+  let cleanedCount = 0;
+  
+  for (const doc of allDocs) {
+    const data = doc.toJSON();
+    if (!uuidRegex.test(data.id)) {
+      console.log('🗑️ Removing invalid UUID:', data.id);
+      await doc.remove();
+      cleanedCount++;
+    }
+  }
+  
+  if (cleanedCount > 0) {
+    console.log(`✓ Cleaned up ${cleanedCount} invalid items`);
+  }
+}
+
 // Push ALL local items that might not be in Supabase yet
 async function pushAllToSupabase(collection: RxCollection<SyncTestDocument>) {
   if (isSyncing) {
@@ -56,6 +80,12 @@ async function pushAllToSupabase(collection: RxCollection<SyncTestDocument>) {
   
   try {
     const allDocs = await collection.find().exec();
+    
+    if (allDocs.length === 0) {
+      console.log('No items to sync');
+      isSyncing = false;
+      return;
+    }
     
     console.log(`Syncing ${allDocs.length} items to Supabase...`);
     
@@ -111,8 +141,6 @@ async function pushToSupabase(doc: SyncTestDocument) {
       is_deleted: doc.is_deleted,
     };
 
-    console.log('Pushing to Supabase:', payload); // Debug log
-
     const { data, error } = await supabase
       .from('sync_test')
       .upsert(payload);
@@ -125,7 +153,6 @@ async function pushToSupabase(doc: SyncTestDocument) {
         errorMessage: error.message,
         errorDetails: error.details,
         errorHint: error.hint,
-        fullError: JSON.stringify(error, null, 2)
       });
       throw error;
     }
@@ -134,7 +161,7 @@ async function pushToSupabase(doc: SyncTestDocument) {
   } catch (error) {
     // Only log if it's not a network error
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
-      console.error('Push exception:', error);
+      console.error('Push error:', error);
     }
   }
 }

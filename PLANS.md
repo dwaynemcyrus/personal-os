@@ -20,7 +20,7 @@ Last updated: January 30, 2026
 ### 🚧 In Progress
 - [x] Verify sync works offline→online
 - [x] Test on two browser tabs
-- [ ] Test on mobile device
+- [x] Test on mobile device
 
 ### ⏳ Next Up
 - [ ] Expand to full schema (projects, tasks, notes, habits, time_entries)
