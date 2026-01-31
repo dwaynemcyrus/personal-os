@@ -60,7 +60,7 @@ Last updated: January 31, 2026
 ### Day 5: Verification + Hardening
 - [x] Test multi-table sync (create project → add task → sync both)
 - [x] Verify referential integrity (task.project_id, time_entries.task_id, habit_completions.habit_id)
-- [ ] Test offline→online for each collection
+- [x] Test offline→online for each collection
 - [x] Verify soft delete propagation across two tabs/devices
 - [x] Run lint + type-check (add missing scripts if needed)
 
