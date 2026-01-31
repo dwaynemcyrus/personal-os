@@ -29,11 +29,14 @@ export default function Home() {
   const addItem = async () => {
     if (!db || !newContent.trim()) return;
 
+    const now = new Date().toISOString();
     await db.sync_test.insert({
       id: uuidv4(),
       content: newContent,
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
       is_deleted: false,
+      deleted_at: null,
     });
 
     setNewContent('');
@@ -44,7 +47,8 @@ export default function Home() {
 
     const doc = await db.sync_test.findOne(id).exec();
     if (doc) {
-      await doc.patch({ is_deleted: true });
+      const now = new Date().toISOString();
+      await doc.patch({ is_deleted: true, deleted_at: now, updated_at: now });
     }
   };
 

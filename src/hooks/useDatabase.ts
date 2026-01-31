@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { RxDatabase } from 'rxdb';
-import { getDatabase } from '@/lib/db';
+import { DatabaseCollections, getDatabase } from '@/lib/db';
 import { setupSync } from '@/lib/sync';
 
 export function useDatabase() {
-  const [db, setDb] = useState<RxDatabase | null>(null);
+  const [db, setDb] = useState<RxDatabase<DatabaseCollections> | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function useDatabase() {
       if (!mounted) return;
 
       // Setup sync
-      await setupSync(database.sync_test);
+      await setupSync(database);
 
       setDb(database);
       setIsReady(true);

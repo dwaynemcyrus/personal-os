@@ -38,7 +38,7 @@ Plan multi-step tasks, break down features, define testing strategy, manage migr
 
 ## Breaking Down Tasks
 
-**Always split into <1 day chunks:**
+**Always split into <1 day chunks and print commit messages with type that is < 48 characters for each day:**
 
 Example: "Add project management"
 ```

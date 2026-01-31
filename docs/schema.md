@@ -2,7 +2,7 @@
 
 Single source of truth for all tables and collections.
 
-**Last updated:** January 30, 2026
+**Last updated:** January 31, 2026
 
 ---
 
@@ -11,7 +11,7 @@ Single source of truth for all tables and collections.
 All tables follow these conventions:
 - Primary key: `id UUID PRIMARY KEY DEFAULT uuid_generate_v4()`
 - Timestamps: `created_at` and `updated_at` (auto-updated via trigger)
-- Soft delete: `deleted BOOLEAN DEFAULT FALSE`
+- Soft delete: `is_deleted BOOLEAN DEFAULT FALSE` + `deleted_at TIMESTAMPTZ DEFAULT NULL`
 
 ---
 
@@ -22,8 +22,10 @@ All tables follow these conventions:
 CREATE TABLE sync_test (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
@@ -39,14 +41,14 @@ CREATE TABLE projects (
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
 **Indexes:**
 ```sql
-CREATE INDEX idx_projects_deleted ON projects(deleted);
+CREATE INDEX idx_projects_is_deleted ON projects(is_deleted);
 CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
 ```
 
@@ -65,8 +67,8 @@ CREATE TABLE tasks (
   due_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
@@ -74,7 +76,7 @@ CREATE TABLE tasks (
 ```sql
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX idx_tasks_completed ON tasks(completed);
-CREATE INDEX idx_tasks_deleted ON tasks(deleted);
+CREATE INDEX idx_tasks_is_deleted ON tasks(is_deleted);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);
 ```
 
@@ -90,14 +92,14 @@ CREATE TABLE notes (
   content TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
 **Indexes:**
 ```sql
-CREATE INDEX idx_notes_deleted ON notes(deleted);
+CREATE INDEX idx_notes_is_deleted ON notes(is_deleted);
 CREATE INDEX idx_notes_updated_at ON notes(updated_at DESC);
 ```
 
@@ -113,14 +115,14 @@ CREATE TABLE habits (
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
 **Indexes:**
 ```sql
-CREATE INDEX idx_habits_deleted ON habits(deleted);
+CREATE INDEX idx_habits_is_deleted ON habits(is_deleted);
 ```
 
 ---
@@ -134,6 +136,9 @@ CREATE TABLE habit_completions (
   habit_id UUID REFERENCES habits(id) ON DELETE CASCADE,
   completed_date DATE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL,
   UNIQUE(habit_id, completed_date)
 );
 ```
@@ -142,6 +147,7 @@ CREATE TABLE habit_completions (
 ```sql
 CREATE INDEX idx_habit_completions_habit_id ON habit_completions(habit_id);
 CREATE INDEX idx_habit_completions_date ON habit_completions(completed_date DESC);
+CREATE INDEX idx_habit_completions_is_deleted ON habit_completions(is_deleted);
 ```
 
 **Notes:**
@@ -162,7 +168,8 @@ CREATE TABLE time_entries (
   duration_seconds INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
@@ -170,7 +177,7 @@ CREATE TABLE time_entries (
 ```sql
 CREATE INDEX idx_time_entries_task_id ON time_entries(task_id);
 CREATE INDEX idx_time_entries_started_at ON time_entries(started_at DESC);
-CREATE INDEX idx_time_entries_deleted ON time_entries(deleted);
+CREATE INDEX idx_time_entries_is_deleted ON time_entries(is_deleted);
 ```
 
 **Notes:**
@@ -192,6 +199,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply to all tables
+CREATE TRIGGER sync_test_updated_at
+  BEFORE UPDATE ON sync_test
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 CREATE TRIGGER projects_updated_at
   BEFORE UPDATE ON projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -206,6 +217,10 @@ CREATE TRIGGER notes_updated_at
 
 CREATE TRIGGER habits_updated_at
   BEFORE UPDATE ON habits
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER habit_completions_updated_at
+  BEFORE UPDATE ON habit_completions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER time_entries_updated_at
@@ -226,6 +241,7 @@ ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE habits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE habit_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_test ENABLE ROW LEVEL SECURITY;
 
 -- Allow all operations (single user)
 CREATE POLICY "Allow all operations" ON projects FOR ALL USING (true) WITH CHECK (true);
@@ -234,6 +250,7 @@ CREATE POLICY "Allow all operations" ON notes FOR ALL USING (true) WITH CHECK (t
 CREATE POLICY "Allow all operations" ON habits FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations" ON habit_completions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations" ON time_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all operations" ON sync_test FOR ALL USING (true) WITH CHECK (true);
 ```
 
 **Future:** When adding multi-user support, update policies to:
@@ -262,7 +279,8 @@ const projectSchema = z.object({
   description: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
-  deleted: z.boolean(),
+  is_deleted: z.boolean(),
+  deleted_at: z.string().nullable(),
 });
 ```
 
@@ -301,7 +319,7 @@ When adding new columns:
 ```sql
 SELECT * FROM time_entries 
 WHERE stopped_at IS NULL 
-AND deleted = FALSE 
+AND is_deleted = FALSE 
 LIMIT 1;
 ```
 
@@ -309,7 +327,7 @@ LIMIT 1;
 ```sql
 SELECT * FROM tasks 
 WHERE project_id = $1 
-AND deleted = FALSE 
+AND is_deleted = FALSE 
 ORDER BY created_at DESC;
 ```
 
@@ -317,6 +335,7 @@ ORDER BY created_at DESC;
 ```sql
 SELECT COUNT(*) FROM habit_completions 
 WHERE habit_id = $1 
+AND is_deleted = FALSE 
 AND completed_date >= CURRENT_DATE - INTERVAL '7 days';
 ```
 
@@ -324,5 +343,5 @@ AND completed_date >= CURRENT_DATE - INTERVAL '7 days';
 ```sql
 SELECT SUM(duration_seconds) FROM time_entries 
 WHERE task_id = $1 
-AND deleted = FALSE;
+AND is_deleted = FALSE;
 ```

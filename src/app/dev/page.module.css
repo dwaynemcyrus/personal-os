@@ -1,0 +1,138 @@
+.page {
+  --dev-surface: color-mix(in srgb, var(--background) 94%, var(--foreground) 6%);
+  --dev-elevated: color-mix(in srgb, var(--background) 90%, var(--foreground) 10%);
+  --dev-control: color-mix(in srgb, var(--background) 86%, var(--foreground) 14%);
+
+  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.section {
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--dev-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.input,
+.select,
+.textarea {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  background: var(--dev-control);
+  font-size: 14px;
+}
+
+.input,
+.select {
+  flex: 1 1 180px;
+}
+
+.textarea {
+  flex: 1 1 100%;
+  min-height: 88px;
+  resize: vertical;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.button {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  background: var(--dev-control);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.buttonPrimary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.buttonDanger {
+  background: var(--dev-control);
+  color: #b00020;
+  border-color: #b00020;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.listItem {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--dev-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.itemMeta {
+  font-size: 12px;
+  color: #666;
+}
+
+@media (min-width: 900px) {
+  .page {
+    padding: 32px 40px;
+  }
+}

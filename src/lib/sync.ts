@@ -1,181 +1,313 @@
-import { RxCollection } from 'rxdb';
+import { RxChangeEvent, RxCollection, RxDatabase } from 'rxdb';
 import { supabase } from './supabase';
-import { SyncTestDocument } from './db';
+import { DatabaseCollections } from './db';
 
+type BaseSyncDocument = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  deleted_at: string | null;
+};
+
+type SyncDocument = BaseSyncDocument & Record<string, unknown>;
+
+type CollectionName = keyof DatabaseCollections;
+type AnyCollection = DatabaseCollections[CollectionName];
+
+const collectionConfig = {
+  sync_test: {
+    table: 'sync_test',
+    fields: ['id', 'content', 'created_at', 'updated_at', 'is_deleted', 'deleted_at'],
+  },
+  projects: {
+    table: 'projects',
+    fields: [
+      'id',
+      'title',
+      'description',
+      'created_at',
+      'updated_at',
+      'is_deleted',
+      'deleted_at',
+    ],
+  },
+  tasks: {
+    table: 'tasks',
+    fields: [
+      'id',
+      'project_id',
+      'title',
+      'description',
+      'completed',
+      'due_date',
+      'created_at',
+      'updated_at',
+      'is_deleted',
+      'deleted_at',
+    ],
+  },
+  notes: {
+    table: 'notes',
+    fields: [
+      'id',
+      'title',
+      'content',
+      'created_at',
+      'updated_at',
+      'is_deleted',
+      'deleted_at',
+    ],
+  },
+  habits: {
+    table: 'habits',
+    fields: [
+      'id',
+      'title',
+      'description',
+      'created_at',
+      'updated_at',
+      'is_deleted',
+      'deleted_at',
+    ],
+  },
+  habit_completions: {
+    table: 'habit_completions',
+    fields: [
+      'id',
+      'habit_id',
+      'completed_date',
+      'created_at',
+      'updated_at',
+      'is_deleted',
+      'deleted_at',
+    ],
+  },
+  time_entries: {
+    table: 'time_entries',
+    fields: [
+      'id',
+      'task_id',
+      'started_at',
+      'stopped_at',
+      'duration_seconds',
+      'created_at',
+      'updated_at',
+      'is_deleted',
+      'deleted_at',
+    ],
+  },
+} as const satisfies Record<
+  CollectionName,
+  { table: string; fields: readonly string[] }
+>;
+
+const collectionNames = Object.keys(collectionConfig) as CollectionName[];
+
+let setupPromise: Promise<void> | null = null;
 let syncInterval: NodeJS.Timeout | null = null;
-let isSyncing = false;
-let syncQueue = new Set<string>();
+const syncQueueByCollection = new Map<CollectionName, Set<string>>();
+const syncInProgress = new Set<CollectionName>();
+let onlineListenerAttached = false;
 
-export async function setupSync(collection: RxCollection<SyncTestDocument>) {
-  // Pull from Supabase on load
-  await pullFromSupabase(collection);
+function getQueue(name: CollectionName) {
+  const existing = syncQueueByCollection.get(name);
+  if (existing) return existing;
+  const created = new Set<string>();
+  syncQueueByCollection.set(name, created);
+  return created;
+}
 
-  // Clean up any invalid UUIDs from local database
-  await cleanupInvalidUUIDs(collection);
+function buildPayload<T extends Record<string, unknown>>(
+  doc: T,
+  fields: readonly string[]
+) {
+  const payload: Record<string, unknown> = {};
+  for (const field of fields) {
+    payload[field] = doc[field];
+  }
+  return payload;
+}
 
-  // Initial push of all local items (only once on startup)
-  await pushAllToSupabase(collection);
+function isRemoteNewer(remoteUpdatedAt: string, localUpdatedAt: string) {
+  const remoteTime = Date.parse(remoteUpdatedAt);
+  const localTime = Date.parse(localUpdatedAt);
 
-  // Push to Supabase on local changes (but avoid duplicates)
-  collection.$.subscribe(async (changeEvent) => {
-    if (changeEvent.operation === 'INSERT' || changeEvent.operation === 'UPDATE') {
-      const docId = changeEvent.documentData.id;
-      
-      // Skip if already in queue
-      if (syncQueue.has(docId)) {
-        return;
-      }
-      
-      syncQueue.add(docId);
-      await pushToSupabase(changeEvent.documentData);
-      syncQueue.delete(docId);
-    } else if (changeEvent.operation === 'DELETE') {
-      await deleteFromSupabase(changeEvent.documentData.id);
+  if (Number.isNaN(remoteTime)) return false;
+  if (Number.isNaN(localTime)) return true;
+
+  return remoteTime > localTime;
+}
+
+export async function setupSync(db: RxDatabase<DatabaseCollections>) {
+  if (setupPromise) return setupPromise;
+
+  setupPromise = (async () => {
+    for (const name of collectionNames) {
+      const collection = asSyncCollection(db[name]);
+      await pullFromSupabase(collection, name);
+      await cleanupInvalidUUIDs(collection);
+      await pushAllToSupabase(collection, name);
+
+      collection.$.subscribe(async (changeEvent: RxChangeEvent<SyncDocument>) => {
+        const docId = changeEvent.documentData?.id as string | undefined;
+        if (!docId) return;
+
+        const queue = getQueue(name);
+        if (queue.has(docId)) return;
+
+        queue.add(docId);
+        try {
+          if (changeEvent.operation === 'DELETE') {
+            await markDeletedInSupabase(docId, name);
+          } else {
+            await pushToSupabase(changeEvent.documentData, name);
+          }
+        } finally {
+          queue.delete(docId);
+        }
+      });
     }
-  });
 
-  // Poll Supabase every 5 seconds for changes
-  if (syncInterval) clearInterval(syncInterval);
-  syncInterval = setInterval(() => pullFromSupabase(collection), 5000);
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(() => pullAll(db), 5000);
 
-  // Listen for online/offline events
-  if (typeof window !== 'undefined') {
-    window.addEventListener('online', async () => {
-      console.log('Back online - syncing...');
-      await pushAllToSupabase(collection);
-      await pullFromSupabase(collection);
-    });
+    if (typeof window !== 'undefined' && !onlineListenerAttached) {
+      onlineListenerAttached = true;
+      window.addEventListener('online', async () => {
+        await pushAll(db);
+        await pullAll(db);
+      });
+    }
+  })();
+
+  return setupPromise;
+}
+
+async function pullAll(db: RxDatabase<DatabaseCollections>) {
+  for (const name of collectionNames) {
+    await pullFromSupabase(asSyncCollection(db[name]), name);
   }
 }
 
-// Clean up invalid UUIDs from local database
-async function cleanupInvalidUUIDs(collection: RxCollection<SyncTestDocument>) {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  
+async function pushAll(db: RxDatabase<DatabaseCollections>) {
+  for (const name of collectionNames) {
+    await pushAllToSupabase(asSyncCollection(db[name]), name);
+  }
+}
+
+function asSyncCollection(collection: AnyCollection) {
+  return collection as unknown as RxCollection<SyncDocument>;
+}
+
+async function cleanupInvalidUUIDs(collection: RxCollection<SyncDocument>) {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   const allDocs = await collection.find().exec();
-  let cleanedCount = 0;
-  
   for (const doc of allDocs) {
     const data = doc.toJSON();
     if (!uuidRegex.test(data.id)) {
-      console.log('🗑️ Removing invalid UUID:', data.id);
       await doc.remove();
-      cleanedCount++;
     }
-  }
-  
-  if (cleanedCount > 0) {
-    console.log(`✓ Cleaned up ${cleanedCount} invalid items`);
   }
 }
 
-// Push ALL local items that might not be in Supabase yet
-async function pushAllToSupabase(collection: RxCollection<SyncTestDocument>) {
-  if (isSyncing) {
-    console.log('Sync already in progress, skipping...');
-    return;
-  }
-
-  isSyncing = true;
-  
+async function pullFromSupabase(
+  collection: RxCollection<SyncDocument>,
+  name: CollectionName
+) {
   try {
-    const allDocs = await collection.find().exec();
-    
-    if (allDocs.length === 0) {
-      console.log('No items to sync');
-      isSyncing = false;
-      return;
-    }
-    
-    console.log(`Syncing ${allDocs.length} items to Supabase...`);
-    
-    for (const doc of allDocs) {
-      const docData = doc.toJSON();
-      syncQueue.add(docData.id);
-      await pushToSupabase(docData);
-      syncQueue.delete(docData.id);
-    }
-    
-    console.log(`✓ Synced ${allDocs.length} items successfully`);
-  } catch (error) {
-    console.error('Push all error:', error);
-  } finally {
-    isSyncing = false;
-  }
-}
-
-async function pullFromSupabase(collection: RxCollection<SyncTestDocument>) {
-  try {
-    const { data, error } = await supabase
-      .from('sync_test')
-      .select('*')
-      .eq('is_deleted', false);
+    const { table } = collectionConfig[name];
+    const { data, error } = await supabase.from(table).select('*');
 
     if (error) throw error;
 
     for (const item of data || []) {
-      const exists = await collection.findOne(item.id).exec();
-      
-      if (!exists) {
-        // Insert new
-        await collection.insert(item);
-      } else if (new Date(item.updated_at) > new Date(exists.updated_at)) {
-        // Update if remote is newer
-        await exists.patch(item);
+      const row = item as SyncDocument;
+      const docId = row.id;
+      const queue = getQueue(name);
+
+      queue.add(docId);
+      try {
+        const exists = await collection.findOne(docId).exec();
+        if (!exists) {
+          await collection.insert(row);
+        } else {
+          const localData = exists.toJSON();
+          if (isRemoteNewer(row.updated_at, localData.updated_at)) {
+            await exists.patch(row);
+          }
+        }
+      } finally {
+        queue.delete(docId);
       }
     }
   } catch (error) {
-    // Only log if it's not a network error
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
       console.error('Pull error:', error);
     }
   }
 }
 
-async function pushToSupabase(doc: SyncTestDocument) {
+async function pushAllToSupabase(
+  collection: RxCollection<SyncDocument>,
+  name: CollectionName
+) {
+  if (syncInProgress.has(name)) return;
+  syncInProgress.add(name);
+
   try {
-    const payload = {
-      id: doc.id,
-      content: doc.content,
-      updated_at: doc.updated_at,
-      is_deleted: doc.is_deleted,
-    };
+    const allDocs = await collection.find().exec();
+    if (allDocs.length === 0) return;
 
-    const { data, error } = await supabase
-      .from('sync_test')
-      .upsert(payload);
+    for (const doc of allDocs) {
+      const docData = doc.toJSON();
+      const queue = getQueue(name);
 
-    if (error) {
-      console.error('❌ Push FAILED:', {
-        itemId: doc.id,
-        itemContent: doc.content,
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorDetails: error.details,
-        errorHint: error.hint,
-      });
-      throw error;
+      queue.add(docData.id);
+      try {
+        await pushToSupabase(docData, name);
+      } finally {
+        queue.delete(docData.id);
+      }
     }
-    
-    console.log('✓ Pushed successfully:', doc.id);
   } catch (error) {
-    // Only log if it's not a network error
+    console.error('Push all error:', error);
+  } finally {
+    syncInProgress.delete(name);
+  }
+}
+
+async function pushToSupabase(
+  doc: Record<string, unknown>,
+  name: CollectionName
+) {
+  try {
+    const { table, fields } = collectionConfig[name];
+    const payload = buildPayload(doc, fields);
+
+    const { error } = await supabase.from(table).upsert(payload);
+    if (error) throw error;
+  } catch (error) {
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
       console.error('Push error:', error);
     }
   }
 }
 
-async function deleteFromSupabase(id: string) {
+async function markDeletedInSupabase(id: string, name: CollectionName) {
   try {
+    const { table } = collectionConfig[name];
+    const timestamp = new Date().toISOString();
+
     const { error } = await supabase
-      .from('sync_test')
-      .update({ is_deleted: true })
+      .from(table)
+      .update({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp })
       .eq('id', id);
 
     if (error) throw error;
   } catch (error) {
-    // Only log if it's not a network error
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
       console.error('Delete error:', error);
     }
