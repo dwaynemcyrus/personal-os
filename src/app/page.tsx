@@ -17,7 +17,7 @@ export default function Home() {
     const subscription = db.sync_test
       .find({
         selector: { is_deleted: false },
-        sort: [{ updated_at: 'desc' }],
+        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
         setItems(docs.map((doc) => doc.toJSON()));

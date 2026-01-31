@@ -109,6 +109,11 @@ let syncInterval: NodeJS.Timeout | null = null;
 const syncQueueByCollection = new Map<CollectionName, Set<string>>();
 const syncInProgress = new Set<CollectionName>();
 let onlineListenerAttached = false;
+const remoteUpdateByCollection = new Map<
+  CollectionName,
+  Map<string, { updatedAt: string; ts: number }>
+>();
+const REMOTE_SUPPRESSION_MS = 2000;
 
 function getQueue(name: CollectionName) {
   const existing = syncQueueByCollection.get(name);
@@ -116,6 +121,34 @@ function getQueue(name: CollectionName) {
   const created = new Set<string>();
   syncQueueByCollection.set(name, created);
   return created;
+}
+
+function getRemoteUpdateMap(name: CollectionName) {
+  const existing = remoteUpdateByCollection.get(name);
+  if (existing) return existing;
+  const created = new Map<string, { updatedAt: string; ts: number }>();
+  remoteUpdateByCollection.set(name, created);
+  return created;
+}
+
+function markRemoteUpdate(name: CollectionName, docId: string, updatedAt: string) {
+  const map = getRemoteUpdateMap(name);
+  map.set(docId, { updatedAt, ts: Date.now() });
+}
+
+function isRecentRemoteUpdate(
+  name: CollectionName,
+  docId: string,
+  updatedAt: string
+) {
+  const map = getRemoteUpdateMap(name);
+  const marker = map.get(docId);
+  if (!marker) return false;
+  if (Date.now() - marker.ts > REMOTE_SUPPRESSION_MS) {
+    map.delete(docId);
+    return false;
+  }
+  return marker.updatedAt === updatedAt;
 }
 
 function buildPayload<T extends Record<string, unknown>>(
@@ -139,6 +172,26 @@ function isRemoteNewer(remoteUpdatedAt: string, localUpdatedAt: string) {
   return remoteTime > localTime;
 }
 
+function normalizeValue(value: unknown) {
+  return value === undefined ? null : value;
+}
+
+function hasMeaningfulDiff(
+  remote: SyncDocument,
+  local: SyncDocument,
+  fields: readonly string[]
+) {
+  for (const field of fields) {
+    if (field === 'updated_at') continue;
+    const remoteValue = normalizeValue(remote[field]);
+    const localValue = normalizeValue(local[field]);
+    if (!Object.is(remoteValue, localValue)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function setupSync(db: RxDatabase<DatabaseCollections>) {
   if (setupPromise) return setupPromise;
 
@@ -152,6 +205,8 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
       collection.$.subscribe(async (changeEvent: RxChangeEvent<SyncDocument>) => {
         const docId = changeEvent.documentData?.id as string | undefined;
         if (!docId) return;
+        const updatedAt = changeEvent.documentData?.updated_at as string | undefined;
+        if (updatedAt && isRecentRemoteUpdate(name, docId, updatedAt)) return;
 
         const queue = getQueue(name);
         if (queue.has(docId)) return;
@@ -218,7 +273,7 @@ async function pullFromSupabase(
   name: CollectionName
 ) {
   try {
-    const { table } = collectionConfig[name];
+    const { table, fields } = collectionConfig[name];
     const { data, error } = await supabase.from(table).select('*');
 
     if (error) throw error;
@@ -232,10 +287,13 @@ async function pullFromSupabase(
       try {
         const exists = await collection.findOne(docId).exec();
         if (!exists) {
+          markRemoteUpdate(name, docId, row.updated_at);
           await collection.insert(row);
         } else {
           const localData = exists.toJSON();
           if (isRemoteNewer(row.updated_at, localData.updated_at)) {
+            if (!hasMeaningfulDiff(row, localData, fields)) continue;
+            markRemoteUpdate(name, docId, row.updated_at);
             await exists.patch(row);
           }
         }

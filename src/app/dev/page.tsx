@@ -77,27 +77,48 @@ export default function DevValidationPage() {
 
     const subscriptions = [
       db.sync_test
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) => setSyncTests(docs.map((doc) => doc.toJSON()))),
       db.projects
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) => setProjects(docs.map((doc) => doc.toJSON()))),
       db.tasks
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) => setTasks(docs.map((doc) => doc.toJSON()))),
       db.notes
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) => setNotes(docs.map((doc) => doc.toJSON()))),
       db.habits
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) => setHabits(docs.map((doc) => doc.toJSON()))),
       db.habit_completions
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) =>
           setHabitCompletions(docs.map((doc) => doc.toJSON()))
         ),
       db.time_entries
-        .find({ selector: { is_deleted: false }, sort: [{ updated_at: 'desc' }] })
+        .find({
+          selector: { is_deleted: false },
+          sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        })
         .$.subscribe((docs) => setTimeEntries(docs.map((doc) => doc.toJSON()))),
     ];
 
