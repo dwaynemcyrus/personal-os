@@ -77,13 +77,13 @@ Last updated: January 31, 2026
 **Goal:** App structure and navigation working
 
 ### Tasks
-- [ ] Create layout shell (TopBar, FAB, SlideMenu)
-- [ ] Implement menu button (top-left on home)
-- [ ] Implement back button (top-left on other pages)
-- [ ] Create slide-in menu (80% width, 3 sections)
-- [ ] Add FAB (bottom center)
-- [ ] Setup routes (/, /strategy, /knowledge, /execution)
-- [ ] Add safe area insets for iPhone
+- [x] Create layout shell (TopBar, FAB, SlideMenu)
+- [x] Implement menu button (top-left on home)
+- [x] Implement back button (top-left on other pages)
+- [x] Create slide-in menu (80% width, 3 sections)
+- [x] Add FAB (bottom center)
+- [x] Setup routes (/, /strategy, /knowledge, /execution)
+- [x] Add safe area insets for iPhone
 
 **Completion criteria:**
 - Can navigate between all root pages
