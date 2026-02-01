@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-02-01
+- Added Phase 3 navigation shell with TopBar, slide-in menu, FAB, and command-center stub
+- Added core routes for Strategy, Knowledge, and Execution with placeholder content
+- Added Radix Sheet wrapper + framer-motion gestures to support the new shell
+- Introduced design tokens and refreshed global styles for safe-area handling
+- Replaced home page sync test UI with a Today-focused stub (sync tests remain under /dev)
+
 ## 0.2.2 - 2026-02-01
 - Renamed soft-delete fields to `is_trashed` and `trashed_at` across RxDB schemas, sync, UI queries, and docs
 - Added RxDB migration strategies for existing local data
