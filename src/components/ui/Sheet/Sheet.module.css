@@ -1,0 +1,97 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: var(--z-menu);
+  animation: sheet-fade-in var(--transition-fast);
+}
+
+.content {
+  position: fixed;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.content--left {
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: min(80vw, 360px);
+  animation: sheet-slide-in-left var(--transition-normal);
+}
+
+.content--right {
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(80vw, 360px);
+  animation: sheet-slide-in-right var(--transition-normal);
+}
+
+.content--top {
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: min(80vh, 480px);
+  animation: sheet-slide-in-top var(--transition-normal);
+}
+
+.content--bottom {
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  height: min(80vh, 480px);
+  animation: sheet-slide-in-bottom var(--transition-normal);
+}
+
+@keyframes sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-slide-in-left {
+  from {
+    transform: translateX(-12px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-slide-in-right {
+  from {
+    transform: translateX(12px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-slide-in-top {
+  from {
+    transform: translateY(-12px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-slide-in-bottom {
+  from {
+    transform: translateY(12px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
