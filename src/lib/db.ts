@@ -20,6 +20,8 @@ const baseFields = {
   trashed_at: z.string().nullable(),
 };
 
+const timeEntryTypes = ['planned', 'log'] as const;
+
 export const syncTestSchema = z.object({
   ...baseFields,
   content: z.string(),
@@ -61,9 +63,19 @@ export const habitCompletionSchema = z.object({
 export const timeEntrySchema = z.object({
   ...baseFields,
   task_id: z.string().uuid().nullable(),
+  entry_type: z.enum(timeEntryTypes),
+  label: z.string().nullable(),
   started_at: z.string(),
   stopped_at: z.string().nullable(),
   duration_seconds: z.number().int().nonnegative().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.entry_type === 'log' && !value.label?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Log entries require a label.',
+      path: ['label'],
+    });
+  }
 });
 
 const baseProperties = {
@@ -157,12 +169,14 @@ const habitCompletionsRxSchema = {
 };
 
 const timeEntriesRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
     task_id: { type: ['string', 'null'], maxLength: 36 },
+    entry_type: { type: 'string', enum: timeEntryTypes },
+    label: { type: ['string', 'null'] },
     started_at: { type: 'string', format: 'date-time' },
     stopped_at: { type: ['string', 'null'], format: 'date-time' },
     duration_seconds: { type: ['number', 'null'] },
@@ -170,6 +184,8 @@ const timeEntriesRxSchema = {
   required: [
     ...baseRequired,
     'task_id',
+    'entry_type',
+    'label',
     'started_at',
     'stopped_at',
     'duration_seconds',
@@ -192,6 +208,16 @@ type LegacySoftDeleteFields = {
   trashed_at?: string | null;
 };
 
+type LegacyTimeEntryFields = {
+  entry_type?: unknown;
+  label?: unknown;
+};
+
+type TimeEntryType = (typeof timeEntryTypes)[number];
+
+const isTimeEntryType = (value: string): value is TimeEntryType =>
+  timeEntryTypes.includes(value as TimeEntryType);
+
 function migrateSoftDeleteFields<T extends Record<string, unknown>>(
   oldDoc: T & LegacySoftDeleteFields
 ) {
@@ -205,9 +231,33 @@ function migrateSoftDeleteFields<T extends Record<string, unknown>>(
   };
 }
 
+function migrateTimeEntryFields(
+  oldDoc: LegacySoftDeleteFields & LegacyTimeEntryFields & Record<string, unknown>
+) {
+  const migrated = migrateSoftDeleteFields(oldDoc);
+  const entryTypeRaw =
+    typeof oldDoc.entry_type === 'string' ? oldDoc.entry_type : 'planned';
+  const entry_type = isTimeEntryType(entryTypeRaw) ? entryTypeRaw : 'planned';
+  const label = typeof oldDoc.label === 'string' ? oldDoc.label : null;
+
+  return {
+    ...migrated,
+    entry_type,
+    label,
+  };
+}
+
 const softDeleteMigrationStrategies = {
   1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
     migrateSoftDeleteFields(oldDoc),
+};
+
+const timeEntriesMigrationStrategies = {
+  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
+    migrateSoftDeleteFields(oldDoc),
+  2: (oldDoc: LegacySoftDeleteFields &
+    LegacyTimeEntryFields &
+    Record<string, unknown>) => migrateTimeEntryFields(oldDoc),
 };
 
 const syncTestMigrationStrategies = {
@@ -280,7 +330,7 @@ export async function getDatabase() {
     },
     time_entries: {
       schema: timeEntriesRxSchema,
-      migrationStrategies: softDeleteMigrationStrategies,
+      migrationStrategies: timeEntriesMigrationStrategies,
     },
   });
 

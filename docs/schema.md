@@ -163,19 +163,24 @@ CREATE INDEX idx_habit_completions_is_trashed ON habit_completions(is_trashed);
 CREATE TABLE time_entries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+  entry_type TEXT NOT NULL DEFAULT 'planned' CHECK (entry_type IN ('planned', 'log')),
+  label TEXT,
   started_at TIMESTAMPTZ NOT NULL,
   stopped_at TIMESTAMPTZ,
   duration_seconds INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   is_trashed BOOLEAN DEFAULT FALSE,
-  trashed_at TIMESTAMPTZ DEFAULT NULL
+  trashed_at TIMESTAMPTZ DEFAULT NULL,
+  CONSTRAINT time_entries_log_label_check
+    CHECK (entry_type <> 'log' OR label IS NOT NULL)
 );
 ```
 
 **Indexes:**
 ```sql
 CREATE INDEX idx_time_entries_task_id ON time_entries(task_id);
+CREATE INDEX idx_time_entries_entry_type ON time_entries(entry_type);
 CREATE INDEX idx_time_entries_started_at ON time_entries(started_at DESC);
 CREATE INDEX idx_time_entries_is_trashed ON time_entries(is_trashed);
 ```
@@ -183,6 +188,8 @@ CREATE INDEX idx_time_entries_is_trashed ON time_entries(is_trashed);
 **Notes:**
 - `stopped_at` is NULL for active timers
 - `duration_seconds` calculated on stop
+- `entry_type` is `planned` for task-linked entries and `log` for unplanned activity
+- `label` is required for `log` entries
 
 ---
 
@@ -321,6 +328,14 @@ SELECT * FROM time_entries
 WHERE stopped_at IS NULL 
 AND is_trashed = FALSE 
 LIMIT 1;
+```
+
+### Find log entries
+```sql
+SELECT * FROM time_entries
+WHERE entry_type = 'log'
+AND is_trashed = FALSE
+ORDER BY started_at DESC;
 ```
 
 ### Find tasks for project

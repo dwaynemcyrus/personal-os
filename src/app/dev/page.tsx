@@ -447,6 +447,8 @@ export default function DevValidationPage() {
   };
 
   const [timeTaskId, setTimeTaskId] = useState('');
+  const [timeEntryType, setTimeEntryType] = useState<'planned' | 'log'>('planned');
+  const [timeLabel, setTimeLabel] = useState('');
   const [timeStartedAt, setTimeStartedAt] = useState(toInputDateTime(nowIso()));
   const [timeStoppedAt, setTimeStoppedAt] = useState('');
   const [timeDuration, setTimeDuration] = useState('');
@@ -458,6 +460,8 @@ export default function DevValidationPage() {
     if (!startedAt) return;
     const stoppedAt = fromInputDateTime(timeStoppedAt);
     const timestamp = nowIso();
+    const labelValue = timeEntryType === 'log' ? timeLabel.trim() : null;
+    if (timeEntryType === 'log' && !labelValue) return;
 
     let durationSeconds: number | null = null;
     if (timeDuration.trim()) {
@@ -473,6 +477,8 @@ export default function DevValidationPage() {
 
     const payload = {
       task_id: timeTaskId || null,
+      entry_type: timeEntryType,
+      label: labelValue,
       started_at: startedAt,
       stopped_at: stoppedAt,
       duration_seconds: durationSeconds,
@@ -495,6 +501,8 @@ export default function DevValidationPage() {
 
     triggerHaptic();
     setTimeTaskId('');
+    setTimeEntryType('planned');
+    setTimeLabel('');
     setTimeStartedAt(toInputDateTime(nowIso()));
     setTimeStoppedAt('');
     setTimeDuration('');
@@ -513,6 +521,8 @@ export default function DevValidationPage() {
   const startEditTimeEntry = (item: TimeEntryDocument) => {
     setTimeEditingId(item.id);
     setTimeTaskId(item.task_id ?? '');
+    setTimeEntryType(item.entry_type);
+    setTimeLabel(item.label ?? '');
     setTimeStartedAt(toInputDateTime(item.started_at));
     setTimeStoppedAt(toInputDateTime(item.stopped_at));
     setTimeDuration(item.duration_seconds?.toString() ?? '');
@@ -878,6 +888,23 @@ export default function DevValidationPage() {
               </option>
             ))}
           </select>
+          <select
+            className={styles.select}
+            value={timeEntryType}
+            onChange={(event) =>
+              setTimeEntryType(event.target.value as 'planned' | 'log')
+            }
+          >
+            <option value="planned">Planned</option>
+            <option value="log">Log</option>
+          </select>
+          <input
+            className={styles.input}
+            value={timeLabel}
+            onChange={(event) => setTimeLabel(event.target.value)}
+            placeholder="Log label"
+            disabled={timeEntryType !== 'log'}
+          />
           <input
             className={styles.input}
             type="datetime-local"
@@ -911,7 +938,7 @@ export default function DevValidationPage() {
             <li key={item.id} className={styles.listItem}>
               <div className={styles.itemRow}>
                 <div>
-                  <strong>{taskMap.get(item.task_id ?? '') || 'No task'}</strong>
+                  <strong>{taskMap.get(item.task_id ?? '') || item.label || 'No task'}</strong>
                   <div className={styles.itemMeta}>
                     Started {formatDate(item.started_at)} | Stopped {formatDate(item.stopped_at)}
                   </div>

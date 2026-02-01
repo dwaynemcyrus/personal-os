@@ -88,6 +88,8 @@ const collectionConfig = {
     fields: [
       'id',
       'task_id',
+      'entry_type',
+      'label',
       'started_at',
       'stopped_at',
       'duration_seconds',
