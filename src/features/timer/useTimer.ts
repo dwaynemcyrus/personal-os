@@ -57,7 +57,7 @@ const parsePausedFocus = (raw: string | null): PausedFocus | null => {
       durationSeconds: parsed.durationSeconds,
       stoppedAt: parsed.stoppedAt,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -87,10 +87,13 @@ const computeDurationSeconds = (startIso: string, endIso: string) => {
 export function useTimer() {
   const { db, isReady } = useDatabase();
   const [activeEntry, setActiveEntry] = useState<TimeEntryDocument | null>(null);
-  const [pausedFocus, setPausedFocus] = useState<PausedFocus | null>(null);
+  const [pausedFocus, setPausedFocus] = useState<PausedFocus | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return parsePausedFocus(window.localStorage.getItem(PAUSED_FOCUS_KEY));
+  });
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
-  const [tick, setTick] = useState(Date.now());
+  const [tick, setTick] = useState(0);
 
   const setPausedFocusState = useCallback((value: PausedFocus | null) => {
     setPausedFocus(value);
@@ -100,14 +103,6 @@ export function useTimer() {
       window.localStorage.setItem(PAUSED_FOCUS_KEY, JSON.stringify(value));
     } else {
       window.localStorage.removeItem(PAUSED_FOCUS_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const parsed = parsePausedFocus(window.localStorage.getItem(PAUSED_FOCUS_KEY));
-    if (parsed) {
-      setPausedFocus(parsed);
     }
   }, []);
 
@@ -176,27 +171,31 @@ export function useTimer() {
         if (entries.length > 1) {
           const [primary, ...rest] = entries;
           setActiveEntry(primary);
+          setTick(Date.now());
+          if (pausedFocus) {
+            setPausedFocusState(null);
+          }
           rest.forEach((entry) => {
             void stopEntry(entry);
           });
           return;
         }
-        setActiveEntry(entries[0] ?? null);
+        const nextEntry = entries[0] ?? null;
+        setActiveEntry(nextEntry);
+        if (nextEntry && pausedFocus) {
+          setTick(Date.now());
+          setPausedFocusState(null);
+        }
+        if (nextEntry && !pausedFocus) {
+          setTick(Date.now());
+        }
       });
 
     return () => subscription.unsubscribe();
-  }, [db, isReady, stopEntry]);
+  }, [db, isReady, pausedFocus, setPausedFocusState, stopEntry]);
 
   useEffect(() => {
     if (!activeEntry) return;
-    if (pausedFocus) {
-      setPausedFocusState(null);
-    }
-  }, [activeEntry, pausedFocus, setPausedFocusState]);
-
-  useEffect(() => {
-    if (!activeEntry) return;
-    setTick(Date.now());
     const interval = window.setInterval(() => {
       setTick(Date.now());
     }, 1000);
@@ -335,8 +334,8 @@ export function useTimer() {
 
     const config: StartConfig =
       pausedFocus.entryType === 'planned'
-        ? { entryType: 'planned', taskId: pausedFocus.taskId }
-        : { entryType: 'log', label: pausedFocus.label };
+        ? { entryType: 'planned', taskId: pausedFocus.taskId! }
+        : { entryType: 'log', label: pausedFocus.label! };
 
     await startEntry(config, { force: true });
   }, [pausedFocus, startEntry]);
