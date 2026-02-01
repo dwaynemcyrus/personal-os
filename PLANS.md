@@ -33,21 +33,21 @@ Last updated: January 31, 2026
 **Goal:** All data models syncing correctly
 
 ### Day 1: Data Model + Docs
-- [x] Update `docs/schema.md` conventions to use `is_deleted` (canonical) + `deleted_at`
-- [x] Add `deleted_at TIMESTAMPTZ DEFAULT NULL` to **all** tables (including `habit_completions` and `sync_test`); set only on delete
+- [x] Update `docs/schema.md` conventions to use `is_trashed` (canonical) + `trashed_at`
+- [x] Add `trashed_at TIMESTAMPTZ DEFAULT NULL` to **all** tables (including `habit_completions` and `sync_test`); set only on delete
 - [x] Create/verify Supabase tables for: projects, tasks, notes, habits, habit_completions, time_entries
-- [x] Add indexes for `is_deleted` + `deleted_at` where appropriate
-- [x] Decide/confirm `deleted_at` default behavior (see risks)
+- [x] Add indexes for `is_trashed` + `trashed_at` where appropriate
+- [x] Decide/confirm `trashed_at` default behavior (see risks)
 
 ### Day 2: RxDB Collections + Migrations
-- [x] Define RxDB schemas for all collections (with `is_deleted` + `deleted_at`)
+- [x] Define RxDB schemas for all collections (with `is_trashed` + `trashed_at`)
 - [x] Add collection registration in `src/lib/db.ts`
 - [x] Add migration strategy for any schema version bumps (greenfield, but keep structure)
 - [x] Add shared TypeScript types per collection
 
 ### Day 3: Sync Expansion
 - [x] Generalize sync logic to handle multiple collections (avoid duplicate polling/subscriptions)
-- [x] Ensure soft deletes sync across devices (`is_deleted` + `deleted_at`)
+- [x] Ensure soft deletes sync across devices (`is_trashed` + `trashed_at`)
 - [x] Add per-collection pull/push with conflict resolution (LWW on `updated_at`)
 - [x] Add offline→online recovery hooks
 

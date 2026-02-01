@@ -78,37 +78,37 @@ export default function DevValidationPage() {
     const subscriptions = [
       db.sync_test
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) => setSyncTests(docs.map((doc) => doc.toJSON()))),
       db.projects
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) => setProjects(docs.map((doc) => doc.toJSON()))),
       db.tasks
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) => setTasks(docs.map((doc) => doc.toJSON()))),
       db.notes
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) => setNotes(docs.map((doc) => doc.toJSON()))),
       db.habits
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) => setHabits(docs.map((doc) => doc.toJSON()))),
       db.habit_completions
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) =>
@@ -116,7 +116,7 @@ export default function DevValidationPage() {
         ),
       db.time_entries
         .find({
-          selector: { is_deleted: false },
+          selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
         .$.subscribe((docs) => setTimeEntries(docs.map((doc) => doc.toJSON()))),
@@ -146,8 +146,8 @@ export default function DevValidationPage() {
         content: trimmed,
         created_at: timestamp,
         updated_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -161,7 +161,7 @@ export default function DevValidationPage() {
     const doc = await db.sync_test.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 
@@ -196,8 +196,8 @@ export default function DevValidationPage() {
         description,
         created_at: timestamp,
         updated_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -212,7 +212,7 @@ export default function DevValidationPage() {
     const doc = await db.projects.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 
@@ -259,8 +259,8 @@ export default function DevValidationPage() {
         due_date: dueDate,
         created_at: timestamp,
         updated_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -278,7 +278,7 @@ export default function DevValidationPage() {
     const doc = await db.tasks.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 
@@ -317,8 +317,8 @@ export default function DevValidationPage() {
         content,
         created_at: timestamp,
         updated_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -333,7 +333,7 @@ export default function DevValidationPage() {
     const doc = await db.notes.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 
@@ -369,8 +369,8 @@ export default function DevValidationPage() {
         description,
         created_at: timestamp,
         updated_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -385,7 +385,7 @@ export default function DevValidationPage() {
     const doc = await db.habits.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 
@@ -420,8 +420,8 @@ export default function DevValidationPage() {
         completed_date: date,
         created_at: timestamp,
         updated_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -436,7 +436,7 @@ export default function DevValidationPage() {
     const doc = await db.habit_completions.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 
@@ -488,8 +488,8 @@ export default function DevValidationPage() {
         id: uuidv4(),
         ...payload,
         created_at: timestamp,
-        is_deleted: false,
-        deleted_at: null,
+        is_trashed: false,
+        trashed_at: null,
       });
     }
 
@@ -506,7 +506,7 @@ export default function DevValidationPage() {
     const doc = await db.time_entries.findOne(id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     triggerHaptic();
   };
 

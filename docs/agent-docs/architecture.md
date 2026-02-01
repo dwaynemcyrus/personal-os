@@ -30,7 +30,7 @@ src/
 - `id UUID PRIMARY KEY DEFAULT uuid_generate_v4()`
 - `created_at TIMESTAMPTZ DEFAULT NOW()`
 - `updated_at TIMESTAMPTZ DEFAULT NOW()` (with trigger)
-- `is_deleted BOOLEAN DEFAULT FALSE` + `deleted_at TIMESTAMPTZ DEFAULT NULL` (soft delete for sync)
+- `is_trashed BOOLEAN DEFAULT FALSE` + `trashed_at TIMESTAMPTZ DEFAULT NULL` (soft delete for sync)
 
 **RxDB collections must match** Supabase 1:1 for sync
 
@@ -44,8 +44,8 @@ CREATE TABLE tasks (
   completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 // RxDB schema
@@ -60,10 +60,10 @@ const taskSchema = {
     completed: { type: 'boolean' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
-    is_deleted: { type: 'boolean' },
-    deleted_at: { type: ['string', 'null'], format: 'date-time' }
+    is_trashed: { type: 'boolean' },
+    trashed_at: { type: ['string', 'null'], format: 'date-time' }
   },
-  required: ['id', 'title', 'created_at', 'updated_at', 'is_deleted', 'deleted_at']
+  required: ['id', 'title', 'created_at', 'updated_at', 'is_trashed', 'trashed_at']
 };
 ```
 

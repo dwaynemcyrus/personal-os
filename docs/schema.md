@@ -2,7 +2,7 @@
 
 Single source of truth for all tables and collections.
 
-**Last updated:** January 31, 2026
+**Last updated:** February 1, 2026
 
 ---
 
@@ -11,7 +11,7 @@ Single source of truth for all tables and collections.
 All tables follow these conventions:
 - Primary key: `id UUID PRIMARY KEY DEFAULT uuid_generate_v4()`
 - Timestamps: `created_at` and `updated_at` (auto-updated via trigger)
-- Soft delete: `is_deleted BOOLEAN DEFAULT FALSE` + `deleted_at TIMESTAMPTZ DEFAULT NULL`
+- Soft delete: `is_trashed BOOLEAN DEFAULT FALSE` + `trashed_at TIMESTAMPTZ DEFAULT NULL`
 
 ---
 
@@ -24,8 +24,8 @@ CREATE TABLE sync_test (
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
@@ -41,14 +41,14 @@ CREATE TABLE projects (
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
 **Indexes:**
 ```sql
-CREATE INDEX idx_projects_is_deleted ON projects(is_deleted);
+CREATE INDEX idx_projects_is_trashed ON projects(is_trashed);
 CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
 ```
 
@@ -67,8 +67,8 @@ CREATE TABLE tasks (
   due_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
@@ -76,7 +76,7 @@ CREATE TABLE tasks (
 ```sql
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX idx_tasks_completed ON tasks(completed);
-CREATE INDEX idx_tasks_is_deleted ON tasks(is_deleted);
+CREATE INDEX idx_tasks_is_trashed ON tasks(is_trashed);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);
 ```
 
@@ -92,14 +92,14 @@ CREATE TABLE notes (
   content TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
 **Indexes:**
 ```sql
-CREATE INDEX idx_notes_is_deleted ON notes(is_deleted);
+CREATE INDEX idx_notes_is_trashed ON notes(is_trashed);
 CREATE INDEX idx_notes_updated_at ON notes(updated_at DESC);
 ```
 
@@ -115,14 +115,14 @@ CREATE TABLE habits (
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
 **Indexes:**
 ```sql
-CREATE INDEX idx_habits_is_deleted ON habits(is_deleted);
+CREATE INDEX idx_habits_is_trashed ON habits(is_trashed);
 ```
 
 ---
@@ -137,8 +137,8 @@ CREATE TABLE habit_completions (
   completed_date DATE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL,
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL,
   UNIQUE(habit_id, completed_date)
 );
 ```
@@ -147,7 +147,7 @@ CREATE TABLE habit_completions (
 ```sql
 CREATE INDEX idx_habit_completions_habit_id ON habit_completions(habit_id);
 CREATE INDEX idx_habit_completions_date ON habit_completions(completed_date DESC);
-CREATE INDEX idx_habit_completions_is_deleted ON habit_completions(is_deleted);
+CREATE INDEX idx_habit_completions_is_trashed ON habit_completions(is_trashed);
 ```
 
 **Notes:**
@@ -168,8 +168,8 @@ CREATE TABLE time_entries (
   duration_seconds INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 ```
 
@@ -177,7 +177,7 @@ CREATE TABLE time_entries (
 ```sql
 CREATE INDEX idx_time_entries_task_id ON time_entries(task_id);
 CREATE INDEX idx_time_entries_started_at ON time_entries(started_at DESC);
-CREATE INDEX idx_time_entries_is_deleted ON time_entries(is_deleted);
+CREATE INDEX idx_time_entries_is_trashed ON time_entries(is_trashed);
 ```
 
 **Notes:**
@@ -279,8 +279,8 @@ const projectSchema = z.object({
   description: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
-  is_deleted: z.boolean(),
-  deleted_at: z.string().nullable(),
+  is_trashed: z.boolean(),
+  trashed_at: z.string().nullable(),
 });
 ```
 
@@ -319,7 +319,7 @@ When adding new columns:
 ```sql
 SELECT * FROM time_entries 
 WHERE stopped_at IS NULL 
-AND is_deleted = FALSE 
+AND is_trashed = FALSE 
 LIMIT 1;
 ```
 
@@ -327,7 +327,7 @@ LIMIT 1;
 ```sql
 SELECT * FROM tasks 
 WHERE project_id = $1 
-AND is_deleted = FALSE 
+AND is_trashed = FALSE 
 ORDER BY created_at DESC;
 ```
 
@@ -335,7 +335,7 @@ ORDER BY created_at DESC;
 ```sql
 SELECT COUNT(*) FROM habit_completions 
 WHERE habit_id = $1 
-AND is_deleted = FALSE 
+AND is_trashed = FALSE 
 AND completed_date >= CURRENT_DATE - INTERVAL '7 days';
 ```
 
@@ -343,5 +343,5 @@ AND completed_date >= CURRENT_DATE - INTERVAL '7 days';
 ```sql
 SELECT SUM(duration_seconds) FROM time_entries 
 WHERE task_id = $1 
-AND is_deleted = FALSE;
+AND is_trashed = FALSE;
 ```

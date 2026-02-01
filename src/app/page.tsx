@@ -16,7 +16,7 @@ export default function Home() {
 
     const subscription = db.sync_test
       .find({
-        selector: { is_deleted: false },
+        selector: { is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
@@ -35,8 +35,8 @@ export default function Home() {
       content: newContent,
       created_at: now,
       updated_at: now,
-      is_deleted: false,
-      deleted_at: null,
+      is_trashed: false,
+      trashed_at: null,
     });
 
     setNewContent('');
@@ -48,7 +48,7 @@ export default function Home() {
     const doc = await db.sync_test.findOne(id).exec();
     if (doc) {
       const now = new Date().toISOString();
-      await doc.patch({ is_deleted: true, deleted_at: now, updated_at: now });
+      await doc.patch({ is_trashed: true, trashed_at: now, updated_at: now });
     }
   };
 

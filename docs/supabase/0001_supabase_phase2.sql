@@ -1,5 +1,5 @@
 -- Phase 2 schema migration (Jan 31, 2026)
--- Canonical soft delete: is_deleted BOOLEAN DEFAULT FALSE, deleted_at TIMESTAMPTZ DEFAULT NULL
+-- Canonical soft delete: is_trashed BOOLEAN DEFAULT FALSE, trashed_at TIMESTAMPTZ DEFAULT NULL
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS sync_test (
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS projects (
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS notes (
@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS notes (
   content TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS habits (
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS habits (
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS habit_completions (
@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS habit_completions (
   completed_date DATE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL,
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL,
   UNIQUE(habit_id, completed_date)
 );
 
@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS time_entries (
   duration_seconds INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ DEFAULT NULL
+  is_trashed BOOLEAN DEFAULT FALSE,
+  trashed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 -- Migrations for legacy "deleted" column (if present)
@@ -87,9 +87,9 @@ BEGIN
     WHERE table_name = 'sync_test' AND column_name = 'deleted'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sync_test' AND column_name = 'is_deleted'
+    WHERE table_name = 'sync_test' AND column_name = 'is_trashed'
   ) THEN
-    ALTER TABLE sync_test RENAME COLUMN deleted TO is_deleted;
+    ALTER TABLE sync_test RENAME COLUMN deleted TO is_trashed;
   END IF;
 END $$;
 
@@ -100,7 +100,7 @@ BEGIN
     WHERE table_name = 'sync_test' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sync_test' AND column_name = 'is_deleted'
+    WHERE table_name = 'sync_test' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE sync_test DROP COLUMN deleted;
   END IF;
@@ -113,9 +113,9 @@ BEGIN
     WHERE table_name = 'projects' AND column_name = 'deleted'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'projects' AND column_name = 'is_deleted'
+    WHERE table_name = 'projects' AND column_name = 'is_trashed'
   ) THEN
-    ALTER TABLE projects RENAME COLUMN deleted TO is_deleted;
+    ALTER TABLE projects RENAME COLUMN deleted TO is_trashed;
   END IF;
 END $$;
 
@@ -126,7 +126,7 @@ BEGIN
     WHERE table_name = 'projects' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'projects' AND column_name = 'is_deleted'
+    WHERE table_name = 'projects' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE projects DROP COLUMN deleted;
   END IF;
@@ -139,9 +139,9 @@ BEGIN
     WHERE table_name = 'tasks' AND column_name = 'deleted'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tasks' AND column_name = 'is_deleted'
+    WHERE table_name = 'tasks' AND column_name = 'is_trashed'
   ) THEN
-    ALTER TABLE tasks RENAME COLUMN deleted TO is_deleted;
+    ALTER TABLE tasks RENAME COLUMN deleted TO is_trashed;
   END IF;
 END $$;
 
@@ -152,7 +152,7 @@ BEGIN
     WHERE table_name = 'tasks' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tasks' AND column_name = 'is_deleted'
+    WHERE table_name = 'tasks' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE tasks DROP COLUMN deleted;
   END IF;
@@ -165,9 +165,9 @@ BEGIN
     WHERE table_name = 'notes' AND column_name = 'deleted'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notes' AND column_name = 'is_deleted'
+    WHERE table_name = 'notes' AND column_name = 'is_trashed'
   ) THEN
-    ALTER TABLE notes RENAME COLUMN deleted TO is_deleted;
+    ALTER TABLE notes RENAME COLUMN deleted TO is_trashed;
   END IF;
 END $$;
 
@@ -178,7 +178,7 @@ BEGIN
     WHERE table_name = 'notes' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notes' AND column_name = 'is_deleted'
+    WHERE table_name = 'notes' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE notes DROP COLUMN deleted;
   END IF;
@@ -191,9 +191,9 @@ BEGIN
     WHERE table_name = 'habits' AND column_name = 'deleted'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'habits' AND column_name = 'is_deleted'
+    WHERE table_name = 'habits' AND column_name = 'is_trashed'
   ) THEN
-    ALTER TABLE habits RENAME COLUMN deleted TO is_deleted;
+    ALTER TABLE habits RENAME COLUMN deleted TO is_trashed;
   END IF;
 END $$;
 
@@ -204,7 +204,7 @@ BEGIN
     WHERE table_name = 'habit_completions' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'habit_completions' AND column_name = 'is_deleted'
+    WHERE table_name = 'habit_completions' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE habit_completions DROP COLUMN deleted;
   END IF;
@@ -217,7 +217,7 @@ BEGIN
     WHERE table_name = 'habits' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'habits' AND column_name = 'is_deleted'
+    WHERE table_name = 'habits' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE habits DROP COLUMN deleted;
   END IF;
@@ -230,9 +230,9 @@ BEGIN
     WHERE table_name = 'time_entries' AND column_name = 'deleted'
   ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'time_entries' AND column_name = 'is_deleted'
+    WHERE table_name = 'time_entries' AND column_name = 'is_trashed'
   ) THEN
-    ALTER TABLE time_entries RENAME COLUMN deleted TO is_deleted;
+    ALTER TABLE time_entries RENAME COLUMN deleted TO is_trashed;
   END IF;
 END $$;
 
@@ -243,7 +243,7 @@ BEGIN
     WHERE table_name = 'time_entries' AND column_name = 'deleted'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'time_entries' AND column_name = 'is_deleted'
+    WHERE table_name = 'time_entries' AND column_name = 'is_trashed'
   ) THEN
     ALTER TABLE time_entries DROP COLUMN deleted;
   END IF;
@@ -252,33 +252,33 @@ END $$;
 -- Ensure new columns exist
 ALTER TABLE sync_test
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(),
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 ALTER TABLE projects
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 ALTER TABLE tasks
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 ALTER TABLE notes
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 ALTER TABLE habits
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 ALTER TABLE habit_completions
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 ALTER TABLE time_entries
-  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS is_trashed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ DEFAULT NULL;
 
 -- Backfill timestamps
 UPDATE sync_test
@@ -290,28 +290,28 @@ UPDATE habit_completions
   WHERE updated_at IS NULL;
 
 UPDATE projects
-  SET deleted_at = updated_at
-  WHERE is_deleted = TRUE AND deleted_at IS NULL;
+  SET trashed_at = updated_at
+  WHERE is_trashed = TRUE AND trashed_at IS NULL;
 
 UPDATE tasks
-  SET deleted_at = updated_at
-  WHERE is_deleted = TRUE AND deleted_at IS NULL;
+  SET trashed_at = updated_at
+  WHERE is_trashed = TRUE AND trashed_at IS NULL;
 
 UPDATE notes
-  SET deleted_at = updated_at
-  WHERE is_deleted = TRUE AND deleted_at IS NULL;
+  SET trashed_at = updated_at
+  WHERE is_trashed = TRUE AND trashed_at IS NULL;
 
 UPDATE habits
-  SET deleted_at = updated_at
-  WHERE is_deleted = TRUE AND deleted_at IS NULL;
+  SET trashed_at = updated_at
+  WHERE is_trashed = TRUE AND trashed_at IS NULL;
 
 UPDATE habit_completions
-  SET deleted_at = updated_at
-  WHERE is_deleted = TRUE AND deleted_at IS NULL;
+  SET trashed_at = updated_at
+  WHERE is_trashed = TRUE AND trashed_at IS NULL;
 
 UPDATE time_entries
-  SET deleted_at = updated_at
-  WHERE is_deleted = TRUE AND deleted_at IS NULL;
+  SET trashed_at = updated_at
+  WHERE is_trashed = TRUE AND trashed_at IS NULL;
 
 -- Indexes
 DROP INDEX IF EXISTS idx_projects_deleted;
@@ -320,26 +320,26 @@ DROP INDEX IF EXISTS idx_notes_deleted;
 DROP INDEX IF EXISTS idx_habits_deleted;
 DROP INDEX IF EXISTS idx_time_entries_deleted;
 
-CREATE INDEX IF NOT EXISTS idx_projects_is_deleted ON projects(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_projects_is_trashed ON projects(is_trashed);
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
-CREATE INDEX IF NOT EXISTS idx_tasks_is_deleted ON tasks(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_tasks_is_trashed ON tasks(is_trashed);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 
-CREATE INDEX IF NOT EXISTS idx_notes_is_deleted ON notes(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_notes_is_trashed ON notes(is_trashed);
 CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_habits_is_deleted ON habits(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_habits_is_trashed ON habits(is_trashed);
 
 CREATE INDEX IF NOT EXISTS idx_habit_completions_habit_id ON habit_completions(habit_id);
 CREATE INDEX IF NOT EXISTS idx_habit_completions_date ON habit_completions(completed_date DESC);
-CREATE INDEX IF NOT EXISTS idx_habit_completions_is_deleted ON habit_completions(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_habit_completions_is_trashed ON habit_completions(is_trashed);
 
 CREATE INDEX IF NOT EXISTS idx_time_entries_task_id ON time_entries(task_id);
 CREATE INDEX IF NOT EXISTS idx_time_entries_started_at ON time_entries(started_at DESC);
-CREATE INDEX IF NOT EXISTS idx_time_entries_is_deleted ON time_entries(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_time_entries_is_trashed ON time_entries(is_trashed);
 
 -- Triggers
 CREATE OR REPLACE FUNCTION update_updated_at()

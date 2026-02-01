@@ -6,8 +6,8 @@ type BaseSyncDocument = {
   id: string;
   created_at: string;
   updated_at: string;
-  is_deleted: boolean;
-  deleted_at: string | null;
+  is_trashed: boolean;
+  trashed_at: string | null;
 };
 
 type SyncDocument = BaseSyncDocument & Record<string, unknown>;
@@ -18,7 +18,7 @@ type AnyCollection = DatabaseCollections[CollectionName];
 const collectionConfig = {
   sync_test: {
     table: 'sync_test',
-    fields: ['id', 'content', 'created_at', 'updated_at', 'is_deleted', 'deleted_at'],
+    fields: ['id', 'content', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
   },
   projects: {
     table: 'projects',
@@ -28,8 +28,8 @@ const collectionConfig = {
       'description',
       'created_at',
       'updated_at',
-      'is_deleted',
-      'deleted_at',
+      'is_trashed',
+      'trashed_at',
     ],
   },
   tasks: {
@@ -43,8 +43,8 @@ const collectionConfig = {
       'due_date',
       'created_at',
       'updated_at',
-      'is_deleted',
-      'deleted_at',
+      'is_trashed',
+      'trashed_at',
     ],
   },
   notes: {
@@ -55,8 +55,8 @@ const collectionConfig = {
       'content',
       'created_at',
       'updated_at',
-      'is_deleted',
-      'deleted_at',
+      'is_trashed',
+      'trashed_at',
     ],
   },
   habits: {
@@ -67,8 +67,8 @@ const collectionConfig = {
       'description',
       'created_at',
       'updated_at',
-      'is_deleted',
-      'deleted_at',
+      'is_trashed',
+      'trashed_at',
     ],
   },
   habit_completions: {
@@ -79,8 +79,8 @@ const collectionConfig = {
       'completed_date',
       'created_at',
       'updated_at',
-      'is_deleted',
-      'deleted_at',
+      'is_trashed',
+      'trashed_at',
     ],
   },
   time_entries: {
@@ -93,8 +93,8 @@ const collectionConfig = {
       'duration_seconds',
       'created_at',
       'updated_at',
-      'is_deleted',
-      'deleted_at',
+      'is_trashed',
+      'trashed_at',
     ],
   },
 } as const satisfies Record<
@@ -227,7 +227,7 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
         queue.add(docId);
         try {
           if (changeEvent.operation === 'DELETE') {
-            await markDeletedInSupabase(docId, name);
+            await markTrashedInSupabase(docId, name);
           } else {
             await pushToSupabase(changeEvent.documentData, name);
           }
@@ -386,14 +386,14 @@ async function pushToSupabase(
   }
 }
 
-async function markDeletedInSupabase(id: string, name: CollectionName) {
+async function markTrashedInSupabase(id: string, name: CollectionName) {
   try {
     const { table } = collectionConfig[name];
     const timestamp = new Date().toISOString();
 
     const { error } = await supabase
       .from(table)
-      .update({ is_deleted: true, deleted_at: timestamp, updated_at: timestamp })
+      .update({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp })
       .eq('id', id);
 
     if (error) throw error;

@@ -16,8 +16,8 @@ const baseFields = {
   id: z.string().uuid(),
   created_at: z.string(),
   updated_at: z.string(),
-  is_deleted: z.boolean(),
-  deleted_at: z.string().nullable(),
+  is_trashed: z.boolean(),
+  trashed_at: z.string().nullable(),
 };
 
 export const syncTestSchema = z.object({
@@ -70,20 +70,20 @@ const baseProperties = {
   id: { type: 'string', maxLength: 36 },
   created_at: { type: 'string', format: 'date-time' },
   updated_at: { type: 'string', format: 'date-time' },
-  is_deleted: { type: 'boolean' },
-  deleted_at: { type: ['string', 'null'], format: 'date-time' },
+  is_trashed: { type: 'boolean' },
+  trashed_at: { type: ['string', 'null'], format: 'date-time' },
 } as const;
 
 const baseRequired = [
   'id',
   'created_at',
   'updated_at',
-  'is_deleted',
-  'deleted_at',
+  'is_trashed',
+  'trashed_at',
 ] as const;
 
 const syncTestRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -94,7 +94,7 @@ const syncTestRxSchema = {
 };
 
 const projectsRxSchema = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -106,7 +106,7 @@ const projectsRxSchema = {
 };
 
 const tasksRxSchema = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -121,7 +121,7 @@ const tasksRxSchema = {
 };
 
 const notesRxSchema = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -133,7 +133,7 @@ const notesRxSchema = {
 };
 
 const habitsRxSchema = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -145,7 +145,7 @@ const habitsRxSchema = {
 };
 
 const habitCompletionsRxSchema = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -157,7 +157,7 @@ const habitCompletionsRxSchema = {
 };
 
 const timeEntriesRxSchema = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -185,6 +185,31 @@ type LegacySyncTestDocument = {
   deleted_at?: string | null;
 };
 
+type LegacySoftDeleteFields = {
+  is_deleted?: boolean;
+  deleted_at?: string | null;
+  is_trashed?: boolean;
+  trashed_at?: string | null;
+};
+
+function migrateSoftDeleteFields<T extends Record<string, unknown>>(
+  oldDoc: T & LegacySoftDeleteFields
+) {
+  const { is_deleted, deleted_at, is_trashed, trashed_at, ...rest } =
+    oldDoc as Record<string, unknown> & LegacySoftDeleteFields;
+
+  return {
+    ...rest,
+    is_trashed: is_trashed ?? is_deleted ?? false,
+    trashed_at: trashed_at ?? deleted_at ?? null,
+  };
+}
+
+const softDeleteMigrationStrategies = {
+  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
+    migrateSoftDeleteFields(oldDoc),
+};
+
 const syncTestMigrationStrategies = {
   1: (oldDoc: LegacySyncTestDocument) => ({
     ...oldDoc,
@@ -192,6 +217,8 @@ const syncTestMigrationStrategies = {
     created_at: oldDoc.created_at ?? oldDoc.updated_at,
     deleted_at: oldDoc.deleted_at ?? null,
   }),
+  2: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
+    migrateSoftDeleteFields(oldDoc),
 };
 
 export type SyncTestDocument = z.infer<typeof syncTestSchema>;
@@ -233,21 +260,27 @@ export async function getDatabase() {
     },
     projects: {
       schema: projectsRxSchema,
+      migrationStrategies: softDeleteMigrationStrategies,
     },
     tasks: {
       schema: tasksRxSchema,
+      migrationStrategies: softDeleteMigrationStrategies,
     },
     notes: {
       schema: notesRxSchema,
+      migrationStrategies: softDeleteMigrationStrategies,
     },
     habits: {
       schema: habitsRxSchema,
+      migrationStrategies: softDeleteMigrationStrategies,
     },
     habit_completions: {
       schema: habitCompletionsRxSchema,
+      migrationStrategies: softDeleteMigrationStrategies,
     },
     time_entries: {
       schema: timeEntriesRxSchema,
+      migrationStrategies: softDeleteMigrationStrategies,
     },
   });
 
