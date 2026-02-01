@@ -98,12 +98,12 @@ Last updated: January 31, 2026
 **Goal:** Start/stop timer, track time entries
 
 ### Tasks
-- [ ] Create Timer component
-- [ ] Start timer (insert time_entry with started_at)
-- [ ] Stop timer (update stopped_at, calculate duration)
-- [ ] Display elapsed time (update every second)
-- [ ] Persist active timer across refresh
-- [ ] Restore timer on app load
+- [x] Create Timer component
+- [x] Start timer (insert time_entry with started_at)
+- [x] Stop timer (update stopped_at, calculate duration)
+- [x] Display elapsed time (update every second)
+- [x] Persist active timer across refresh
+- [x] Restore timer on app load
 - [ ] Add haptic feedback on start/stop
 - [ ] Test sync (start on phone, see on desktop)
 

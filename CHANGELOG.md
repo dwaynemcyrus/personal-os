@@ -1,8 +1,11 @@
 # Changelog
 
-## 0.3.1 - 2026-02-01
-- Switched to a single internal scroll container with a fixed TopBar (native app-style shell)
-- Locked document scrolling to prevent full-page browser scroll
+## 0.4.0 - 2026-02-01
+- Added focus timer with start/pause/resume/stop logic and single-active-timer enforcement
+- Added fullscreen Focus Sheet with planned/log entry creation and stop-start confirmation
+- Added `entry_type` + `label` to time entries for unplanned log tracking
+- Added global focus status chip and Today focus summary card
+- Added execution log list for unplanned activity entries
 
 ## 0.3.0 - 2026-02-01
 - Added Phase 3 navigation shell with TopBar, slide-in menu, FAB, and command-center stub
