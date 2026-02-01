@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-02-01
+- Switched to a single internal scroll container with a fixed TopBar (native app-style shell)
+- Locked document scrolling to prevent full-page browser scroll
+
 ## 0.3.0 - 2026-02-01
 - Added Phase 3 navigation shell with TopBar, slide-in menu, FAB, and command-center stub
 - Added core routes for Strategy, Knowledge, and Execution with placeholder content
