@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 - 2026-02-01
+- Renamed soft-delete fields to `is_trashed` and `trashed_at` across RxDB schemas, sync, UI queries, and docs
+- Added RxDB migration strategies for existing local data
+- Added SQL migration to rename Supabase columns and indexes for trashed fields
+
 ## 0.2.1 - 2026-02-01
 - Suppressed sync echo updates and skipped updated_at-only patches to stop list cycling across devices
 - Added stable secondary sorting by id on list views to prevent visual jitter
