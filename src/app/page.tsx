@@ -1,97 +1,28 @@
-'use client';
+import styles from './page.module.css';
 
-import { useDatabase } from '@/hooks/useDatabase';
-import { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { SyncTestDocument } from '@/lib/db';
-
-export default function Home() {
-  const { db, isReady } = useDatabase();
-  const [items, setItems] = useState<SyncTestDocument[]>([]);
-  const [newContent, setNewContent] = useState('');
-
-  // Subscribe to items
-  useEffect(() => {
-    if (!isReady || !db) return;
-
-    const subscription = db.sync_test
-      .find({
-        selector: { is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setItems(docs.map((doc) => doc.toJSON()));
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
-
-  const addItem = async () => {
-    if (!db || !newContent.trim()) return;
-
-    const now = new Date().toISOString();
-    await db.sync_test.insert({
-      id: uuidv4(),
-      content: newContent,
-      created_at: now,
-      updated_at: now,
-      is_trashed: false,
-      trashed_at: null,
-    });
-
-    setNewContent('');
-  };
-
-  const deleteItem = async (id: string) => {
-    if (!db) return;
-
-    const doc = await db.sync_test.findOne(id).exec();
-    if (doc) {
-      const now = new Date().toISOString();
-      await doc.patch({ is_trashed: true, trashed_at: now, updated_at: now });
-    }
-  };
-
-  if (!isReady) {
-    return <div style={{ padding: 20 }}>Loading database...</div>;
-  }
-
+export default function HomePage() {
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Sync Test</h1>
-
-      <div style={{ marginBottom: 20 }}>
-        <input
-          type="text"
-          value={newContent}
-          onChange={(e) => setNewContent(e.target.value)}
-          placeholder="Enter something..."
-          style={{ padding: 8, marginRight: 8, width: 300 }}
-        />
-        <button onClick={addItem} style={{ padding: 8 }}>
-          Add Item
-        </button>
+    <section className={styles.home}>
+      <div className={styles['home__header']}>
+        <p className={styles['home__eyebrow']}>Sunday, February 1</p>
+        <h1 className={styles['home__title']}>Start with one clear win.</h1>
+        <p className={styles['home__subtitle']}>
+          Your focus list and timer will live here once Phase 4 lands.
+        </p>
       </div>
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {items.map((item) => (
-          <li
-            key={item.id}
-            style={{
-              padding: 10,
-              marginBottom: 8,
-              border: '1px solid #ccc',
-              display: 'flex',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>{item.content}</span>
-            <button onClick={() => deleteItem(item.id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
+      <div className={styles['home__card']}>
+        <div className={styles['home__card-title']}>Next up</div>
+        <p className={styles['home__card-body']}>
+          Add tasks or habits from the command center to see them here.
+        </p>
+      </div>
 
-      {items.length === 0 && <p>No items yet. Add one above!</p>}
-    </div>
+      <div className={styles['home__pill-row']}>
+        <span className={styles['home__pill']}>Focus</span>
+        <span className={styles['home__pill']}>Plan</span>
+        <span className={styles['home__pill']}>Reflect</span>
+      </div>
+    </section>
   );
 }
