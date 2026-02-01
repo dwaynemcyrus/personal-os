@@ -1,6 +1,14 @@
+'use client';
+
+import { useTimer } from '@/features/timer';
 import styles from './page.module.css';
 
 export default function HomePage() {
+  const { state, elapsedLabel, activityLabel, projectLabel, isLog } = useTimer();
+
+  const statusLabel =
+    state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';
+
   return (
     <section className={styles.home}>
       <div className={styles['home__header']}>
@@ -9,6 +17,25 @@ export default function HomePage() {
         <p className={styles['home__subtitle']}>
           Your focus list and timer will live here once Phase 4 lands.
         </p>
+      </div>
+
+      <div className={styles['home__focus-card']}>
+        <div className={styles['home__focus-header']}>
+          <span className={styles['home__focus-label']}>Focus</span>
+          <span className={styles['home__focus-status']} data-state={state}>
+            {statusLabel}
+          </span>
+        </div>
+        <div className={styles['home__focus-time']}>{elapsedLabel}</div>
+        <div className={styles['home__focus-activity']}>
+          {activityLabel}
+          {isLog ? (
+            <span className={styles['home__focus-badge']}>Log</span>
+          ) : null}
+        </div>
+        {projectLabel ? (
+          <div className={styles['home__focus-project']}>{projectLabel}</div>
+        ) : null}
       </div>
 
       <div className={styles['home__card']}>

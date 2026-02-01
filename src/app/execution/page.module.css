@@ -1,0 +1,31 @@
+.logs {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.logItem {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.logTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--font-medium);
+}
+
+.logMeta {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.empty {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}

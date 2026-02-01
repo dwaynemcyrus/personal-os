@@ -37,6 +37,72 @@
   box-shadow: var(--shadow-sm);
 }
 
+.home__focus-card {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+  box-shadow: var(--shadow-sm);
+}
+
+.home__focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.home__focus-label {
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-secondary);
+}
+
+.home__focus-status {
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-secondary);
+}
+
+.home__focus-status[data-state='running'] {
+  color: var(--color-success);
+}
+
+.home__focus-status[data-state='paused'] {
+  color: var(--color-warning);
+}
+
+.home__focus-time {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-semibold);
+}
+
+.home__focus-activity {
+  font-size: var(--font-lg);
+  font-weight: var(--font-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.home__focus-badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--color-text-secondary);
+}
+
+.home__focus-project {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
 .home__card-title {
   font-size: var(--font-lg);
   font-weight: var(--font-medium);
