@@ -117,6 +117,7 @@ export function AppShell({ children }: AppShellProps) {
         <div className={styles['app-shell__topbar-title']}>{pageTitle}</div>
         <div className={styles['app-shell__topbar-right']} />
       </header>
+      <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
 
       <main className={styles['app-shell__content']}>{children}</main>
 
