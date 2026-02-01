@@ -294,45 +294,47 @@ let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
 export async function getDatabase() {
   if (dbPromise) return dbPromise;
 
-  dbPromise = createRxDatabase<DatabaseCollections>({
-    name: 'personalos',
-    storage: wrappedValidateZSchemaStorage({
-      storage: getRxStorageDexie(),
-    }),
-  });
+  dbPromise = (async () => {
+    const db = await createRxDatabase<DatabaseCollections>({
+      name: 'personalos',
+      storage: wrappedValidateZSchemaStorage({
+        storage: getRxStorageDexie(),
+      }),
+    });
 
-  const db = await dbPromise;
+    await db.addCollections({
+      sync_test: {
+        schema: syncTestRxSchema,
+        migrationStrategies: syncTestMigrationStrategies,
+      },
+      projects: {
+        schema: projectsRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
+      },
+      tasks: {
+        schema: tasksRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
+      },
+      notes: {
+        schema: notesRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
+      },
+      habits: {
+        schema: habitsRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
+      },
+      habit_completions: {
+        schema: habitCompletionsRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
+      },
+      time_entries: {
+        schema: timeEntriesRxSchema,
+        migrationStrategies: timeEntriesMigrationStrategies,
+      },
+    });
 
-  await db.addCollections({
-    sync_test: {
-      schema: syncTestRxSchema,
-      migrationStrategies: syncTestMigrationStrategies,
-    },
-    projects: {
-      schema: projectsRxSchema,
-      migrationStrategies: softDeleteMigrationStrategies,
-    },
-    tasks: {
-      schema: tasksRxSchema,
-      migrationStrategies: softDeleteMigrationStrategies,
-    },
-    notes: {
-      schema: notesRxSchema,
-      migrationStrategies: softDeleteMigrationStrategies,
-    },
-    habits: {
-      schema: habitsRxSchema,
-      migrationStrategies: softDeleteMigrationStrategies,
-    },
-    habit_completions: {
-      schema: habitCompletionsRxSchema,
-      migrationStrategies: softDeleteMigrationStrategies,
-    },
-    time_entries: {
-      schema: timeEntriesRxSchema,
-      migrationStrategies: timeEntriesMigrationStrategies,
-    },
-  });
+    return db;
+  })();
 
-  return db;
+  return dbPromise;
 }

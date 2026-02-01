@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.1 - 2026-02-01
+- Fixed DB initialization race so collections are registered before sync starts
+
 ## 0.4.0 - 2026-02-01
 - Added focus timer with start/pause/resume/stop logic and single-active-timer enforcement
 - Added fullscreen Focus Sheet with planned/log entry creation and stop-start confirmation
