@@ -35,6 +35,11 @@
   min-height: var(--touch-target);
 }
 
+.app-shell__topbar-right {
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 .app-shell__topbar-title {
   font-size: var(--font-lg);
   font-weight: var(--font-semibold);
@@ -68,6 +73,44 @@
 .app-shell__icon {
   width: 20px;
   height: 20px;
+}
+
+.app-shell__focus-chip {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-shell__focus-chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.app-shell__focus-chip[data-status='running'] {
+  border-color: rgba(52, 199, 89, 0.5);
+}
+
+.app-shell__focus-chip[data-status='paused'] {
+  border-color: rgba(255, 149, 0, 0.5);
+}
+
+.app-shell__focus-time {
+  font-weight: var(--font-semibold);
+}
+
+.app-shell__focus-status {
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
 }
 
 .app-shell__content {
@@ -169,6 +212,36 @@
 .app-shell__command {
   width: 100vw;
   padding-bottom: calc(var(--space-5) + var(--safe-area-bottom));
+}
+
+.app-shell__command-actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.app-shell__command-action {
+  min-height: var(--touch-target);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+  font-size: var(--font-base);
+}
+
+.app-shell__command-action:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.app-shell__command-meta {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .app-shell__command-header {

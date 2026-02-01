@@ -10,6 +10,7 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
+import { FocusSheet } from '@/components/layout/FocusSheet';
 import styles from './AppShell.module.css';
 
 type AppShellProps = {
@@ -65,6 +66,7 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [isFocusOpen, setIsFocusOpen] = useState(false);
 
   const isRoot = pathname === '/';
   const pageTitle = PAGE_TITLES[pathname] ?? 'Personal OS';
@@ -89,6 +91,22 @@ export function AppShell({ children }: AppShellProps) {
     triggerHaptic();
     setIsCommandOpen(true);
   };
+
+  const handleOpenFocus = () => {
+    triggerHaptic();
+    setIsFocusOpen(true);
+  };
+
+  const handleOpenFocusFromCommand = () => {
+    triggerHaptic();
+    setIsCommandOpen(false);
+    setIsFocusOpen(true);
+  };
+
+  const focusState = 'paused' as const;
+  const focusElapsedLabel = '00:00';
+  const focusStatusLabel = formatFocusStatus(focusState);
+  const focusActivityLabel = 'Select a task or add a log entry';
 
   return (
     <div className={styles['app-shell']}>
@@ -115,7 +133,22 @@ export function AppShell({ children }: AppShellProps) {
           )}
         </div>
         <div className={styles['app-shell__topbar-title']}>{pageTitle}</div>
-        <div className={styles['app-shell__topbar-right']} />
+        <div className={styles['app-shell__topbar-right']}>
+          <button
+            type="button"
+            className={styles['app-shell__focus-chip']}
+            data-status={focusState}
+            onClick={handleOpenFocus}
+            aria-label={`Open focus timer, ${focusStatusLabel}, ${focusElapsedLabel}`}
+          >
+            <span className={styles['app-shell__focus-time']}>
+              {focusElapsedLabel}
+            </span>
+            <span className={styles['app-shell__focus-status']}>
+              {focusStatusLabel}
+            </span>
+          </button>
+        </div>
       </header>
       <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
 
@@ -176,6 +209,18 @@ export function AppShell({ children }: AppShellProps) {
           className={styles['app-shell__command']}
           aria-label="Command center"
         >
+          <div className={styles['app-shell__command-actions']}>
+            <button
+              type="button"
+              className={styles['app-shell__command-action']}
+              onClick={handleOpenFocusFromCommand}
+            >
+              <span>Focus Timer</span>
+              <span className={styles['app-shell__command-meta']}>
+                {focusStatusLabel}
+              </span>
+            </button>
+          </div>
           <div className={styles['app-shell__command-header']}>
             Command Center
           </div>
@@ -184,6 +229,18 @@ export function AppShell({ children }: AppShellProps) {
           </p>
         </SheetContent>
       </Sheet>
+
+      <FocusSheet
+        open={isFocusOpen}
+        onOpenChange={setIsFocusOpen}
+        state={focusState}
+        elapsedLabel={focusElapsedLabel}
+        activityLabel={focusActivityLabel}
+        onStart={() => null}
+        onPause={() => null}
+        onResume={() => null}
+        onStop={() => null}
+      />
     </div>
   );
 }
@@ -238,4 +295,15 @@ function PlusIcon() {
       <path d="M5 12h14" />
     </svg>
   );
+}
+
+function formatFocusStatus(state: 'idle' | 'running' | 'paused') {
+  switch (state) {
+    case 'running':
+      return 'Running';
+    case 'paused':
+      return 'Paused';
+    default:
+      return 'Idle';
+  }
 }
