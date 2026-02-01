@@ -14,6 +14,7 @@
 - Never silently change scope; ask first.
 - Prefer minimal diffs; avoid speculative abstractions.
 - Verify stack expectations before assuming.
+- After making any changes, always include a commit message in the response.
 
 ## Stack Expectations (verify)
 - Frontend-first PWA
