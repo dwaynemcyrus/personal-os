@@ -23,7 +23,7 @@ type PausedFocus = {
   entryType: EntryType;
   taskId: string | null;
   label: string | null;
-  durationSeconds: number;
+  accumulatedSeconds: number;
   stoppedAt: string;
 };
 
@@ -34,6 +34,7 @@ type TaskOption = {
 };
 
 const PAUSED_FOCUS_KEY = 'personal-os:paused-focus';
+const ACCUMULATED_SECONDS_KEY = 'personal-os:timer-accumulated-seconds';
 
 const timeEntryTypes: EntryType[] = ['planned', 'log'];
 
@@ -48,13 +49,13 @@ const parsePausedFocus = (raw: string | null): PausedFocus | null => {
     if (!parsed.stoppedAt || !parsed.entryType) return null;
     if (!isEntryType(parsed.entryType)) return null;
     if (parsed.entryType === 'log' && !parsed.label) return null;
-    if (typeof parsed.durationSeconds !== 'number') return null;
+    if (typeof parsed.accumulatedSeconds !== 'number') return null;
 
     return {
       entryType: parsed.entryType,
       taskId: parsed.taskId ?? null,
       label: parsed.label ?? null,
-      durationSeconds: parsed.durationSeconds,
+      accumulatedSeconds: parsed.accumulatedSeconds,
       stoppedAt: parsed.stoppedAt,
     };
   } catch {
@@ -91,6 +92,12 @@ export function useTimer() {
     if (typeof window === 'undefined') return null;
     return parsePausedFocus(window.localStorage.getItem(PAUSED_FOCUS_KEY));
   });
+  const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = window.localStorage.getItem(ACCUMULATED_SECONDS_KEY);
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  });
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [tick, setTick] = useState(0);
@@ -106,6 +113,17 @@ export function useTimer() {
     }
   }, []);
 
+  const setAccumulatedSecondsState = useCallback((value: number) => {
+    const nextValue = Math.max(0, Math.floor(value));
+    setAccumulatedSeconds(nextValue);
+
+    if (typeof window === 'undefined') return;
+    if (nextValue > 0) {
+      window.localStorage.setItem(ACCUMULATED_SECONDS_KEY, String(nextValue));
+    } else {
+      window.localStorage.removeItem(ACCUMULATED_SECONDS_KEY);
+    }
+  }, []);
   useEffect(() => {
     if (!isReady || !db) return;
 
@@ -248,14 +266,18 @@ export function useTimer() {
     if (activeEntry) {
       const timestamp = tick;
       const startedAt = new Date(activeEntry.started_at).getTime();
-      if (Number.isNaN(startedAt)) return 0;
-      return Math.max(0, Math.floor((timestamp - startedAt) / 1000));
+      if (Number.isNaN(startedAt)) return accumulatedSeconds;
+      const runningSeconds = Math.max(
+        0,
+        Math.floor((timestamp - startedAt) / 1000)
+      );
+      return accumulatedSeconds + runningSeconds;
     }
     if (pausedFocus) {
-      return pausedFocus.durationSeconds;
+      return accumulatedSeconds;
     }
     return 0;
-  }, [activeEntry, pausedFocus, tick]);
+  }, [activeEntry, accumulatedSeconds, pausedFocus, tick]);
 
   const elapsedLabel = formatDuration(elapsedSeconds);
 
@@ -283,7 +305,10 @@ export function useTimer() {
   );
 
   const startEntry = useCallback(
-    async (config: StartConfig, options?: { force?: boolean }): Promise<StartResult> => {
+    async (
+      config: StartConfig,
+      options?: { force?: boolean; preserveAccumulated?: boolean }
+    ): Promise<StartResult> => {
       if (!db) return { ok: false };
       if (activeEntry && !options?.force) return { ok: false, blocked: true };
 
@@ -308,9 +333,12 @@ export function useTimer() {
 
       await db.time_entries.insert(payload);
       setPausedFocusState(null);
+      if (!options?.preserveAccumulated) {
+        setAccumulatedSecondsState(0);
+      }
       return { ok: true };
     },
-    [activeEntry, db, setPausedFocusState, stopEntry]
+    [activeEntry, db, setAccumulatedSecondsState, setPausedFocusState, stopEntry]
   );
 
   const pause = useCallback(async () => {
@@ -318,14 +346,22 @@ export function useTimer() {
     const result = await stopEntry(activeEntry);
     if (!result) return;
 
+    const nextAccumulated = accumulatedSeconds + result.durationSeconds;
+    setAccumulatedSecondsState(nextAccumulated);
     setPausedFocusState({
       entryType: activeEntry.entry_type,
       taskId: activeEntry.task_id ?? null,
       label: activeEntry.label ?? null,
-      durationSeconds: result.durationSeconds,
+      accumulatedSeconds: nextAccumulated,
       stoppedAt: result.stoppedAt,
     });
-  }, [activeEntry, setPausedFocusState, stopEntry]);
+  }, [
+    activeEntry,
+    accumulatedSeconds,
+    setAccumulatedSecondsState,
+    setPausedFocusState,
+    stopEntry,
+  ]);
 
   const resume = useCallback(async () => {
     if (!pausedFocus) return;
@@ -337,19 +373,27 @@ export function useTimer() {
         ? { entryType: 'planned', taskId: pausedFocus.taskId! }
         : { entryType: 'log', label: pausedFocus.label! };
 
-    await startEntry(config, { force: true });
+    await startEntry(config, { force: true, preserveAccumulated: true });
   }, [pausedFocus, startEntry]);
 
   const stop = useCallback(async () => {
     if (activeEntry) {
       await stopEntry(activeEntry);
       setPausedFocusState(null);
+      setAccumulatedSecondsState(0);
       return;
     }
     if (pausedFocus) {
       setPausedFocusState(null);
+      setAccumulatedSecondsState(0);
     }
-  }, [activeEntry, pausedFocus, setPausedFocusState, stopEntry]);
+  }, [
+    activeEntry,
+    pausedFocus,
+    setAccumulatedSecondsState,
+    setPausedFocusState,
+    stopEntry,
+  ]);
 
   return {
     isReady,
