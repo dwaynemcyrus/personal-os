@@ -165,12 +165,12 @@ Last updated: February 3, 2026
 **Goal:** Create/edit notes with basic editor
 
 ### Tasks
-- [ ] NotesList component
-- [ ] Create note
+- [x] NotesList component
+- [x] Create note
 - [ ] Basic textarea editor (MVP)
 - [ ] Auto-save on blur (debounced)
 - [ ] Delete note
-- [ ] Add to /knowledge page
+- [x] Add to /knowledge page
 
 **Completion criteria:**
 - Can create notes offline
