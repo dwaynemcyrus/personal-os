@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import {
   Sheet,
   SheetClose,
@@ -33,6 +33,7 @@ type ProjectDetailSheetProps = {
     status: 'backlog' | 'waiting' | 'next';
   }) => Promise<void> | void;
   onDeleteTask: (taskId: string) => Promise<void> | void;
+  onCreateTask: (projectId: string, title: string) => Promise<void> | void;
 };
 
 const toInputDateTime = (iso: string | null) => {
@@ -87,6 +88,7 @@ export function ProjectDetailSheet({
   onToggleTaskComplete,
   onSaveTask,
   onDeleteTask,
+  onCreateTask,
 }: ProjectDetailSheetProps) {
   const [title, setTitle] = useState(project?.title ?? '');
   const [description, setDescription] = useState(project?.description ?? '');
@@ -99,6 +101,7 @@ export function ProjectDetailSheet({
   const [dueDate, setDueDate] = useState(
     toInputDateTime(project?.due_date ?? null)
   );
+  const [taskTitle, setTaskTitle] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const canSave = useMemo(() => Boolean(title.trim()), [title]);
@@ -134,6 +137,15 @@ export function ProjectDetailSheet({
     if (!project) return;
     await onDelete(project.id);
     onOpenChange(false);
+  };
+
+  const handleQuickAdd = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!project) return;
+    const trimmed = taskTitle.trim();
+    if (!trimmed) return;
+    await onCreateTask(project.id, trimmed);
+    setTaskTitle('');
   };
 
   if (!project) return null;
@@ -200,26 +212,61 @@ export function ProjectDetailSheet({
         <div className={styles['project-detail__row']}>
           <label className={styles['project-detail__field']}>
             <span className={styles['project-detail__label']}>Start</span>
-            <input
-              className={styles['project-detail__input']}
-              type="datetime-local"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
+            <div className={styles['project-detail__input-row']}>
+              <input
+                className={styles['project-detail__input']}
+                type="datetime-local"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+              <button
+                type="button"
+                className={styles['project-detail__clear']}
+                onClick={() => setStartDate('')}
+                disabled={!startDate}
+              >
+                Clear
+              </button>
+            </div>
           </label>
           <label className={styles['project-detail__field']}>
             <span className={styles['project-detail__label']}>Due</span>
-            <input
-              className={styles['project-detail__input']}
-              type="datetime-local"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
+            <div className={styles['project-detail__input-row']}>
+              <input
+                className={styles['project-detail__input']}
+                type="datetime-local"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+              />
+              <button
+                type="button"
+                className={styles['project-detail__clear']}
+                onClick={() => setDueDate('')}
+                disabled={!dueDate}
+              >
+                Clear
+              </button>
+            </div>
           </label>
         </div>
 
         <section className={styles['project-detail__tasks']}>
           <div className={styles['project-detail__section-title']}>Tasks</div>
+          <form className={styles['project-detail__composer']} onSubmit={handleQuickAdd}>
+            <input
+              className={styles['project-detail__composer-input']}
+              type="text"
+              placeholder="Add a task"
+              value={taskTitle}
+              onChange={(event) => setTaskTitle(event.target.value)}
+            />
+            <button
+              className={styles['project-detail__composer-button']}
+              type="submit"
+            >
+              Add
+            </button>
+          </form>
           {activeTasks.length === 0 ? (
             <p className={styles['project-detail__empty']}>
               No tasks for this project yet.
