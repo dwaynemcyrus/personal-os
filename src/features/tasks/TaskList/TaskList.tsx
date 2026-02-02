@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
+import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import styles from './TaskList.module.css';
 
 type TaskFilter = 'all' | 'active' | 'completed';
@@ -46,6 +47,7 @@ export function TaskList() {
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [titleInput, setTitleInput] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -81,10 +83,18 @@ export function TaskList() {
     () => new Map(projects.map((project) => [project.id, project.title])),
     [projects]
   );
+  const projectOptions = useMemo(
+    () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
+    [projects]
+  );
 
   const sortedTasks = useMemo(() => [...tasks].sort(sortTasks), [tasks]);
   const activeTasks = sortedTasks.filter((task) => !task.completed);
   const completedTasks = sortedTasks.filter((task) => task.completed);
+  const selectedTask = useMemo(
+    () => tasks.find((task) => task.id === selectedTaskId) ?? null,
+    [tasks, selectedTaskId]
+  );
 
   const showActive = filter !== 'completed';
   const showCompleted = filter !== 'active';
@@ -113,6 +123,46 @@ export function TaskList() {
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await createTask();
+  };
+
+  const handleOpenTask = (taskId: string) => {
+    setSelectedTaskId(taskId);
+  };
+
+  const handleDetailOpenChange = (open: boolean) => {
+    if (!open) {
+      setSelectedTaskId(null);
+    }
+  };
+
+  const handleSaveTask = async (
+    taskId: string,
+    updates: { title: string; description: string; projectId: string | null }
+  ) => {
+    if (!db) return;
+    const trimmedTitle = updates.title.trim();
+    if (!trimmedTitle) return;
+    const doc = await db.tasks.findOne(taskId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      title: trimmedTitle,
+      description: updates.description.trim() || null,
+      project_id: updates.projectId,
+      updated_at: timestamp,
+    });
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!db) return;
+    const doc = await db.tasks.findOne(taskId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      is_trashed: true,
+      trashed_at: timestamp,
+      updated_at: timestamp,
+    });
   };
 
   return (
@@ -153,14 +203,19 @@ export function TaskList() {
           ) : (
             <div className={styles.list}>
               {activeTasks.map((task) => (
-                <div key={task.id} className={styles.item}>
+                <button
+                  key={task.id}
+                  type="button"
+                  className={styles.item}
+                  onClick={() => handleOpenTask(task.id)}
+                >
                   <div className={styles.itemTitle}>{task.title}</div>
                   <div className={styles.itemMeta}>
                     {task.project_id
                       ? projectMap.get(task.project_id) ?? 'No project'
                       : 'No project'}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -175,18 +230,35 @@ export function TaskList() {
           ) : (
             <div className={styles.list}>
               {completedTasks.map((task) => (
-                <div key={task.id} className={styles.item}>
+                <button
+                  key={task.id}
+                  type="button"
+                  className={styles.item}
+                  onClick={() => handleOpenTask(task.id)}
+                >
                   <div className={styles.itemTitle}>{task.title}</div>
                   <div className={styles.itemMeta}>
                     {task.project_id
                       ? projectMap.get(task.project_id) ?? 'No project'
                       : 'No project'}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
+      ) : null}
+
+      {selectedTask ? (
+        <TaskDetailSheet
+          key={selectedTask.id}
+          open={Boolean(selectedTask)}
+          onOpenChange={handleDetailOpenChange}
+          task={selectedTask}
+          projects={projectOptions}
+          onSave={handleSaveTask}
+          onDelete={handleDeleteTask}
+        />
       ) : null}
     </div>
   );
