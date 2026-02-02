@@ -76,6 +76,7 @@ export function AppShell({ children }: AppShellProps) {
     projectLabel: focusProjectLabel,
     isUnplanned: focusIsUnplanned,
     taskOptions,
+    unplannedSuggestions,
     startEntry,
     pause,
     resume,
@@ -266,6 +267,7 @@ export function AppShell({ children }: AppShellProps) {
         projectLabel={focusProjectLabel}
         isUnplanned={focusIsUnplanned}
         taskOptions={taskOptions}
+        unplannedSuggestions={unplannedSuggestions}
         onStart={startEntry}
         onPause={pause}
         onResume={resume}

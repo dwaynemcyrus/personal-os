@@ -34,6 +34,11 @@ type TaskOption = {
   projectTitle: string | null;
 };
 
+type UnplannedSuggestion = {
+  label: string;
+  normalized: string;
+};
+
 const PAUSED_FOCUS_KEY = 'personal-os:paused-focus';
 const ACCUMULATED_SECONDS_KEY = 'personal-os:timer-accumulated-seconds';
 
@@ -104,6 +109,9 @@ export function useTimer() {
   });
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
+  const [unplannedEntries, setUnplannedEntries] = useState<TimeEntryDocument[]>(
+    []
+  );
   const [tick, setTick] = useState(0);
 
   const setPausedFocusState = useCallback((value: PausedFocus | null) => {
@@ -153,6 +161,26 @@ export function useTimer() {
       })
       .$.subscribe((docs) => {
         setProjects(docs.map((doc) => doc.toJSON()));
+      });
+
+    return () => subscription.unsubscribe();
+  }, [db, isReady]);
+
+  useEffect(() => {
+    if (!isReady || !db) return;
+
+    const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+    const subscription = db.time_entries
+      .find({
+        selector: {
+          is_trashed: false,
+          entry_type: 'unplanned',
+          started_at: { $gte: cutoff },
+        },
+        sort: [{ started_at: 'desc' }, { id: 'asc' }],
+      })
+      .$.subscribe((docs) => {
+        setUnplannedEntries(docs.map((doc) => doc.toJSON()));
       });
 
     return () => subscription.unsubscribe();
@@ -310,6 +338,47 @@ export function useTimer() {
     [tasks, projectMap]
   );
 
+  const unplannedSuggestions: UnplannedSuggestion[] = useMemo(() => {
+    const suggestionMap = new Map<
+      string,
+      { label: string; normalized: string; count: number; lastUsedAt: number }
+    >();
+
+    unplannedEntries.forEach((entry) => {
+      const label = entry.label ?? '';
+      const normalized =
+        entry.label_normalized ?? (label ? normalizeLabel(label) : '');
+      if (!normalized) return;
+
+      const lastUsedAt = new Date(entry.started_at).getTime();
+      const existing = suggestionMap.get(normalized);
+      if (!existing) {
+        suggestionMap.set(normalized, {
+          label: label || normalized,
+          normalized,
+          count: 1,
+          lastUsedAt: Number.isFinite(lastUsedAt) ? lastUsedAt : 0,
+        });
+        return;
+      }
+
+      existing.count += 1;
+      if (Number.isFinite(lastUsedAt) && lastUsedAt > existing.lastUsedAt) {
+        existing.lastUsedAt = lastUsedAt;
+        if (label) {
+          existing.label = label;
+        }
+      }
+    });
+
+    return Array.from(suggestionMap.values())
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return b.lastUsedAt - a.lastUsedAt;
+      })
+      .map(({ label, normalized }) => ({ label, normalized }));
+  }, [unplannedEntries]);
+
   const startEntry = useCallback(
     async (
       config: StartConfig,
@@ -425,6 +494,7 @@ export function useTimer() {
     projectLabel,
     isUnplanned,
     taskOptions,
+    unplannedSuggestions,
     startEntry,
     pause,
     resume,
@@ -432,4 +502,10 @@ export function useTimer() {
   };
 }
 
-export type { EntryType, FocusState, StartConfig, TaskOption };
+export type {
+  EntryType,
+  FocusState,
+  StartConfig,
+  TaskOption,
+  UnplannedSuggestion,
+};

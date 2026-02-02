@@ -9,7 +9,13 @@ import {
   SheetClose,
 } from '@/components/ui/Sheet';
 import styles from './FocusSheet.module.css';
-import type { EntryType, FocusState, StartConfig, TaskOption } from '@/features/timer';
+import type {
+  EntryType,
+  FocusState,
+  StartConfig,
+  TaskOption,
+  UnplannedSuggestion,
+} from '@/features/timer';
 
 type FocusSheetProps = {
   open: boolean;
@@ -20,6 +26,7 @@ type FocusSheetProps = {
   projectLabel?: string | null;
   isUnplanned?: boolean;
   taskOptions: TaskOption[];
+  unplannedSuggestions: UnplannedSuggestion[];
   onStart: (
     config: StartConfig,
     options?: { force?: boolean }
@@ -38,6 +45,7 @@ export function FocusSheet({
   projectLabel,
   isUnplanned = false,
   taskOptions,
+  unplannedSuggestions,
   onStart,
   onPause,
   onResume,
@@ -55,6 +63,21 @@ export function FocusSheet({
     }
     return Boolean(logLabel.trim());
   }, [entryType, logLabel, selectedTaskId]);
+
+  const normalizedInput = useMemo(
+    () => normalizeLabel(logLabel),
+    [logLabel]
+  );
+
+  const filteredSuggestions = useMemo(() => {
+    if (entryType !== 'unplanned') return [];
+    if (!normalizedInput) return [];
+    return unplannedSuggestions
+      .filter((suggestion) =>
+        suggestion.normalized.startsWith(normalizedInput)
+      )
+      .slice(0, 5);
+  }, [entryType, normalizedInput, unplannedSuggestions]);
 
   const statusLabel = state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';
 
@@ -176,6 +199,20 @@ export function FocusSheet({
                 onChange={(event) => setLogLabel(event.target.value)}
                 placeholder="Walk, call, research"
               />
+              {filteredSuggestions.length > 0 ? (
+                <div className={styles['focus-sheet__suggestions']}>
+                  {filteredSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.normalized}
+                      type="button"
+                      className={styles['focus-sheet__suggestion']}
+                      onClick={() => setLogLabel(suggestion.label)}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </label>
           )}
           <button
@@ -270,4 +307,8 @@ function CloseIcon() {
       <path d="M18 6l-12 12" />
     </svg>
   );
+}
+
+function normalizeLabel(value: string) {
+  return value.trim().toLowerCase();
 }
