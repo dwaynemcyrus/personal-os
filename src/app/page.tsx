@@ -4,7 +4,7 @@ import { useTimer } from '@/features/timer';
 import styles from './page.module.css';
 
 export default function HomePage() {
-  const { state, elapsedLabel, activityLabel, projectLabel, isLog } = useTimer();
+  const { state, elapsedLabel, activityLabel, projectLabel } = useTimer();
 
   const statusLabel =
     state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';
@@ -37,9 +37,6 @@ export default function HomePage() {
         <div className={styles['home__focus-time']}>{elapsedLabel}</div>
         <div className={styles['home__focus-activity']}>
           {activityLabel}
-          {isLog ? (
-            <span className={styles['home__focus-badge']}>Log</span>
-          ) : null}
         </div>
         {projectLabel ? (
           <div className={styles['home__focus-project']}>{projectLabel}</div>

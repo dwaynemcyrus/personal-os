@@ -11,11 +11,11 @@ import type {
 
 type FocusState = 'idle' | 'running' | 'paused';
 
-type EntryType = 'planned' | 'log';
+type EntryType = 'planned' | 'unplanned';
 
 type StartConfig =
   | { entryType: 'planned'; taskId: string }
-  | { entryType: 'log'; label: string };
+  | { entryType: 'unplanned'; label: string };
 
 type StartResult = { ok: boolean; blocked?: boolean };
 
@@ -23,6 +23,7 @@ type PausedFocus = {
   entryType: EntryType;
   taskId: string | null;
   label: string | null;
+  sessionId: string | null;
   accumulatedSeconds: number;
   stoppedAt: string;
 };
@@ -36,7 +37,7 @@ type TaskOption = {
 const PAUSED_FOCUS_KEY = 'personal-os:paused-focus';
 const ACCUMULATED_SECONDS_KEY = 'personal-os:timer-accumulated-seconds';
 
-const timeEntryTypes: EntryType[] = ['planned', 'log'];
+const timeEntryTypes: EntryType[] = ['planned', 'unplanned'];
 
 const isEntryType = (value: string): value is EntryType =>
   timeEntryTypes.includes(value as EntryType);
@@ -48,13 +49,14 @@ const parsePausedFocus = (raw: string | null): PausedFocus | null => {
     if (!parsed || typeof parsed !== 'object') return null;
     if (!parsed.stoppedAt || !parsed.entryType) return null;
     if (!isEntryType(parsed.entryType)) return null;
-    if (parsed.entryType === 'log' && !parsed.label) return null;
+    if (parsed.entryType === 'unplanned' && !parsed.label) return null;
     if (typeof parsed.accumulatedSeconds !== 'number') return null;
 
     return {
       entryType: parsed.entryType,
       taskId: parsed.taskId ?? null,
       label: parsed.label ?? null,
+      sessionId: parsed.sessionId ?? null,
       accumulatedSeconds: parsed.accumulatedSeconds,
       stoppedAt: parsed.stoppedAt,
     };
@@ -62,6 +64,8 @@ const parsePausedFocus = (raw: string | null): PausedFocus | null => {
     return null;
   }
 };
+
+const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
 const formatDuration = (seconds: number) => {
   const total = Math.max(0, Math.floor(seconds));
@@ -162,16 +166,18 @@ export function useTimer() {
         entry.started_at,
         timestamp
       );
+      const sessionId = entry.session_id ?? uuidv4();
       const doc = await db.time_entries.findOne(entry.id).exec();
       if (!doc) return null;
 
       await doc.patch({
         stopped_at: timestamp,
         duration_seconds: durationSeconds,
+        session_id: sessionId,
         updated_at: timestamp,
       });
 
-      return { durationSeconds, stoppedAt: timestamp };
+      return { durationSeconds, stoppedAt: timestamp, sessionId };
     },
     [db]
   );
@@ -282,15 +288,15 @@ export function useTimer() {
   const elapsedLabel = formatDuration(elapsedSeconds);
 
   const activityLabel = useMemo(() => {
-    if (!focusContext) return 'Select a task or add a log entry';
-    if (focusContext.entryType === 'log') {
-      return focusContext.label ?? 'Log entry';
+    if (!focusContext) return 'Select a task or add an unplanned entry';
+    if (focusContext.entryType === 'unplanned') {
+      return focusContext.label ?? 'Unplanned entry';
     }
     return focusTask?.title ?? 'Select a task';
   }, [focusContext, focusTask]);
 
   const projectLabel = focusProject?.title ?? null;
-  const isLog = focusContext?.entryType === 'log';
+  const isUnplanned = focusContext?.entryType === 'unplanned';
 
   const taskOptions: TaskOption[] = useMemo(
     () =>
@@ -307,7 +313,11 @@ export function useTimer() {
   const startEntry = useCallback(
     async (
       config: StartConfig,
-      options?: { force?: boolean; preserveAccumulated?: boolean }
+      options?: {
+        force?: boolean;
+        preserveAccumulated?: boolean;
+        sessionId?: string;
+      }
     ): Promise<StartResult> => {
       if (!db) return { ok: false };
       if (activeEntry && !options?.force) return { ok: false, blocked: true };
@@ -317,11 +327,17 @@ export function useTimer() {
       }
 
       const timestamp = new Date().toISOString();
+      const sessionId = options?.sessionId ?? uuidv4();
+      const label =
+        config.entryType === 'unplanned' ? config.label.trim() : null;
+      const labelNormalized = label ? normalizeLabel(label) : null;
       const payload: TimeEntryDocument = {
         id: uuidv4(),
         task_id: config.entryType === 'planned' ? config.taskId : null,
+        session_id: sessionId,
         entry_type: config.entryType,
-        label: config.entryType === 'log' ? config.label.trim() : null,
+        label,
+        label_normalized: labelNormalized,
         started_at: timestamp,
         stopped_at: null,
         duration_seconds: null,
@@ -352,6 +368,7 @@ export function useTimer() {
       entryType: activeEntry.entry_type,
       taskId: activeEntry.task_id ?? null,
       label: activeEntry.label ?? null,
+      sessionId: result.sessionId,
       accumulatedSeconds: nextAccumulated,
       stoppedAt: result.stoppedAt,
     });
@@ -366,14 +383,18 @@ export function useTimer() {
   const resume = useCallback(async () => {
     if (!pausedFocus) return;
     if (pausedFocus.entryType === 'planned' && !pausedFocus.taskId) return;
-    if (pausedFocus.entryType === 'log' && !pausedFocus.label) return;
+    if (pausedFocus.entryType === 'unplanned' && !pausedFocus.label) return;
 
     const config: StartConfig =
       pausedFocus.entryType === 'planned'
         ? { entryType: 'planned', taskId: pausedFocus.taskId! }
-        : { entryType: 'log', label: pausedFocus.label! };
+        : { entryType: 'unplanned', label: pausedFocus.label! };
 
-    await startEntry(config, { force: true, preserveAccumulated: true });
+    await startEntry(config, {
+      force: true,
+      preserveAccumulated: true,
+      sessionId: pausedFocus.sessionId ?? undefined,
+    });
   }, [pausedFocus, startEntry]);
 
   const stop = useCallback(async () => {
@@ -402,7 +423,7 @@ export function useTimer() {
     elapsedLabel,
     activityLabel,
     projectLabel,
-    isLog,
+    isUnplanned,
     taskOptions,
     startEntry,
     pause,

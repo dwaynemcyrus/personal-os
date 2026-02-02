@@ -74,7 +74,7 @@ export function AppShell({ children }: AppShellProps) {
     elapsedLabel: focusElapsedLabel,
     activityLabel: focusActivityLabel,
     projectLabel: focusProjectLabel,
-    isLog: focusIsLog,
+    isUnplanned: focusIsUnplanned,
     taskOptions,
     startEntry,
     pause,
@@ -264,7 +264,7 @@ export function AppShell({ children }: AppShellProps) {
         elapsedLabel={focusElapsedLabel}
         activityLabel={focusActivityLabel}
         projectLabel={focusProjectLabel}
-        isLog={focusIsLog}
+        isUnplanned={focusIsUnplanned}
         taskOptions={taskOptions}
         onStart={startEntry}
         onPause={pause}

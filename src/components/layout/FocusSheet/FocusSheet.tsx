@@ -18,7 +18,7 @@ type FocusSheetProps = {
   elapsedLabel: string;
   activityLabel: string;
   projectLabel?: string | null;
-  isLog?: boolean;
+  isUnplanned?: boolean;
   taskOptions: TaskOption[];
   onStart: (
     config: StartConfig,
@@ -36,7 +36,7 @@ export function FocusSheet({
   elapsedLabel,
   activityLabel,
   projectLabel,
-  isLog = false,
+  isUnplanned = false,
   taskOptions,
   onStart,
   onPause,
@@ -71,7 +71,7 @@ export function FocusSheet({
     const config: StartConfig =
       entryType === 'planned'
         ? { entryType: 'planned', taskId: selectedTaskId }
-        : { entryType: 'log', label: logLabel.trim() };
+        : { entryType: 'unplanned', label: logLabel.trim() };
 
     const result = await onStart(config);
     if (result.blocked) {
@@ -119,8 +119,8 @@ export function FocusSheet({
           <div className={styles['focus-sheet__activity-label']}>Activity</div>
           <div className={styles['focus-sheet__activity-title']}>
             {activityLabel}
-            {isLog ? (
-              <span className={styles['focus-sheet__badge']}>Log</span>
+            {isUnplanned ? (
+              <span className={styles['focus-sheet__badge']}>u</span>
             ) : null}
           </div>
           {projectLabel ? (
@@ -144,10 +144,10 @@ export function FocusSheet({
             <button
               type="button"
               className={styles['focus-sheet__toggle-button']}
-              data-active={entryType === 'log'}
-              onClick={() => setEntryType('log')}
+              data-active={entryType === 'unplanned'}
+              onClick={() => setEntryType('unplanned')}
             >
-              Log
+              Unplanned
             </button>
           </div>
           {entryType === 'planned' ? (

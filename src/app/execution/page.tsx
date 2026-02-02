@@ -29,18 +29,20 @@ const formatDuration = (seconds: number | null) => {
 
 export default function ExecutionPage() {
   const { db, isReady } = useDatabase();
-  const [logs, setLogs] = useState<TimeEntryDocument[]>([]);
+  const [unplannedEntries, setUnplannedEntries] = useState<TimeEntryDocument[]>(
+    []
+  );
 
   useEffect(() => {
     if (!db || !isReady) return;
 
     const subscription = db.time_entries
       .find({
-        selector: { is_trashed: false, entry_type: 'log' },
+        selector: { is_trashed: false, entry_type: 'unplanned' },
         sort: [{ started_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setLogs(docs.map((doc) => doc.toJSON()));
+        setUnplannedEntries(docs.map((doc) => doc.toJSON()));
       });
 
     return () => subscription.unsubscribe();
@@ -61,25 +63,27 @@ export default function ExecutionPage() {
       </div>
 
       <div className={sectionStyles.section__card}>
-        <div className={sectionStyles['section__card-title']}>Logs</div>
+        <div className={sectionStyles['section__card-title']}>Unplanned</div>
         <p className={sectionStyles['section__card-body']}>
           Unplanned activity tracking from the focus timer.
         </p>
         <div className={styles.logs}>
-          {logs.length === 0 ? (
-            <p className={styles.empty}>No log entries yet.</p>
+          {unplannedEntries.length === 0 ? (
+            <p className={styles.empty}>No unplanned entries yet.</p>
           ) : (
-            logs.map((log) => (
-              <div key={log.id} className={styles.logItem}>
-                <div className={styles.logTitle}>{log.label ?? 'Log entry'}</div>
+            unplannedEntries.map((entry) => (
+              <div key={entry.id} className={styles.logItem}>
+                <div className={styles.logTitle}>
+                  {entry.label ?? 'Unplanned entry'}
+                </div>
                 <div className={styles.logMeta}>
-                  <span>Started {formatDateTime(log.started_at)}</span>
+                  <span>Started {formatDateTime(entry.started_at)}</span>
                   <span>
-                    {log.stopped_at
-                      ? `Stopped ${formatDateTime(log.stopped_at)}`
+                    {entry.stopped_at
+                      ? `Stopped ${formatDateTime(entry.stopped_at)}`
                       : 'Active'}
                   </span>
-                  <span>Duration {formatDuration(log.duration_seconds)}</span>
+                  <span>Duration {formatDuration(entry.duration_seconds)}</span>
                 </div>
               </div>
             ))
