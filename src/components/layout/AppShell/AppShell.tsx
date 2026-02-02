@@ -84,7 +84,9 @@ export function AppShell({ children }: AppShellProps) {
   } = useTimer();
 
   const isRoot = pathname === '/';
-  const pageTitle = PAGE_TITLES[pathname] ?? 'Personal OS';
+  const isNoteRoute = pathname?.startsWith('/knowledge/');
+  const pageTitle =
+    PAGE_TITLES[pathname] ?? (isNoteRoute ? 'Note' : 'Personal OS');
 
   const activeHref = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);

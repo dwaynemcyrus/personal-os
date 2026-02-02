@@ -167,9 +167,9 @@ Last updated: February 3, 2026
 ### Tasks
 - [x] NotesList component
 - [x] Create note
-- [ ] Basic textarea editor (MVP)
-- [ ] Auto-save on blur (debounced)
-- [ ] Delete note
+- [x] Basic textarea editor (MVP)
+- [x] Auto-save on blur (debounced)
+- [x] Delete note
 - [x] Add to /knowledge page
 
 **Completion criteria:**

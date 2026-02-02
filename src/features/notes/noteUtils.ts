@@ -23,7 +23,7 @@ export const extractNoteTitle = (
 export const formatNoteTitle = (title: string) => {
   const trimmed = title.trim() || TITLE_FALLBACK;
   if (trimmed.length <= TITLE_MAX_LENGTH) return trimmed;
-  return `${trimmed.slice(0, TITLE_MAX_LENGTH - 1)}…`;
+  return `${trimmed.slice(0, TITLE_MAX_LENGTH - 3)}...`;
 };
 
 export const extractNoteSnippet = (content: string | null | undefined) => {
