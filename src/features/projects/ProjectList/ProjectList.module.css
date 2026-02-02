@@ -1,0 +1,121 @@
+.projects {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.composer {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.composerInput {
+  flex: 1;
+  min-height: var(--touch-target);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  padding: 0 var(--space-3);
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.composerInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.composerInput:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.composerButton {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-text);
+  color: var(--color-background);
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.filterButton {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  text-transform: capitalize;
+}
+
+.filterButton[data-active='true'] {
+  background: var(--color-text);
+  color: var(--color-background);
+  border-color: var(--color-text);
+}
+
+.filterButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.itemTitle {
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+}
+
+.itemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.itemStatus {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--color-text-secondary);
+}
+
+.empty {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}

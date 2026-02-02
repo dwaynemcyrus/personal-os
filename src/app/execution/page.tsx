@@ -8,6 +8,7 @@ import type {
   TimeEntryDocument,
 } from '@/lib/db';
 import { TaskList } from '@/features/tasks/TaskList/TaskList';
+import { ProjectList } from '@/features/projects/ProjectList/ProjectList';
 import sectionStyles from '../section.module.css';
 import styles from './page.module.css';
 
@@ -269,6 +270,11 @@ export default function ExecutionPage() {
       <div className={sectionStyles.section__card}>
         <div className={sectionStyles['section__card-title']}>Tasks</div>
         <TaskList />
+      </div>
+
+      <div className={sectionStyles.section__card}>
+        <div className={sectionStyles['section__card-title']}>Projects</div>
+        <ProjectList />
       </div>
 
       <div className={sectionStyles.section__card}>
