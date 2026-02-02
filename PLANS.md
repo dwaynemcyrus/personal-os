@@ -144,12 +144,12 @@ Last updated: February 2, 2026
 **Goal:** Organize tasks into projects
 
 ### Tasks
-- [ ] ProjectList component
-- [ ] Create project form
-- [ ] ProjectDetail page (shows tasks)
-- [ ] Edit project
-- [ ] Delete project
-- [ ] Add to /execution page
+- [x] ProjectList component
+- [x] Create project form
+- [x] ProjectDetail page (shows tasks)
+- [x] Edit project
+- [x] Delete project
+- [x] Add to /execution page
 
 **Completion criteria:**
 - Can create projects offline

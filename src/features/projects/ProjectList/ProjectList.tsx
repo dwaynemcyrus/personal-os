@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
+import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
 import styles from './ProjectList.module.css';
 
 type ProjectFilter = 'all' | 'backlog' | 'next' | 'active' | 'hold';
@@ -42,6 +43,7 @@ export function ProjectList() {
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [filter, setFilter] = useState<ProjectFilter>('all');
   const [titleInput, setTitleInput] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -88,6 +90,11 @@ export function ProjectList() {
     [projects]
   );
 
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId]
+  );
+
   const filteredProjects = useMemo(() => {
     if (filter === 'all') return sortedProjects;
     return sortedProjects.filter((project) => project.status === filter);
@@ -117,6 +124,101 @@ export function ProjectList() {
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await createProject();
+  };
+
+  const handleOpenProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+  };
+
+  const handleDetailOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSelectedProjectId(null);
+    }
+  };
+
+  const handleSaveProject = async (
+    projectId: string,
+    updates: {
+      title: string;
+      description: string;
+      status: 'backlog' | 'next' | 'active' | 'hold';
+      startDate: string | null;
+      dueDate: string | null;
+    }
+  ) => {
+    if (!db) return;
+    const trimmedTitle = updates.title.trim();
+    if (!trimmedTitle) return;
+    const doc = await db.projects.findOne(projectId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      title: trimmedTitle,
+      description: updates.description.trim() || null,
+      status: updates.status,
+      start_date: updates.startDate,
+      due_date: updates.dueDate,
+      updated_at: timestamp,
+    });
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!db) return;
+    const doc = await db.projects.findOne(projectId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      is_trashed: true,
+      trashed_at: timestamp,
+      updated_at: timestamp,
+    });
+  };
+
+  const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
+    if (!db) return;
+    const doc = await db.tasks.findOne(taskId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      completed: nextValue,
+      updated_at: timestamp,
+    });
+  };
+
+  const handleSaveTask = async (
+    taskId: string,
+    updates: {
+      title: string;
+      description: string;
+      projectId: string | null;
+      status: 'backlog' | 'waiting' | 'next';
+    }
+  ) => {
+    if (!db) return;
+    const trimmedTitle = updates.title.trim();
+    if (!trimmedTitle) return;
+    const doc = await db.tasks.findOne(taskId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      title: trimmedTitle,
+      description: updates.description.trim() || null,
+      project_id: updates.projectId,
+      status: updates.status,
+      updated_at: timestamp,
+    });
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!db) return;
+    const doc = await db.tasks.findOne(taskId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      is_trashed: true,
+      trashed_at: timestamp,
+      updated_at: timestamp,
+    });
   };
 
   return (
@@ -160,6 +262,7 @@ export function ProjectList() {
               key={project.id}
               type="button"
               className={styles.item}
+              onClick={() => handleOpenProject(project.id)}
             >
               <div className={styles.itemTitle}>{project.title}</div>
               <div className={styles.itemMeta}>
@@ -170,6 +273,22 @@ export function ProjectList() {
           ))}
         </div>
       )}
+
+      {selectedProject ? (
+        <ProjectDetailSheet
+          key={selectedProject.id}
+          open={Boolean(selectedProject)}
+          onOpenChange={handleDetailOpenChange}
+          project={selectedProject}
+          projects={projects}
+          tasks={tasks}
+          onSave={handleSaveProject}
+          onDelete={handleDeleteProject}
+          onToggleTaskComplete={handleToggleTaskComplete}
+          onSaveTask={handleSaveTask}
+          onDeleteTask={handleDeleteTask}
+        />
+      ) : null}
     </div>
   );
 }
