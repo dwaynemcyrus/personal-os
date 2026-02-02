@@ -7,6 +7,7 @@ import type {
   TaskDocument,
   TimeEntryDocument,
 } from '@/lib/db';
+import { TaskList } from '@/features/tasks/TaskList/TaskList';
 import sectionStyles from '../section.module.css';
 import styles from './page.module.css';
 
@@ -267,9 +268,7 @@ export default function ExecutionPage() {
 
       <div className={sectionStyles.section__card}>
         <div className={sectionStyles['section__card-title']}>Tasks</div>
-        <p className={sectionStyles['section__card-body']}>
-          Task lists, habits, and timers will live here.
-        </p>
+        <TaskList />
       </div>
 
       <div className={sectionStyles.section__card}>

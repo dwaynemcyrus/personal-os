@@ -123,13 +123,13 @@ Last updated: February 2, 2026
 **Goal:** Create/complete/delete tasks
 
 ### Tasks
-- [ ] TaskList component (mobile-first)
-- [ ] Create task form
+- [x] TaskList component (mobile-first)
+- [x] Create task form
 - [ ] Toggle task completion (checkbox)
 - [ ] Delete task (swipe or button)
 - [ ] Link tasks to projects
-- [ ] Filter tasks (all, active, completed)
-- [ ] Add to /execution page
+- [x] Filter tasks (all, active, completed)
+- [x] Add to /execution page
 
 **Completion criteria:**
 - Can create tasks offline
