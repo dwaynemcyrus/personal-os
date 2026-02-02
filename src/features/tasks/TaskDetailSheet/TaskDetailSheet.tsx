@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ChangeEvent } from 'react';
 import {
   Sheet,
   SheetClose,
@@ -21,6 +21,7 @@ type TaskDetailSheetProps = {
     projectId: string | null;
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
+  onToggleComplete?: (taskId: string, completed: boolean) => Promise<void> | void;
 };
 
 export function TaskDetailSheet({
@@ -30,6 +31,7 @@ export function TaskDetailSheet({
   projects,
   onSave,
   onDelete,
+  onToggleComplete,
 }: TaskDetailSheetProps) {
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
@@ -53,6 +55,11 @@ export function TaskDetailSheet({
     onOpenChange(false);
   };
 
+  const handleToggleComplete = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!task || !onToggleComplete) return;
+    await onToggleComplete(task.id, event.target.checked);
+  };
+
   if (!task) return null;
 
   return (
@@ -74,6 +81,21 @@ export function TaskDetailSheet({
             </button>
           </SheetClose>
         </header>
+
+        <label className={styles['task-detail__field']}>
+          <span className={styles['task-detail__label']}>Status</span>
+          <div className={styles['task-detail__toggle']}>
+            <input
+              className={styles['task-detail__checkbox']}
+              type="checkbox"
+              checked={task.completed}
+              onChange={handleToggleComplete}
+            />
+            <span className={styles['task-detail__toggle-label']}>
+              {task.completed ? 'Completed' : 'Active'}
+            </span>
+          </div>
+        </label>
 
         <label className={styles['task-detail__field']}>
           <span className={styles['task-detail__label']}>Title</span>

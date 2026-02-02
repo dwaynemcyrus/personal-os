@@ -125,7 +125,7 @@ Last updated: February 2, 2026
 ### Tasks
 - [x] TaskList component (mobile-first)
 - [x] Create task form
-- [ ] Toggle task completion (checkbox)
+- [x] Toggle task completion (checkbox)
 - [x] Delete task (swipe or button)
 - [x] Link tasks to projects
 - [x] Filter tasks (all, active, completed)

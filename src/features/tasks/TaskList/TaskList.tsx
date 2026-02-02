@@ -165,6 +165,17 @@ export function TaskList() {
     });
   };
 
+  const handleToggleComplete = async (taskId: string, nextValue: boolean) => {
+    if (!db) return;
+    const doc = await db.tasks.findOne(taskId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      completed: nextValue,
+      updated_at: timestamp,
+    });
+  };
+
   return (
     <div className={styles.tasks}>
       <form className={styles.composer} onSubmit={onSubmit}>
@@ -209,6 +220,18 @@ export function TaskList() {
                   className={styles.item}
                   onClick={() => handleOpenTask(task.id)}
                 >
+                  <span className={styles.itemToggle}>
+                    <input
+                      className={styles.itemCheckbox}
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={(event) =>
+                        handleToggleComplete(task.id, event.target.checked)
+                      }
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label={`Mark ${task.title} as completed`}
+                    />
+                  </span>
                   <div className={styles.itemTitle}>{task.title}</div>
                   <div className={styles.itemMeta}>
                     {task.project_id
@@ -236,6 +259,18 @@ export function TaskList() {
                   className={styles.item}
                   onClick={() => handleOpenTask(task.id)}
                 >
+                  <span className={styles.itemToggle}>
+                    <input
+                      className={styles.itemCheckbox}
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={(event) =>
+                        handleToggleComplete(task.id, event.target.checked)
+                      }
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label={`Mark ${task.title} as active`}
+                    />
+                  </span>
                   <div className={styles.itemTitle}>{task.title}</div>
                   <div className={styles.itemMeta}>
                     {task.project_id
@@ -258,6 +293,7 @@ export function TaskList() {
           projects={projectOptions}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}
+          onToggleComplete={handleToggleComplete}
         />
       ) : null}
     </div>

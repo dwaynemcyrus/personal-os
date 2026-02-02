@@ -51,6 +51,26 @@
   gap: var(--space-2);
 }
 
+.task-detail__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+}
+
+.task-detail__checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  accent-color: var(--color-primary);
+}
+
+.task-detail__toggle-label {
+  font-size: var(--font-base);
+  color: var(--color-text);
+}
+
 .task-detail__label {
   font-size: var(--font-sm);
   color: var(--color-text-secondary);
