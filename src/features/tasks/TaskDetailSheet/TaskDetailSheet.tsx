@@ -19,6 +19,7 @@ type TaskDetailSheetProps = {
     title: string;
     description: string;
     projectId: string | null;
+    status: 'backlog' | 'waiting' | 'next';
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
   onToggleComplete?: (taskId: string, completed: boolean) => Promise<void> | void;
@@ -36,6 +37,9 @@ export function TaskDetailSheet({
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [projectId, setProjectId] = useState(task?.project_id ?? '');
+  const [status, setStatus] = useState<'backlog' | 'waiting' | 'next'>(
+    task?.status ?? 'backlog'
+  );
 
   const canSave = useMemo(() => Boolean(title.trim()), [title]);
 
@@ -45,6 +49,7 @@ export function TaskDetailSheet({
       title,
       description,
       projectId: projectId ? projectId : null,
+      status,
     });
     onOpenChange(false);
   };
@@ -83,7 +88,7 @@ export function TaskDetailSheet({
         </header>
 
         <label className={styles['task-detail__field']}>
-          <span className={styles['task-detail__label']}>Status</span>
+          <span className={styles['task-detail__label']}>Completion</span>
           <div className={styles['task-detail__toggle']}>
             <input
               className={styles['task-detail__checkbox']}
@@ -92,7 +97,7 @@ export function TaskDetailSheet({
               onChange={handleToggleComplete}
             />
             <span className={styles['task-detail__toggle-label']}>
-              {task.completed ? 'Completed' : 'Active'}
+              {task.completed ? 'Completed' : 'Incomplete'}
             </span>
           </div>
         </label>
@@ -131,6 +136,21 @@ export function TaskDetailSheet({
                 {project.title}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className={styles['task-detail__field']}>
+          <span className={styles['task-detail__label']}>Status</span>
+          <select
+            className={styles['task-detail__input']}
+            value={status}
+            onChange={(event) =>
+              setStatus(event.target.value as 'backlog' | 'waiting' | 'next')
+            }
+          >
+            <option value="backlog">Backlog</option>
+            <option value="waiting">Waiting</option>
+            <option value="next">Next</option>
           </select>
         </label>
 

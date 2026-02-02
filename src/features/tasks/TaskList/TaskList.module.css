@@ -41,20 +41,16 @@
 }
 
 .filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  padding: 4px;
 }
 
 .filterButton {
-  flex: 1;
   min-height: var(--touch-target);
-  border: none;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
-  background: transparent;
+  background: var(--color-surface-elevated);
   color: var(--color-text-secondary);
   font-size: var(--font-sm);
   text-transform: capitalize;
@@ -63,6 +59,7 @@
 .filterButton[data-active='true'] {
   background: var(--color-text);
   color: var(--color-background);
+  border-color: var(--color-text);
 }
 
 .filterButton:focus-visible {
@@ -133,9 +130,22 @@
   font-size: var(--font-sm);
   color: var(--color-text-secondary);
   grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .empty {
   font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.itemStatus {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.08);
   color: var(--color-text-secondary);
 }
