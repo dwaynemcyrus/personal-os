@@ -110,6 +110,7 @@ export function TaskList() {
       project_id: null,
       title: trimmed,
       description: null,
+      status: 'backlog',
       completed: false,
       due_date: null,
       created_at: timestamp,

@@ -63,6 +63,7 @@ CREATE TABLE tasks (
   project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   description TEXT,
+  status TEXT NOT NULL DEFAULT 'backlog',
   completed BOOLEAN DEFAULT FALSE,
   due_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -75,6 +76,7 @@ CREATE TABLE tasks (
 **Indexes:**
 ```sql
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_tasks_completed ON tasks(completed);
 CREATE INDEX idx_tasks_is_trashed ON tasks(is_trashed);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);

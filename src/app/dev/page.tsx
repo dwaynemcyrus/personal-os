@@ -227,6 +227,7 @@ export default function DevValidationPage() {
   const [taskProjectId, setTaskProjectId] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
   const [taskCompleted, setTaskCompleted] = useState(false);
+  const [taskStatus, setTaskStatus] = useState<'backlog' | 'waiting' | 'next'>('backlog');
   const [taskEditingId, setTaskEditingId] = useState<string | null>(null);
 
   const saveTask = async () => {
@@ -245,6 +246,7 @@ export default function DevValidationPage() {
         title: trimmedTitle,
         description,
         project_id: projectId,
+        status: taskStatus,
         completed: taskCompleted,
         due_date: dueDate,
         updated_at: timestamp,
@@ -255,6 +257,7 @@ export default function DevValidationPage() {
         project_id: projectId,
         title: trimmedTitle,
         description,
+        status: taskStatus,
         completed: taskCompleted,
         due_date: dueDate,
         created_at: timestamp,
@@ -270,6 +273,7 @@ export default function DevValidationPage() {
     setTaskProjectId('');
     setTaskDueDate('');
     setTaskCompleted(false);
+    setTaskStatus('backlog');
     setTaskEditingId(null);
   };
 
@@ -289,6 +293,7 @@ export default function DevValidationPage() {
     setTaskProjectId(item.project_id ?? '');
     setTaskDueDate(toInputDateTime(item.due_date));
     setTaskCompleted(item.completed);
+    setTaskStatus(item.status);
   };
 
   const [noteTitle, setNoteTitle] = useState('');
@@ -667,6 +672,17 @@ export default function DevValidationPage() {
               </option>
             ))}
           </select>
+          <select
+            className={styles.select}
+            value={taskStatus}
+            onChange={(event) =>
+              setTaskStatus(event.target.value as 'backlog' | 'waiting' | 'next')
+            }
+          >
+            <option value="backlog">Backlog</option>
+            <option value="waiting">Waiting</option>
+            <option value="next">Next</option>
+          </select>
           <input
             className={styles.input}
             type="datetime-local"
@@ -696,9 +712,9 @@ export default function DevValidationPage() {
                 <div>
                   <strong>{item.title}</strong>
                   <div className={styles.itemMeta}>
-                {projectMap.get(item.project_id ?? '') || 'No project'} |{' '}
-                {item.completed ? 'Completed' : 'Active'}
-              </div>
+                    {projectMap.get(item.project_id ?? '') || 'No project'} |{' '}
+                    {item.completed ? 'Completed' : 'Active'} | {item.status}
+                  </div>
                 </div>
                 <div className={styles.actions}>
                   <button className={styles.button} onClick={() => startEditTask(item)}>

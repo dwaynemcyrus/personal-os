@@ -39,6 +39,7 @@ const collectionConfig = {
       'project_id',
       'title',
       'description',
+      'status',
       'completed',
       'due_date',
       'created_at',

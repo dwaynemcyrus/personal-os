@@ -35,11 +35,22 @@ export const projectSchema = z.object({
   description: z.string().nullable(),
 });
 
+const taskStatuses = ['backlog', 'waiting', 'next'] as const;
+
+const coerceTaskStatus = (value: unknown) => {
+  if (value === 'active') return 'next';
+  if (value === 'backlog' || value === 'waiting' || value === 'next') {
+    return value;
+  }
+  return 'backlog';
+};
+
 export const taskSchema = z.object({
   ...baseFields,
   project_id: z.string().uuid().nullable(),
   title: z.string(),
   description: z.string().nullable(),
+  status: z.enum(taskStatuses),
   completed: z.boolean(),
   due_date: z.string().nullable(),
 });
@@ -142,7 +153,7 @@ const projectsRxSchema = {
 };
 
 const tasksRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -150,10 +161,19 @@ const tasksRxSchema = {
     project_id: { type: ['string', 'null'], maxLength: 36 },
     title: { type: 'string' },
     description: { type: ['string', 'null'] },
+    status: { type: 'string', enum: taskStatuses },
     completed: { type: 'boolean' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
   },
-  required: [...baseRequired, 'project_id', 'title', 'description', 'completed', 'due_date'],
+  required: [
+    ...baseRequired,
+    'project_id',
+    'title',
+    'description',
+    'status',
+    'completed',
+    'due_date',
+  ],
 };
 
 const notesRxSchema = {
@@ -236,6 +256,11 @@ type LegacySoftDeleteFields = {
   trashed_at?: string | null;
 };
 
+type LegacyTaskFields = {
+  status?: unknown;
+  completed?: unknown;
+};
+
 type LegacyTimeEntryFields = {
   entry_type?: unknown;
   label?: unknown;
@@ -294,6 +319,31 @@ function migrateTimeEntryFields(
 const softDeleteMigrationStrategies = {
   1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
     migrateSoftDeleteFields(oldDoc),
+};
+
+const tasksMigrationStrategies = {
+  1: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
+    const migrated = migrateSoftDeleteFields(oldDoc);
+    const completed = typeof oldDoc.completed === 'boolean' ? oldDoc.completed : false;
+    const status = completed ? 'backlog' : coerceTaskStatus(oldDoc.status);
+
+    return {
+      ...migrated,
+      status,
+      completed,
+    };
+  },
+  2: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
+    const migrated = migrateSoftDeleteFields(oldDoc);
+    const completed = typeof oldDoc.completed === 'boolean' ? oldDoc.completed : false;
+    const status = completed ? 'backlog' : coerceTaskStatus(oldDoc.status);
+
+    return {
+      ...migrated,
+      status,
+      completed,
+    };
+  },
 };
 
 const timeEntriesMigrationStrategies = {
@@ -360,7 +410,7 @@ export async function getDatabase() {
       },
       tasks: {
         schema: tasksRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
+        migrationStrategies: tasksMigrationStrategies,
       },
       notes: {
         schema: notesRxSchema,
