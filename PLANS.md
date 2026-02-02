@@ -105,7 +105,7 @@ Last updated: January 31, 2026
 - [x] Persist active timer across refresh
 - [x] Restore timer on app load
 - [ ] Add haptic feedback on start/stop
-- [ ] Test sync (start on phone, see on desktop)
+- [x] Test sync (start on phone, see on desktop)
 
 **Completion criteria:**
 - Timer doesn't lose data on refresh
