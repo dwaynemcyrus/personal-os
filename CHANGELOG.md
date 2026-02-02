@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 - 2026-02-03
+- Added project list on Execution with status filters and open task counts
+- Added project detail sheet with task list, status, and start/due dates
+- Added quick-add tasks within project sheets
+- Added inline clear buttons for project start/due dates
+- Made task detail sheets compact by default
+
 ## 0.5.0 - 2026-02-02
 - Added session-based time entry grouping with inline segment details and live totals on Execution
 - Added unplanned activity suggestions and session metadata for time entries
