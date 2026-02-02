@@ -221,26 +221,6 @@ export function ProjectList() {
     });
   };
 
-  const handleCreateTask = async (projectId: string, title: string) => {
-    if (!db) return;
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    const timestamp = nowIso();
-    await db.tasks.insert({
-      id: uuidv4(),
-      project_id: projectId,
-      title: trimmed,
-      description: null,
-      status: 'backlog',
-      completed: false,
-      due_date: null,
-      created_at: timestamp,
-      updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
-    });
-  };
-
   return (
     <div className={styles.projects}>
       <form className={styles.composer} onSubmit={onSubmit}>
@@ -307,7 +287,6 @@ export function ProjectList() {
           onToggleTaskComplete={handleToggleTaskComplete}
           onSaveTask={handleSaveTask}
           onDeleteTask={handleDeleteTask}
-          onCreateTask={handleCreateTask}
         />
       ) : null}
     </div>
