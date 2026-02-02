@@ -30,7 +30,11 @@ const subscribe = (listener: Listener) => {
 };
 
 export const usePageTitleValue = (path: string) =>
-  useSyncExternalStore(subscribe, () => getTitle(path));
+  useSyncExternalStore(
+    subscribe,
+    () => getTitle(path),
+    () => null
+  );
 
 export const usePageTitle = (path: string) => ({
   setTitle: (title: string | null) => setTitle(path, title),
