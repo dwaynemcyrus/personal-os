@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from '@/components/ui/Sheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
+import { usePageTitleValue } from '@/components/layout/pageTitleStore';
 import { useTimer } from '@/features/timer';
 import styles from './AppShell.module.css';
 
@@ -47,6 +48,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/strategy': 'Strategy',
   '/knowledge': 'Knowledge',
   '/execution': 'Execution',
+  '/projects': 'Project',
   '/dev': 'Dev',
 };
 
@@ -59,6 +61,7 @@ const triggerHaptic = () => {
 const getBackHref = (pathname: string) => {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length <= 1) return '/';
+  if (segments[0] === 'projects') return '/execution';
   return `/${segments[0]}`;
 };
 
@@ -84,11 +87,17 @@ export function AppShell({ children }: AppShellProps) {
   } = useTimer();
 
   const isRoot = pathname === '/';
-  const pageTitle = PAGE_TITLES[pathname] ?? 'Personal OS';
+  const overrideTitle = usePageTitleValue(pathname ?? '');
+  const isProjectRoute = pathname?.startsWith('/projects/');
+  const pageTitle =
+    overrideTitle ??
+    PAGE_TITLES[pathname] ??
+    (isProjectRoute ? 'Project' : 'Personal OS');
 
   const activeHref = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
     if (segments.length === 0) return '/';
+    if (segments[0] === 'projects') return '/execution';
     return `/${segments[0]}`;
   }, [pathname]);
 

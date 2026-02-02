@@ -150,6 +150,7 @@ Last updated: February 2, 2026
 - [x] Edit project
 - [x] Delete project
 - [x] Add to /execution page
+- [x] Project detail route (/projects/[id])
 
 **Completion criteria:**
 - Can create projects offline
