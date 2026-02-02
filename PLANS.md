@@ -2,7 +2,7 @@
 
 ## Current Status: MVP Phase - Sync Proof of Concept ✅
 
-Last updated: February 2, 2026
+Last updated: February 3, 2026
 
 ---
 
@@ -150,6 +150,7 @@ Last updated: February 2, 2026
 - [x] Edit project
 - [x] Delete project
 - [x] Add to /execution page
+- [ ] Project detail sheet enhancements (quick add, date clear, compact task detail sheet)
 
 **Completion criteria:**
 - Can create projects offline
