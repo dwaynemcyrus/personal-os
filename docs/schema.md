@@ -39,6 +39,9 @@ CREATE TABLE projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
   description TEXT,
+  status TEXT NOT NULL DEFAULT 'backlog',
+  start_date TIMESTAMPTZ,
+  due_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   is_trashed BOOLEAN DEFAULT FALSE,
@@ -49,6 +52,8 @@ CREATE TABLE projects (
 **Indexes:**
 ```sql
 CREATE INDEX idx_projects_is_trashed ON projects(is_trashed);
+CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX idx_projects_due_date ON projects(due_date);
 CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
 ```
 

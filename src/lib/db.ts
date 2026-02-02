@@ -29,10 +29,27 @@ export const syncTestSchema = z.object({
   content: z.string(),
 });
 
+const projectStatuses = ['backlog', 'next', 'active', 'hold'] as const;
+
+const coerceProjectStatus = (value: unknown) => {
+  if (
+    value === 'backlog' ||
+    value === 'next' ||
+    value === 'active' ||
+    value === 'hold'
+  ) {
+    return value;
+  }
+  return 'backlog';
+};
+
 export const projectSchema = z.object({
   ...baseFields,
   title: z.string(),
   description: z.string().nullable(),
+  status: z.enum(projectStatuses),
+  start_date: z.string().nullable(),
+  due_date: z.string().nullable(),
 });
 
 const taskStatuses = ['backlog', 'waiting', 'next'] as const;
@@ -141,15 +158,25 @@ const syncTestRxSchema = {
 };
 
 const projectsRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
     title: { type: 'string' },
     description: { type: ['string', 'null'] },
+    status: { type: 'string', enum: projectStatuses },
+    start_date: { type: ['string', 'null'], format: 'date-time' },
+    due_date: { type: ['string', 'null'], format: 'date-time' },
   },
-  required: [...baseRequired, 'title', 'description'],
+  required: [
+    ...baseRequired,
+    'title',
+    'description',
+    'status',
+    'start_date',
+    'due_date',
+  ],
 };
 
 const tasksRxSchema = {
@@ -261,6 +288,12 @@ type LegacyTaskFields = {
   completed?: unknown;
 };
 
+type LegacyProjectFields = {
+  status?: unknown;
+  start_date?: unknown;
+  due_date?: unknown;
+};
+
 type LegacyTimeEntryFields = {
   entry_type?: unknown;
   label?: unknown;
@@ -346,6 +379,37 @@ const tasksMigrationStrategies = {
   },
 };
 
+const projectsMigrationStrategies = {
+  1: (oldDoc: LegacySoftDeleteFields & LegacyProjectFields & Record<string, unknown>) => {
+    const migrated = migrateSoftDeleteFields(oldDoc);
+    const status = coerceProjectStatus(oldDoc.status);
+    const start_date =
+      typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null;
+    const due_date = typeof oldDoc.due_date === 'string' ? oldDoc.due_date : null;
+
+    return {
+      ...migrated,
+      status,
+      start_date,
+      due_date,
+    };
+  },
+  2: (oldDoc: LegacySoftDeleteFields & LegacyProjectFields & Record<string, unknown>) => {
+    const migrated = migrateSoftDeleteFields(oldDoc);
+    const status = coerceProjectStatus(oldDoc.status);
+    const start_date =
+      typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null;
+    const due_date = typeof oldDoc.due_date === 'string' ? oldDoc.due_date : null;
+
+    return {
+      ...migrated,
+      status,
+      start_date,
+      due_date,
+    };
+  },
+};
+
 const timeEntriesMigrationStrategies = {
   1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
     migrateSoftDeleteFields(oldDoc),
@@ -406,7 +470,7 @@ export async function getDatabase() {
       },
       projects: {
         schema: projectsRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
+        migrationStrategies: projectsMigrationStrategies,
       },
       tasks: {
         schema: tasksRxSchema,

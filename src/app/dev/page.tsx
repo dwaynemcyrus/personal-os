@@ -172,6 +172,11 @@ export default function DevValidationPage() {
 
   const [projectTitle, setProjectTitle] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
+  const [projectStatus, setProjectStatus] = useState<'backlog' | 'next' | 'active' | 'hold'>(
+    'backlog'
+  );
+  const [projectStartDate, setProjectStartDate] = useState('');
+  const [projectDueDate, setProjectDueDate] = useState('');
   const [projectEditingId, setProjectEditingId] = useState<string | null>(null);
 
   const saveProject = async () => {
@@ -179,6 +184,8 @@ export default function DevValidationPage() {
     const trimmedTitle = projectTitle.trim();
     if (!trimmedTitle) return;
     const description = projectDescription.trim() || null;
+    const startDate = fromInputDateTime(projectStartDate);
+    const dueDate = fromInputDateTime(projectDueDate);
     const timestamp = nowIso();
 
     if (projectEditingId) {
@@ -187,6 +194,9 @@ export default function DevValidationPage() {
       await doc.patch({
         title: trimmedTitle,
         description,
+        status: projectStatus,
+        start_date: startDate,
+        due_date: dueDate,
         updated_at: timestamp,
       });
     } else {
@@ -194,6 +204,9 @@ export default function DevValidationPage() {
         id: uuidv4(),
         title: trimmedTitle,
         description,
+        status: projectStatus,
+        start_date: startDate,
+        due_date: dueDate,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,
@@ -204,6 +217,9 @@ export default function DevValidationPage() {
     triggerHaptic();
     setProjectTitle('');
     setProjectDescription('');
+    setProjectStatus('backlog');
+    setProjectStartDate('');
+    setProjectDueDate('');
     setProjectEditingId(null);
   };
 
@@ -220,6 +236,9 @@ export default function DevValidationPage() {
     setProjectEditingId(item.id);
     setProjectTitle(item.title);
     setProjectDescription(item.description ?? '');
+    setProjectStatus(item.status);
+    setProjectStartDate(toInputDateTime(item.start_date));
+    setProjectDueDate(toInputDateTime(item.due_date));
   };
 
   const [taskTitle, setTaskTitle] = useState('');
@@ -610,6 +629,34 @@ export default function DevValidationPage() {
             onChange={(event) => setProjectDescription(event.target.value)}
             placeholder="Description (optional)"
           />
+          <select
+            className={styles.select}
+            value={projectStatus}
+            onChange={(event) =>
+              setProjectStatus(
+                event.target.value as 'backlog' | 'next' | 'active' | 'hold'
+              )
+            }
+          >
+            <option value="backlog">Backlog</option>
+            <option value="next">Next</option>
+            <option value="active">Active</option>
+            <option value="hold">Hold</option>
+          </select>
+          <input
+            className={styles.input}
+            type="datetime-local"
+            value={projectStartDate}
+            onChange={(event) => setProjectStartDate(event.target.value)}
+            placeholder="Start date"
+          />
+          <input
+            className={styles.input}
+            type="datetime-local"
+            value={projectDueDate}
+            onChange={(event) => setProjectDueDate(event.target.value)}
+            placeholder="Due date"
+          />
           <button
             className={`${styles.button} ${styles.buttonPrimary}`}
             onClick={saveProject}
@@ -623,7 +670,13 @@ export default function DevValidationPage() {
               <div className={styles.itemRow}>
                 <div>
                   <strong>{item.title}</strong>
-                  <div className={styles.itemMeta}>{item.description || 'No description'}</div>
+                  <div className={styles.itemMeta}>
+                    {item.description || 'No description'}
+                  </div>
+                  <div className={styles.itemMeta}>
+                    {item.status} | Start {item.start_date ? formatDate(item.start_date) : '-'} | Due{' '}
+                    {item.due_date ? formatDate(item.due_date) : '-'}
+                  </div>
                 </div>
                 <div className={styles.actions}>
                   <button className={styles.button} onClick={() => startEditProject(item)}>
