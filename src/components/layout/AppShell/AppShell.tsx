@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sheet,
@@ -110,6 +110,18 @@ export function AppShell({ children }: AppShellProps) {
     triggerHaptic();
     setIsFocusOpen(true);
   };
+
+  useEffect(() => {
+    const handleOpen = () => {
+      triggerHaptic();
+      setIsFocusOpen(true);
+    };
+
+    window.addEventListener('focus-sheet:open', handleOpen);
+    return () => {
+      window.removeEventListener('focus-sheet:open', handleOpen);
+    };
+  }, []);
 
   const handleOpenFocusFromCommand = () => {
     triggerHaptic();

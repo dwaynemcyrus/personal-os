@@ -8,6 +8,9 @@ export default function HomePage() {
 
   const statusLabel =
     state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';
+  const handleOpenFocus = () => {
+    window.dispatchEvent(new CustomEvent('focus-sheet:open'));
+  };
 
   return (
     <section className={styles.home}>
@@ -19,7 +22,12 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className={styles['home__focus-card']}>
+      <button
+        type="button"
+        className={styles['home__focus-card']}
+        onClick={handleOpenFocus}
+        aria-label="Open focus timer"
+      >
         <div className={styles['home__focus-header']}>
           <span className={styles['home__focus-label']}>Focus</span>
           <span className={styles['home__focus-status']} data-state={state}>
@@ -36,7 +44,7 @@ export default function HomePage() {
         {projectLabel ? (
           <div className={styles['home__focus-project']}>{projectLabel}</div>
         ) : null}
-      </div>
+      </button>
 
       <div className={styles['home__card']}>
         <div className={styles['home__card-title']}>Next up</div>
