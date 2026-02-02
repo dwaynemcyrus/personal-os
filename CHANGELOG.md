@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 - 2026-02-02
+- Added session-based time entry grouping with inline segment details and live totals on Execution
+- Added unplanned activity suggestions and session metadata for time entries
+- Added task list on Execution with quick-add, project display, detail sheet, and completion toggle
+- Added task status model (backlog/next/waiting) with filters and status editing
+- Updated base typography (14px base) and standardized inputs to 16px
+
 ## 0.4.1 - 2026-02-01
 - Fixed DB initialization race so collections are registered before sync starts
 
