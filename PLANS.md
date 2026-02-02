@@ -150,7 +150,7 @@ Last updated: February 3, 2026
 - [x] Edit project
 - [x] Delete project
 - [x] Add to /execution page
-- [ ] Project detail sheet enhancements (quick add, date clear, compact task detail sheet)
+- [x] Project detail sheet enhancements (quick add, date clear, compact task detail sheet)
 
 **Completion criteria:**
 - Can create projects offline
