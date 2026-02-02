@@ -369,7 +369,6 @@ export function ProjectDetailSheet({
           onSave={onSaveTask}
           onDelete={onDeleteTask}
           onToggleComplete={onToggleTaskComplete}
-          variant="sheet"
         />
       ) : null}
     </Sheet>

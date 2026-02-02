@@ -23,7 +23,6 @@ type TaskDetailSheetProps = {
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
   onToggleComplete?: (taskId: string, completed: boolean) => Promise<void> | void;
-  variant?: 'full' | 'sheet';
 };
 
 export function TaskDetailSheet({
@@ -34,7 +33,6 @@ export function TaskDetailSheet({
   onSave,
   onDelete,
   onToggleComplete,
-  variant = 'full',
 }: TaskDetailSheetProps) {
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
@@ -69,16 +67,11 @@ export function TaskDetailSheet({
 
   if (!task) return null;
 
-  const contentClassName =
-    variant === 'sheet'
-      ? `${styles['task-detail__content']} ${styles['task-detail__content--sheet']}`
-      : styles['task-detail__content'];
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className={contentClassName}
+        className={styles['task-detail__content']}
         aria-label="Task details"
       >
         <header className={styles['task-detail__header']}>
