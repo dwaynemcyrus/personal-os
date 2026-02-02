@@ -76,7 +76,7 @@ export function FocusSheet({
       .filter((suggestion) =>
         suggestion.normalized.startsWith(normalizedInput)
       )
-      .slice(0, 5);
+      .slice(0, 7);
   }, [entryType, normalizedInput, unplannedSuggestions]);
 
   const statusLabel = state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';

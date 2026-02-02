@@ -2,7 +2,7 @@
 
 ## Current Status: MVP Phase - Sync Proof of Concept ✅
 
-Last updated: January 31, 2026
+Last updated: February 2, 2026
 
 ---
 
@@ -104,6 +104,9 @@ Last updated: January 31, 2026
 - [x] Display elapsed time (update every second)
 - [x] Persist active timer across refresh
 - [x] Restore timer on app load
+- [x] Add unplanned time labels + suggestions
+- [x] Group time entries by session + date in Execution
+- [x] Show session details inline (segments, project, type)
 - [ ] Add haptic feedback on start/stop
 - [x] Test sync (start on phone, see on desktop)
 
@@ -146,7 +149,7 @@ Last updated: January 31, 2026
 - [ ] ProjectDetail page (shows tasks)
 - [ ] Edit project
 - [ ] Delete project
-- [ ] Add to /strategy page
+- [ ] Add to /execution page
 
 **Completion criteria:**
 - Can create projects offline
