@@ -90,6 +90,8 @@ const collectionConfig = {
       'task_id',
       'entry_type',
       'label',
+      'label_normalized',
+      'session_id',
       'started_at',
       'stopped_at',
       'duration_seconds',

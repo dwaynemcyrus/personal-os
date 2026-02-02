@@ -20,7 +20,9 @@ const baseFields = {
   trashed_at: z.string().nullable(),
 };
 
-const timeEntryTypes = ['planned', 'log'] as const;
+const timeEntryTypes = ['planned', 'unplanned'] as const;
+
+const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
 export const syncTestSchema = z.object({
   ...baseFields,
@@ -63,18 +65,40 @@ export const habitCompletionSchema = z.object({
 export const timeEntrySchema = z.object({
   ...baseFields,
   task_id: z.string().uuid().nullable(),
+  session_id: z.string().uuid().nullable(),
   entry_type: z.enum(timeEntryTypes),
   label: z.string().nullable(),
+  label_normalized: z.string().nullable(),
   started_at: z.string(),
   stopped_at: z.string().nullable(),
   duration_seconds: z.number().int().nonnegative().nullable(),
 }).superRefine((value, ctx) => {
-  if (value.entry_type === 'log' && !value.label?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Log entries require a label.',
-      path: ['label'],
-    });
+  if (value.entry_type === 'unplanned') {
+    if (!value.label?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Unplanned entries require a label.',
+        path: ['label'],
+      });
+    }
+    if (!value.label_normalized?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Unplanned entries require a normalized label.',
+        path: ['label_normalized'],
+      });
+    }
+    if (
+      value.label &&
+      value.label_normalized &&
+      value.label_normalized !== normalizeLabel(value.label)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Normalized label must match the label.',
+        path: ['label_normalized'],
+      });
+    }
   }
 });
 
@@ -169,14 +193,16 @@ const habitCompletionsRxSchema = {
 };
 
 const timeEntriesRxSchema = {
-  version: 2,
+  version: 3,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
     task_id: { type: ['string', 'null'], maxLength: 36 },
+    session_id: { type: ['string', 'null'], maxLength: 36 },
     entry_type: { type: 'string', enum: timeEntryTypes },
     label: { type: ['string', 'null'] },
+    label_normalized: { type: ['string', 'null'] },
     started_at: { type: 'string', format: 'date-time' },
     stopped_at: { type: ['string', 'null'], format: 'date-time' },
     duration_seconds: { type: ['number', 'null'] },
@@ -184,8 +210,10 @@ const timeEntriesRxSchema = {
   required: [
     ...baseRequired,
     'task_id',
+    'session_id',
     'entry_type',
     'label',
+    'label_normalized',
     'started_at',
     'stopped_at',
     'duration_seconds',
@@ -211,12 +239,20 @@ type LegacySoftDeleteFields = {
 type LegacyTimeEntryFields = {
   entry_type?: unknown;
   label?: unknown;
+  label_normalized?: unknown;
+  session_id?: unknown;
 };
 
 type TimeEntryType = (typeof timeEntryTypes)[number];
 
 const isTimeEntryType = (value: string): value is TimeEntryType =>
   timeEntryTypes.includes(value as TimeEntryType);
+
+const coerceEntryType = (value: unknown): TimeEntryType => {
+  if (value === 'log') return 'unplanned';
+  if (typeof value === 'string' && isTimeEntryType(value)) return value;
+  return 'planned';
+};
 
 function migrateSoftDeleteFields<T extends Record<string, unknown>>(
   oldDoc: T & LegacySoftDeleteFields
@@ -235,15 +271,23 @@ function migrateTimeEntryFields(
   oldDoc: LegacySoftDeleteFields & LegacyTimeEntryFields & Record<string, unknown>
 ) {
   const migrated = migrateSoftDeleteFields(oldDoc);
-  const entryTypeRaw =
-    typeof oldDoc.entry_type === 'string' ? oldDoc.entry_type : 'planned';
-  const entry_type = isTimeEntryType(entryTypeRaw) ? entryTypeRaw : 'planned';
+  const entry_type = coerceEntryType(oldDoc.entry_type);
   const label = typeof oldDoc.label === 'string' ? oldDoc.label : null;
+  const label_normalized =
+    typeof oldDoc.label_normalized === 'string'
+      ? oldDoc.label_normalized
+      : label
+        ? normalizeLabel(label)
+        : null;
+  const session_id =
+    typeof oldDoc.session_id === 'string' ? oldDoc.session_id : null;
 
   return {
     ...migrated,
     entry_type,
     label,
+    label_normalized,
+    session_id,
   };
 }
 
@@ -256,6 +300,9 @@ const timeEntriesMigrationStrategies = {
   1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
     migrateSoftDeleteFields(oldDoc),
   2: (oldDoc: LegacySoftDeleteFields &
+    LegacyTimeEntryFields &
+    Record<string, unknown>) => migrateTimeEntryFields(oldDoc),
+  3: (oldDoc: LegacySoftDeleteFields &
     LegacyTimeEntryFields &
     Record<string, unknown>) => migrateTimeEntryFields(oldDoc),
 };

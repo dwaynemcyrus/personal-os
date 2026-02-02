@@ -447,8 +447,9 @@ export default function DevValidationPage() {
   };
 
   const [timeTaskId, setTimeTaskId] = useState('');
-  const [timeEntryType, setTimeEntryType] = useState<'planned' | 'log'>('planned');
+  const [timeEntryType, setTimeEntryType] = useState<'planned' | 'unplanned'>('planned');
   const [timeLabel, setTimeLabel] = useState('');
+  const [timeSessionId, setTimeSessionId] = useState('');
   const [timeStartedAt, setTimeStartedAt] = useState(toInputDateTime(nowIso()));
   const [timeStoppedAt, setTimeStoppedAt] = useState('');
   const [timeDuration, setTimeDuration] = useState('');
@@ -460,8 +461,14 @@ export default function DevValidationPage() {
     if (!startedAt) return;
     const stoppedAt = fromInputDateTime(timeStoppedAt);
     const timestamp = nowIso();
-    const labelValue = timeEntryType === 'log' ? timeLabel.trim() : null;
-    if (timeEntryType === 'log' && !labelValue) return;
+    const labelValue = timeEntryType === 'unplanned' ? timeLabel.trim() : null;
+    const labelNormalized =
+      timeEntryType === 'unplanned' && labelValue
+        ? labelValue.toLowerCase()
+        : null;
+    if (timeEntryType === 'unplanned' && !labelValue) return;
+    const sessionId =
+      timeSessionId.trim() || (timeEditingId ? null : uuidv4());
 
     let durationSeconds: number | null = null;
     if (timeDuration.trim()) {
@@ -477,8 +484,10 @@ export default function DevValidationPage() {
 
     const payload = {
       task_id: timeTaskId || null,
+      session_id: sessionId,
       entry_type: timeEntryType,
       label: labelValue,
+      label_normalized: labelNormalized,
       started_at: startedAt,
       stopped_at: stoppedAt,
       duration_seconds: durationSeconds,
@@ -503,6 +512,7 @@ export default function DevValidationPage() {
     setTimeTaskId('');
     setTimeEntryType('planned');
     setTimeLabel('');
+    setTimeSessionId('');
     setTimeStartedAt(toInputDateTime(nowIso()));
     setTimeStoppedAt('');
     setTimeDuration('');
@@ -523,6 +533,7 @@ export default function DevValidationPage() {
     setTimeTaskId(item.task_id ?? '');
     setTimeEntryType(item.entry_type);
     setTimeLabel(item.label ?? '');
+    setTimeSessionId(item.session_id ?? '');
     setTimeStartedAt(toInputDateTime(item.started_at));
     setTimeStoppedAt(toInputDateTime(item.stopped_at));
     setTimeDuration(item.duration_seconds?.toString() ?? '');
@@ -892,18 +903,24 @@ export default function DevValidationPage() {
             className={styles.select}
             value={timeEntryType}
             onChange={(event) =>
-              setTimeEntryType(event.target.value as 'planned' | 'log')
+              setTimeEntryType(event.target.value as 'planned' | 'unplanned')
             }
           >
             <option value="planned">Planned</option>
-            <option value="log">Log</option>
+            <option value="unplanned">Unplanned</option>
           </select>
           <input
             className={styles.input}
             value={timeLabel}
             onChange={(event) => setTimeLabel(event.target.value)}
-            placeholder="Log label"
-            disabled={timeEntryType !== 'log'}
+            placeholder="Unplanned label"
+            disabled={timeEntryType !== 'unplanned'}
+          />
+          <input
+            className={styles.input}
+            value={timeSessionId}
+            onChange={(event) => setTimeSessionId(event.target.value)}
+            placeholder="Session ID"
           />
           <input
             className={styles.input}

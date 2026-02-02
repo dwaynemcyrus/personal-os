@@ -163,8 +163,10 @@ CREATE INDEX idx_habit_completions_is_trashed ON habit_completions(is_trashed);
 CREATE TABLE time_entries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
-  entry_type TEXT NOT NULL DEFAULT 'planned' CHECK (entry_type IN ('planned', 'log')),
+  session_id UUID,
+  entry_type TEXT NOT NULL DEFAULT 'planned' CHECK (entry_type IN ('planned', 'unplanned')),
   label TEXT,
+  label_normalized TEXT,
   started_at TIMESTAMPTZ NOT NULL,
   stopped_at TIMESTAMPTZ,
   duration_seconds INTEGER,
@@ -172,8 +174,11 @@ CREATE TABLE time_entries (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   is_trashed BOOLEAN DEFAULT FALSE,
   trashed_at TIMESTAMPTZ DEFAULT NULL,
-  CONSTRAINT time_entries_log_label_check
-    CHECK (entry_type <> 'log' OR label IS NOT NULL)
+  CONSTRAINT time_entries_unplanned_label_check
+    CHECK (
+      entry_type <> 'unplanned'
+      OR (label IS NOT NULL AND label_normalized IS NOT NULL)
+    )
 );
 ```
 
@@ -181,6 +186,8 @@ CREATE TABLE time_entries (
 ```sql
 CREATE INDEX idx_time_entries_task_id ON time_entries(task_id);
 CREATE INDEX idx_time_entries_entry_type ON time_entries(entry_type);
+CREATE INDEX idx_time_entries_session_id ON time_entries(session_id);
+CREATE INDEX idx_time_entries_label_normalized ON time_entries(label_normalized);
 CREATE INDEX idx_time_entries_started_at ON time_entries(started_at DESC);
 CREATE INDEX idx_time_entries_is_trashed ON time_entries(is_trashed);
 ```
@@ -188,8 +195,9 @@ CREATE INDEX idx_time_entries_is_trashed ON time_entries(is_trashed);
 **Notes:**
 - `stopped_at` is NULL for active timers
 - `duration_seconds` calculated on stop
-- `entry_type` is `planned` for task-linked entries and `log` for unplanned activity
-- `label` is required for `log` entries
+- `entry_type` is `planned` for task-linked entries and `unplanned` for unplanned activity
+- `label` and `label_normalized` are required for `unplanned` entries
+- `session_id` groups pause/resume segments
 
 ---
 
@@ -330,10 +338,10 @@ AND is_trashed = FALSE
 LIMIT 1;
 ```
 
-### Find log entries
+### Find unplanned entries
 ```sql
 SELECT * FROM time_entries
-WHERE entry_type = 'log'
+WHERE entry_type = 'unplanned'
 AND is_trashed = FALSE
 ORDER BY started_at DESC;
 ```
