@@ -200,21 +200,41 @@ export function ProjectDetailSheet({
         <div className={styles['project-detail__row']}>
           <label className={styles['project-detail__field']}>
             <span className={styles['project-detail__label']}>Start</span>
-            <input
-              className={styles['project-detail__input']}
-              type="datetime-local"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
+            <div className={styles['project-detail__input-row']}>
+              <input
+                className={styles['project-detail__input']}
+                type="datetime-local"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+              <button
+                type="button"
+                className={styles['project-detail__clear']}
+                onClick={() => setStartDate('')}
+                disabled={!startDate}
+              >
+                Clear
+              </button>
+            </div>
           </label>
           <label className={styles['project-detail__field']}>
             <span className={styles['project-detail__label']}>Due</span>
-            <input
-              className={styles['project-detail__input']}
-              type="datetime-local"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
+            <div className={styles['project-detail__input-row']}>
+              <input
+                className={styles['project-detail__input']}
+                type="datetime-local"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+              />
+              <button
+                type="button"
+                className={styles['project-detail__clear']}
+                onClick={() => setDueDate('')}
+                disabled={!dueDate}
+              >
+                Clear
+              </button>
+            </div>
           </label>
         </div>
 
