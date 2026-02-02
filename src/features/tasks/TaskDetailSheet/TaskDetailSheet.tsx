@@ -34,7 +34,7 @@ export function TaskDetailSheet({
   onSave,
   onDelete,
   onToggleComplete,
-  variant = 'sheet',
+  variant = 'full',
 }: TaskDetailSheetProps) {
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
