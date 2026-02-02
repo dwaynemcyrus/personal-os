@@ -30,11 +30,15 @@ a {
   text-decoration: none;
 }
 
-button,
+button {
+  font: inherit;
+}
+
 input,
 textarea,
 select {
   font: inherit;
+  font-size: 16px;
 }
 
 html {
