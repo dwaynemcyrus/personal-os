@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
-import { NoteEditor } from '@/features/notes/NoteEditor/NoteEditor';
+import { NoteDetailSheet } from '@/features/notes/NoteDetailSheet/NoteDetailSheet';
+import { useNavigationState, useNavigationActions } from '@/components/providers';
 import {
   extractNoteSnippet,
   extractNoteTitle,
@@ -18,22 +18,16 @@ const nowIso = () => new Date().toISOString();
 
 export function NoteList() {
   const { db, isReady } = useDatabase();
-  const router = useRouter();
   const [notes, setNotes] = useState<NoteDocument[]>([]);
-  const [offlineNoteId, setOfflineNoteId] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const updateOnline = () => setIsOnline(navigator.onLine);
-    updateOnline();
-    window.addEventListener('online', updateOnline);
-    window.addEventListener('offline', updateOnline);
-    return () => {
-      window.removeEventListener('online', updateOnline);
-      window.removeEventListener('offline', updateOnline);
-    };
-  }, []);
+  const { stack } = useNavigationState();
+  const { pushLayer, popLayer } = useNavigationActions();
+
+  // Find if note-detail is in stack
+  const noteDetailLayer = stack.find((layer) => layer.view === 'note-detail');
+  const selectedNoteId = noteDetailLayer && noteDetailLayer.view === 'note-detail'
+    ? noteDetailLayer.noteId
+    : null;
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -77,19 +71,17 @@ export function NoteList() {
       is_trashed: false,
       trashed_at: null,
     });
-    if (!isOnline) {
-      setOfflineNoteId(noteId);
-      return;
-    }
-    router.push(`/knowledge/${noteId}`);
+    pushLayer({ view: 'note-detail', noteId });
   };
 
   const handleOpenNote = (noteId: string) => {
-    if (!isOnline) {
-      setOfflineNoteId(noteId);
-      return;
+    pushLayer({ view: 'note-detail', noteId });
+  };
+
+  const handleDetailOpenChange = (open: boolean) => {
+    if (!open) {
+      popLayer();
     }
-    router.push(`/knowledge/${noteId}`);
   };
 
   return (
@@ -105,16 +97,6 @@ export function NoteList() {
           New note
         </button>
       </div>
-
-      {!isOnline && offlineNoteId ? (
-        <div className={styles.offlineEditor} role="region" aria-label="Offline note editor">
-          <NoteEditor
-            noteId={offlineNoteId}
-            variant="inline"
-            onClose={() => setOfflineNoteId(null)}
-          />
-        </div>
-      ) : null}
 
       {notePreviews.length === 0 ? (
         <p className={styles.empty}>No notes yet.</p>
@@ -136,6 +118,15 @@ export function NoteList() {
           ))}
         </div>
       )}
+
+      {selectedNoteId ? (
+        <NoteDetailSheet
+          key={selectedNoteId}
+          noteId={selectedNoteId}
+          open={Boolean(selectedNoteId)}
+          onOpenChange={handleDetailOpenChange}
+        />
+      ) : null}
     </div>
   );
 }
