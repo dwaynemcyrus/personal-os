@@ -48,6 +48,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/knowledge': 'Knowledge',
   '/execution': 'Execution',
   '/dev': 'Dev',
+  '/offline': 'Offline',
 };
 
 const triggerHaptic = () => {

@@ -251,7 +251,7 @@ Last updated: February 3, 2026
 - [ ] Pull-to-refresh (trigger sync)
 - [ ] Swipe-to-go-back (like Bear app)
 - [ ] Skeleton loading states (all lists)
-- [ ] Offline indicator banner
+- [ ] Offline indicator banner/chiklet
 - [ ] Sync status indicator (subtle)
 - [ ] Haptic feedback throughout
 - [ ] Loading transitions
@@ -312,13 +312,18 @@ Last updated: February 3, 2026
 **Goal:** Installable on mobile/desktop
 
 ### Tasks
-- [ ] Configure next-pwa
+- [x] Configure next-pwa
 - [ ] Create manifest.json
 - [ ] Add app icons (512x512, 192x192, etc.)
-- [ ] Service worker setup
-- [ ] Offline fallback page
+- [x] Service worker setup
+- [x] Offline fallback page
 - [ ] Install prompts
 - [ ] Test installation on iOS and Android
+
+### Offline Navigation (Current Focus)
+- [x] Service worker for offline navigation
+- [x] Dedicated /offline route
+- [x] Precache core routes (/, /strategy, /knowledge, /execution)
 
 **Completion criteria:**
 - App installable from browser

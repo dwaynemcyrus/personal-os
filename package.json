@@ -16,6 +16,7 @@
     "framer-motion": "^12.29.2",
     "nanoid": "^5.1.6",
     "next": "16.1.6",
+    "next-pwa": "^5.6.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "rxdb": "^16.21.1",
