@@ -55,6 +55,7 @@ const DRAG_TARGETS: DragTarget[] = [
   { id: 'execution', context: 'execution', label: 'Execution', offset: [-96, 0] },
   { id: 'knowledge', context: 'knowledge', label: 'Knowledge', offset: [96, 0] },
   { id: 'strategy', context: 'strategy', label: 'Strategy', offset: [0, -96] },
+  { id: 'today', context: 'today', label: 'Home', offset: [0, 96] },
 ];
 
 const CONTEXT_TITLES: Record<NavigationContext, string> = {
