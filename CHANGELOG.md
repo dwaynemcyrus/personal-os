@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0 - 2026-02-03
+- Replaced Geist font with New Atten local font (5 weights + italics via next/font/local)
+- Replaced iOS design tokens with warm paper aesthetic: paper (#f6f2ea) backgrounds, ink (#14110f) text, warm border alphas
+- Removed dark mode support (light-only); removed `color-scheme: light dark`
+- Updated all component styles (AppShell, Sheet, FocusSheet, CaptureModal, TaskList, TaskDetailSheet, ProjectList, ProjectDetailSheet, NoteList, NoteEditor) to use new token system
+- Changed focus rings from blue to ink-900 across all interactive elements
+- Changed primary buttons from blue to dark ink pill style (ink-900 bg, paper text)
+- Changed danger buttons to use error-ink/error-border tokens
+- Added hover transitions (border-color + shadow-hover) to cards and list items
+- Rebuilt home page with Now / Inbox / Workbench sections matching design spec
+- Updated section, execution, and offline page styles to warm palette
+- Fixed CaptureModal z-index to use --z-modal token
+- Removed dead AppShell __command styles
+
 ## 0.8.1 - 2026-02-03
 - Rebuilt FAB with pointer-event drag-to-navigate using radial targets (Execution, Knowledge, Strategy)
 - Fixed duplicate FAB rendering and click-after-hold bug by replacing ContextPicker with spec-based implementation

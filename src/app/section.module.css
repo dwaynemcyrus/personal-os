@@ -1,28 +1,35 @@
 .section {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-20);
 }
 
 .section__title {
   font-size: var(--font-2xl);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
   line-height: var(--leading-tight);
+  letter-spacing: var(--letter-tight);
 }
 
 .section__subtitle {
   font-size: var(--font-base);
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
   max-width: 30rem;
 }
 
 .section__card {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  padding: var(--space-4);
+  border-radius: var(--radius-14);
+  border: 1px solid var(--color-border-200);
+  padding: var(--space-18) var(--space-20);
   background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
   display: grid;
   gap: var(--space-2);
+  transition: border-color var(--duration-160) var(--ease-default),
+    box-shadow var(--duration-160) var(--ease-default);
+}
+
+.section__card:hover {
+  border-color: var(--color-border-400);
+  box-shadow: var(--shadow-hover);
 }
 
 .section__card-title {
@@ -32,5 +39,5 @@
 
 .section__card-body {
   font-size: var(--font-base);
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
 }

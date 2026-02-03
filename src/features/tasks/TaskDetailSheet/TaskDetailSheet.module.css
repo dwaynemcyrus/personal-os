@@ -4,12 +4,12 @@
   border-radius: 0;
   padding: calc(var(--space-5) + var(--safe-area-top))
     var(--space-4)
-    calc(var(--space-6) + var(--safe-area-bottom));
+    calc(var(--space-32) + 16px + var(--safe-area-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  background: var(--color-surface-elevated);
-  color: var(--color-text);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
   overflow-y: auto;
 }
 
@@ -35,14 +35,14 @@
   border-radius: var(--radius-full);
   border: none;
   background: var(--color-surface);
-  color: var(--color-text);
+  color: var(--color-ink-900);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .task-detail__close:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
@@ -67,38 +67,38 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  border: 1px solid var(--color-border-strong);
-  accent-color: var(--color-primary);
+  border: 1px solid var(--color-border-400);
+  accent-color: var(--color-ink-900);
 }
 
 .task-detail__toggle-label {
   font-size: var(--font-base);
-  color: var(--color-text);
+  color: var(--color-ink-900);
 }
 
 .task-detail__label {
   font-size: var(--font-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .task-detail__input {
   min-height: var(--touch-target);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--color-border-300);
+  background: var(--color-white);
+  color: var(--color-ink-900);
   padding: 0 var(--space-3);
   font-size: 16px;
 }
 
 .task-detail__textarea {
   min-height: 120px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--color-border-300);
+  background: var(--color-white);
+  color: var(--color-ink-900);
   padding: var(--space-3);
   font-size: 16px;
   resize: vertical;
@@ -106,7 +106,7 @@
 
 .task-detail__input:focus-visible,
 .task-detail__textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
@@ -118,13 +118,12 @@
 
 .task-detail__button {
   min-height: var(--touch-target);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background: var(--color-text);
-  color: var(--color-background);
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-ink-900);
+  color: var(--color-paper);
   font-size: var(--font-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .task-detail__button:disabled {
@@ -132,7 +131,7 @@
 }
 
 .task-detail__button--danger {
-  background: var(--color-error);
-  border-color: var(--color-error);
-  color: #ffffff;
+  background: transparent;
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-ink);
 }

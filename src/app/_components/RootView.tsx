@@ -7,7 +7,7 @@
 
 'use client';
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { useNavigationState } from '@/components/providers';
 import { useTimer } from '@/features/timer';
 import styles from '../page.module.css';
@@ -24,56 +24,83 @@ const StrategyView = lazy(() =>
 );
 
 function TodayView() {
-  const { state, elapsedLabel, activityLabel, projectLabel } = useTimer();
+  const { state } = useTimer();
 
-  const statusLabel =
-    state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';
   const handleOpenFocus = () => {
     window.dispatchEvent(new CustomEvent('focus-sheet:open'));
   };
 
+  const todayLabel = useMemo(() => {
+    const d = new Date();
+    return d.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  }, []);
+
+  const inboxCount = 0;
+
   return (
     <section className={styles.home}>
-      <div className={styles['home__header']}>
-        <p className={styles['home__eyebrow']}>Sunday, February 1</p>
-        <h1 className={styles['home__title']}>Start with one clear win.</h1>
-        <p className={styles['home__subtitle']}>
-          Your focus list and timer will live here once Phase 4 lands.
-        </p>
+      {/* ── Now ── */}
+      <div>
+        <h1 className={styles['home__now-title']}>Now</h1>
       </div>
 
       <button
         type="button"
-        className={styles['home__focus-card']}
+        className={styles['home__now-card']}
         onClick={handleOpenFocus}
-        aria-label="Open focus timer"
+        aria-label="Open today's working surface"
       >
-        <div className={styles['home__focus-header']}>
-          <span className={styles['home__focus-label']}>Focus</span>
-          <span className={styles['home__focus-status']} data-state={state}>
-            {statusLabel}
-          </span>
+        <div>
+          <div className={styles['home__now-date']}>{todayLabel}</div>
+          <div className={styles['home__now-subtitle']}>
+            Your daily working surface
+          </div>
         </div>
-        <div className={styles['home__focus-time']}>{elapsedLabel}</div>
-        <div className={styles['home__focus-activity']}>
-          {activityLabel}
-        </div>
-        {projectLabel ? (
-          <div className={styles['home__focus-project']}>{projectLabel}</div>
-        ) : null}
+        <div className={styles['home__now-button']}>Open Today</div>
       </button>
 
-      <div className={styles['home__card']}>
-        <div className={styles['home__card-title']}>Next up</div>
-        <p className={styles['home__card-body']}>
-          Add tasks or habits from the command center to see them here.
-        </p>
+      {/* ── Inbox ── */}
+      <div>
+        <div className={styles['home__section-label']}>Inbox</div>
+        <button
+          type="button"
+          className={styles['home__inbox-card']}
+          onClick={handleOpenFocus}
+          aria-label="Process inbox"
+        >
+          <div className={styles['home__inbox-text']}>
+            <div className={styles['home__inbox-title']}>Process Inbox</div>
+            <div className={styles['home__inbox-subtitle']}>
+              Items waiting to be sorted
+            </div>
+          </div>
+          <div className={styles['home__inbox-right']}>
+            {inboxCount > 0 && (
+              <span className={styles['home__inbox-badge']}>{inboxCount}</span>
+            )}
+            <span className={styles['home__inbox-arrow']}>&rsaquo;</span>
+          </div>
+        </button>
       </div>
 
-      <div className={styles['home__pill-row']}>
-        <span className={styles['home__pill']}>Focus</span>
-        <span className={styles['home__pill']}>Plan</span>
-        <span className={styles['home__pill']}>Reflect</span>
+      {/* ── Workbench ── */}
+      <div>
+        <div className={styles['home__section-label']}>Workbench</div>
+        <div className={styles['home__workbench-empty']}>
+          No pinned documents yet
+        </div>
+        <button
+          type="button"
+          className={styles['home__workbench-add']}
+          onClick={handleOpenFocus}
+          aria-label="Add to workbench"
+        >
+          + Add to Workbench
+        </button>
       </div>
     </section>
   );

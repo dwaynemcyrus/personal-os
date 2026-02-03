@@ -4,12 +4,12 @@
   border-radius: 0;
   padding: calc(var(--space-5) + var(--safe-area-top))
     var(--space-4)
-    calc(var(--space-6) + var(--safe-area-bottom));
+    calc(var(--space-32) + 16px + var(--safe-area-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  background: var(--color-surface-elevated);
-  color: var(--color-text);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
   overflow-y: auto;
 }
 
@@ -30,14 +30,14 @@
   border-radius: var(--radius-full);
   border: none;
   background: var(--color-surface);
-  color: var(--color-text);
+  color: var(--color-ink-900);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .project-detail__close:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
@@ -53,27 +53,27 @@
 
 .project-detail__label {
   font-size: var(--font-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .project-detail__input {
   min-height: var(--touch-target);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--color-border-300);
+  background: var(--color-white);
+  color: var(--color-ink-900);
   padding: 0 var(--space-3);
   font-size: 16px;
 }
 
 .project-detail__textarea {
   min-height: 120px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--color-border-300);
+  background: var(--color-white);
+  color: var(--color-ink-900);
   padding: var(--space-3);
   font-size: 16px;
   resize: vertical;
@@ -81,7 +81,7 @@
 
 .project-detail__input:focus-visible,
 .project-detail__textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
@@ -100,10 +100,10 @@
 .project-detail__clear {
   min-height: var(--touch-target);
   padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-200);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
   font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -117,7 +117,7 @@
   display: grid;
   gap: var(--space-2);
   padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-200);
 }
 
 .project-detail__composer {
@@ -128,40 +128,39 @@
 .project-detail__composer-input {
   flex: 1;
   min-height: var(--touch-target);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--color-border-300);
+  background: var(--color-white);
+  color: var(--color-ink-900);
   padding: 0 var(--space-3);
   font-size: 16px;
 }
 
 .project-detail__composer-input::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--color-ink-300);
 }
 
 .project-detail__composer-input:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
 .project-detail__composer-button {
   min-height: var(--touch-target);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background: var(--color-text);
-  color: var(--color-background);
+  padding: 0 var(--space-18);
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-ink-900);
+  color: var(--color-paper);
   font-size: var(--font-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .project-detail__section-title {
   font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
 }
 
 .project-detail__list {
@@ -174,19 +173,26 @@
   grid-template-columns: auto 1fr;
   gap: var(--space-2);
   align-items: center;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  padding: var(--space-16);
+  border-radius: var(--radius-14);
+  border: 1px solid var(--color-border-200);
   background: var(--color-surface);
   text-align: left;
   width: 100%;
   cursor: pointer;
   font: inherit;
   color: inherit;
+  transition: border-color var(--duration-160) var(--ease-default),
+    box-shadow var(--duration-160) var(--ease-default);
+}
+
+.project-detail__item:hover {
+  border-color: var(--color-border-400);
+  box-shadow: var(--shadow-hover);
 }
 
 .project-detail__item:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
@@ -199,8 +205,8 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  border: 1px solid var(--color-border-strong);
-  accent-color: var(--color-primary);
+  border: 1px solid var(--color-border-400);
+  accent-color: var(--color-ink-900);
 }
 
 .project-detail__item-title {
@@ -215,7 +221,7 @@
 
 .project-detail__empty {
   font-size: var(--font-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-ink-500);
 }
 
 .project-detail__actions {
@@ -226,13 +232,12 @@
 
 .project-detail__button {
   min-height: var(--touch-target);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background: var(--color-text);
-  color: var(--color-background);
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-ink-900);
+  color: var(--color-paper);
   font-size: var(--font-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .project-detail__button:disabled {
@@ -240,9 +245,9 @@
 }
 
 .project-detail__button--danger {
-  background: var(--color-error);
-  border-color: var(--color-error);
-  color: #ffffff;
+  background: transparent;
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-ink);
 }
 
 @media (min-width: 640px) {

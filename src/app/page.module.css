@@ -1,129 +1,187 @@
 .home {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-28);
 }
 
-.home__header {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.home__eyebrow {
-  font-size: var(--font-sm);
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.home__title {
-  font-size: var(--font-2xl);
-  font-weight: var(--font-semibold);
+/* ── Now section ── */
+.home__now-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: var(--leading-tight);
 }
 
-.home__subtitle {
-  font-size: var(--font-base);
-  color: var(--color-text-secondary);
-  max-width: 28rem;
-}
-
-.home__card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  display: grid;
-  gap: var(--space-2);
-  box-shadow: var(--shadow-sm);
-}
-
-.home__focus-card {
+.home__now-card {
   width: 100%;
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-14);
+  padding: var(--space-18) var(--space-20);
   display: grid;
-  gap: var(--space-2);
-  box-shadow: var(--shadow-sm);
+  gap: var(--space-12);
   text-align: left;
   color: inherit;
   font: inherit;
   cursor: pointer;
+  transition: border-color var(--duration-160) var(--ease-default),
+    box-shadow var(--duration-160) var(--ease-default);
 }
 
-.home__focus-card:focus-visible {
-  outline: 2px solid var(--color-primary);
+.home__now-card:hover {
+  border-color: var(--color-border-400);
+  box-shadow: var(--shadow-hover);
+}
+
+.home__now-card:focus-visible {
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
-.home__focus-header {
+.home__now-date {
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  color: var(--color-ink-900);
+}
+
+.home__now-subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-ink-450);
+}
+
+.home__now-button {
+  display: block;
+  width: 100%;
+  padding: var(--space-10) var(--space-18);
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-ink-900);
+  color: var(--color-paper);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* ── Inbox section ── */
+.home__section-label {
+  font-size: 13px;
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-450);
+  margin-bottom: var(--space-8);
+}
+
+.home__inbox-card {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-18) var(--space-20);
+  border-radius: var(--radius-14);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-200);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--duration-160) var(--ease-default),
+    box-shadow var(--duration-160) var(--ease-default);
 }
 
-.home__focus-label {
+.home__inbox-card:hover {
+  border-color: var(--color-border-500);
+  box-shadow: var(--shadow-hover);
+}
+
+.home__inbox-card:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.home__inbox-text {
+  display: grid;
+  gap: 2px;
+}
+
+.home__inbox-title {
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  color: var(--color-ink-900);
+}
+
+.home__inbox-subtitle {
   font-size: var(--font-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-text-secondary);
+  color: var(--color-ink-450);
 }
 
-.home__focus-status {
+.home__inbox-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.home__inbox-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--color-ink-900);
+  color: var(--color-paper);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.home__inbox-arrow {
+  font-size: 18px;
+  color: var(--color-ink-300);
+}
+
+/* ── Workbench section ── */
+.home__workbench-empty {
+  border-radius: var(--radius-16);
+  border: 1px dashed var(--color-border-dashed);
+  background: var(--color-surface);
+  padding: var(--space-28);
+  color: var(--color-ink-300);
   font-size: var(--font-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-text-secondary);
+  text-align: center;
 }
 
+.home__workbench-add {
+  display: block;
+  width: 100%;
+  padding: var(--space-14) var(--space-18);
+  border-radius: var(--radius-14);
+  border: 1px solid var(--color-border-200);
+  background: transparent;
+  color: var(--color-ink-900);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--duration-160) var(--ease-default),
+    box-shadow var(--duration-160) var(--ease-default);
+}
+
+.home__workbench-add:hover {
+  border-color: var(--color-border-400);
+  box-shadow: var(--shadow-hover);
+}
+
+.home__workbench-add:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+/* ── Focus card (reused from old design, kept for timer state) ── */
 .home__focus-status[data-state='running'] {
-  color: var(--color-success);
+  color: var(--color-success-ink);
 }
 
 .home__focus-status[data-state='paused'] {
-  color: var(--color-warning);
-}
-
-.home__focus-time {
-  font-size: var(--font-2xl);
-  font-weight: var(--font-semibold);
-}
-
-.home__focus-activity {
-  font-size: var(--font-lg);
-  font-weight: var(--font-medium);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.home__focus-project {
-  font-size: var(--font-sm);
-  color: var(--color-text-secondary);
-}
-
-.home__card-title {
-  font-size: var(--font-lg);
-  font-weight: var(--font-medium);
-}
-
-.home__card-body {
-  font-size: var(--font-base);
-  color: var(--color-text-secondary);
-}
-
-.home__pill-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.home__pill {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  font-size: var(--font-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-warning-ink);
 }

@@ -1,128 +1,225 @@
 :root {
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 16px;
-  --space-4: 24px;
-  --space-5: 32px;
-  --space-6: 48px;
-  --space-7: 64px;
-  --space-8: 96px;
+  /* ── Base colors ── */
+  --color-paper: #f6f2ea;
+  --color-surface: #fcfbf8;
+  --color-white: #ffffff;
+  --color-white-alt: #fff;
 
-  --color-primary: #007aff;
-  --color-primary-hover: #0051d5;
+  /* ── Ink / text ── */
+  --color-ink-900: #14110f;
+  --color-ink-700: #3b3227;
+  --color-ink-650: #3b342c;
+  --color-ink-600: #4d4238;
+  --color-ink-500: #5a4f45;
+  --color-ink-450: #5a4e41;
+  --color-ink-420: #6a5f54;
+  --color-ink-400: #6a5d52;
+  --color-ink-350: #7b6f61;
+  --color-ink-300: #8a7f73;
 
-  --color-background: #ffffff;
-  --color-surface: #f2f2f7;
-  --color-surface-elevated: #ffffff;
+  /* ── Ink tints (utility washes) ── */
+  --color-ink-alpha-03: rgba(20, 17, 15, 0.03);
+  --color-ink-alpha-06: rgba(20, 17, 15, 0.06);
+  --color-ink-alpha-08: rgba(20, 17, 15, 0.08);
+  --color-ink-alpha-10: rgba(20, 17, 15, 0.1);
+  --color-ink-alpha-12: rgba(20, 17, 15, 0.12);
 
-  --color-text: #000000;
-  --color-text-secondary: #8e8e93;
-  --color-text-tertiary: #c7c7cc;
+  /* ── Borders / separators ── */
+  --color-border-200: rgba(20, 17, 15, 0.12);
+  --color-border-300: rgba(20, 17, 15, 0.15);
+  --color-border-400: rgba(20, 17, 15, 0.2);
+  --color-border-500: rgba(20, 17, 15, 0.3);
+  --color-border-600: rgba(20, 17, 15, 0.4);
+  --color-border-dashed: #c8bfb1;
+  --color-border-warm: #e1d4be;
 
-  --color-border: #e5e5ea;
-  --color-border-strong: #d1d1d6;
+  /* ── Status ── */
+  --color-error-ink: #7b1b1b;
+  --color-error-ink-strong: #b3261e;
+  --color-error-border: #fecaca;
+  --color-error-bg: #fffaf8;
+  --color-error-bg-strong: #fef2f2;
 
-  --color-error: #ff3b30;
-  --color-success: #34c759;
-  --color-warning: #ff9500;
-  --color-info: #007aff;
+  --color-warning-ink: #8a6914;
+  --color-warning-bg: #fff6df;
 
+  --color-success-ink: #2b6b3f;
+  --color-success-bg: rgba(43, 107, 63, 0.1);
+  --color-success-bg-strong: #e8f4e8;
+
+  /* ── Accent / highlight ── */
+  --color-highlight: rgba(255, 209, 102, 0.55);
+
+  /* ── Gradients (page exceptions) ── */
+  --gradient-focus: radial-gradient(circle at top, #fbf7ef 0%, #f5efe6 50%, #efe7db 100%);
+  --gradient-login: linear-gradient(160deg, #f6f2ea 0%, #f2ede4 50%, #ede7dd 100%);
+
+  /* ── Backward-compat aliases ── */
+  --color-background: var(--color-paper);
+  --color-text: var(--color-ink-900);
+  --color-text-secondary: var(--color-ink-500);
+  --color-text-tertiary: var(--color-ink-300);
+  --color-primary: var(--color-ink-900);
+  --color-primary-hover: var(--color-ink-700);
+  --color-border: var(--color-border-200);
+  --color-border-strong: var(--color-border-400);
+  --color-surface-elevated: var(--color-white);
+  --color-error: var(--color-error-ink);
+  --color-success: var(--color-success-ink);
+  --color-warning: var(--color-warning-ink);
+  --color-info: var(--color-ink-900);
+
+  /* ── Typography ── */
+  --font-family-primary: var(--font-atten), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-xxl: 32px;
+  --font-size-xl: 28px;
+  --font-size-lg: 24px;
+  --font-size-md: 18px;
+  --font-size-base: 16px;
+  --font-size-sm: 14px;
+  --font-size-xs: 12px;
+  --font-size-timer: 64px;
+  --font-weight-book: 350;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --letter-tight: -0.02em;
+  --letter-wide: 0.04em;
+  --letter-wider: 0.2em;
+
+  /* Old font aliases */
   --font-xs: 12px;
   --font-sm: 14px;
-  --font-base: 14px;
+  --font-base: 16px;
   --font-lg: 18px;
   --font-xl: 22px;
   --font-2xl: 28px;
   --font-3xl: 34px;
-
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
-
   --leading-tight: 1.2;
   --leading-normal: 1.5;
   --leading-relaxed: 1.75;
 
+  /* ── Spacing scale ── */
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+
+  /* Old spacing aliases */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-5: 32px;
+  --container-padding: 24px;
+
+  /* ── Touch targets ── */
   --touch-target: 44px;
   --touch-target-large: 56px;
 
+  /* ── Radius scale ── */
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --radius-20: 20px;
+  --radius-pill: 999px;
+
+  /* Old radius aliases */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --radius-full: 9999px;
+  --radius-full: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  /* ── Shadows / elevation ── */
+  --shadow-fab: 0 12px 24px rgba(20, 17, 15, 0.28);
+  --shadow-modal: 0 10px 40px rgba(20, 17, 15, 0.25);
+  --shadow-menu: 0 16px 32px rgba(20, 17, 15, 0.2);
+  --shadow-login: 0 20px 40px rgba(20, 17, 15, 0.12);
+  --shadow-timer: 0 18px 36px rgba(20, 17, 15, 0.25);
+  --shadow-toast: 0 4px 20px rgba(20, 17, 15, 0.2);
+  --shadow-hover: 0 4px 12px rgba(20, 17, 15, 0.08);
 
+  /* Old shadow aliases */
+  --shadow-sm: 0 1px 2px rgba(20, 17, 15, 0.05);
+  --shadow-md: 0 4px 6px rgba(20, 17, 15, 0.1);
+  --shadow-lg: 0 10px 15px rgba(20, 17, 15, 0.1);
+  --shadow-xl: 0 20px 25px rgba(20, 17, 15, 0.15);
+
+  /* ── Motion ── */
+  --ease-default: ease;
+  --duration-100: 100ms;
+  --duration-160: 160ms;
+  --duration-180: 180ms;
+  --duration-800: 800ms;
+
+  /* Old motion aliases */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-
-  --z-base: 0;
-  --z-dropdown: 1000;
-  --z-sticky: 1100;
-  --z-sheet: 2000;
-  --z-fab: 3000;
-  --z-menu: 4000;
-  --z-toast: 5000;
-  --z-tooltip: 6000;
-
-  --max-width-sm: 640px;
-  --max-width-md: 768px;
-  --max-width-lg: 1024px;
-  --max-width-xl: 1280px;
-
-  --container-padding: var(--space-4);
-
   --duration-instant: 0ms;
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 350ms;
   --duration-slower: 500ms;
 
+  /* ── Shell layout vars ── */
+  --shell-header-h: 56px;
+  --shell-fab-safe: 96px;
+  --shell-fab-x: 16px;
+  --shell-fab-y: 16px;
+  --shell-keyboard-inset: 0px;
+
+  /* ── Z-index scale ── */
+  --z-base: 0;
+  --z-shell-overlay: 20;
+  --z-drag-targets: 21;
+  --z-menu-overlay: 25;
+  --z-modal: 40;
+  --z-overlay: 50;
+  --z-toast: 1000;
+
+  /* Old z-index aliases */
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-sheet: 2000;
+  --z-fab: 3000;
+  --z-menu: 4000;
+  --z-tooltip: 6000;
+
+  /* ── Layout ── */
+  --max-width-sm: 640px;
+  --max-width-md: 768px;
+  --max-width-lg: 1024px;
+  --max-width-xl: 1280px;
+
+  /* ── Opacity ── */
   --opacity-disabled: 0.38;
   --opacity-hover: 0.08;
   --opacity-focus: 0.12;
   --opacity-pressed: 0.16;
 
+  /* ── Safe areas ── */
   --safe-area-top: env(safe-area-inset-top);
   --safe-area-bottom: env(safe-area-inset-bottom);
   --safe-area-left: env(safe-area-inset-left);
   --safe-area-right: env(safe-area-inset-right);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-primary: #0a84ff;
-    --color-primary-hover: #409cff;
-
-    --color-background: #000000;
-    --color-surface: #1c1c1e;
-    --color-surface-elevated: #2c2c2e;
-
-    --color-text: #ffffff;
-    --color-text-secondary: #8e8e93;
-    --color-text-tertiary: #48484a;
-
-    --color-border: #38383a;
-    --color-border-strong: #48484a;
-
-    --color-error: #ff453a;
-    --color-success: #32d74b;
-    --color-warning: #ff9f0a;
-    --color-info: #0a84ff;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.7);
-    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.8);
-  }
 }

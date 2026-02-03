@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(20, 17, 15, 0.4);
   backdrop-filter: blur(2px);
   z-index: var(--z-menu);
   animation: sheet-fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -10,9 +10,9 @@
 
 .content {
   position: fixed;
-  background: var(--color-surface-elevated);
-  color: var(--color-text);
-  box-shadow: var(--shadow-lg);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  box-shadow: var(--shadow-menu);
   z-index: var(--z-menu);
   display: flex;
   flex-direction: column;
