@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
+import { useNavigationState, useNavigationActions } from '@/components/providers';
 import styles from './TaskList.module.css';
 
 type TaskFilter = 'all' | 'next' | 'backlog' | 'waiting' | 'completed';
@@ -47,7 +48,15 @@ export function TaskList() {
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [titleInput, setTitleInput] = useState('');
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const { stack } = useNavigationState();
+  const { pushLayer, popLayer } = useNavigationActions();
+
+  // Find if task-detail is in stack
+  const taskDetailLayer = stack.find((layer) => layer.view === 'task-detail');
+  const selectedTaskId = taskDetailLayer && taskDetailLayer.view === 'task-detail'
+    ? taskDetailLayer.taskId
+    : null;
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -133,12 +142,12 @@ export function TaskList() {
   };
 
   const handleOpenTask = (taskId: string) => {
-    setSelectedTaskId(taskId);
+    pushLayer({ view: 'task-detail', taskId });
   };
 
   const handleDetailOpenChange = (open: boolean) => {
     if (!open) {
-      setSelectedTaskId(null);
+      popLayer();
     }
   };
 
