@@ -297,6 +297,16 @@ export function AppShell({ children }: AppShellProps) {
         onOpenChange={setIsContextPickerOpen}
         onSelectContext={handleSelectContext}
       />
+
+      {/* Screen reader announcements for context changes */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {pageTitle} context
+      </div>
     </div>
   );
 }

@@ -68,6 +68,21 @@ export function ContextPicker({
     }
   }, [open, x, y]);
 
+  // Keyboard navigation: Escape to close
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onOpenChange(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onOpenChange]);
+
   const handleDragEnd = (_: unknown, info: { offset: { x: number; y: number }; velocity: { x: number; y: number } }) => {
     const { offset, velocity } = info;
 
@@ -144,18 +159,26 @@ export function ContextPicker({
   };
 
   return (
-    <div className={styles['context-picker']}>
+    <div
+      className={styles['context-picker']}
+      role="dialog"
+      aria-label="Context picker"
+      aria-modal="true"
+    >
       <div
         className={styles['context-picker__overlay']}
         onClick={handleOverlayClick}
+        aria-hidden="true"
       />
 
-      <div className={styles['context-picker__zones']}>
+      <div className={styles['context-picker__zones']} role="group" aria-label="Context zones">
         {DRAG_ZONES.map((zone) => (
           <div
             key={zone.context}
             className={styles['context-picker__zone']}
             data-active={activeZone === zone.context}
+            role="region"
+            aria-label={`${zone.label} context zone`}
           >
             <div className={styles['context-picker__zone-label']}>
               {zone.label}
