@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 - 2026-02-03
+- Migrated to single-page app architecture with context-based routing and navigation state machine
+- Added sheet manager with gesture support for fluid view transitions
+- Added FAB hold detection and context picker for quick navigation
+- Converted notes, tasks, and project lists to SPA navigation
+- Created context view components and refactored appshell for SPA navigation
+- Added smooth animations, accessibility improvements, and performance optimizations
+- Removed legacy route files
+
 ## 0.7.0 - 2026-02-03
 - Added notes list with derived titles, snippets, and relative updated timestamps
 - Added full note editor with debounced autosave, soft delete, and route detail view
