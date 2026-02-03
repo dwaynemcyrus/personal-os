@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1 - 2026-02-03
+- Rebuilt FAB with pointer-event drag-to-navigate using radial targets (Execution, Knowledge, Strategy)
+- Fixed duplicate FAB rendering and click-after-hold bug by replacing ContextPicker with spec-based implementation
+- Added touch event fallback handlers for reliable mobile drag
+- Updated FAB visual to rounded-square with spec colors
+- Fixed Turbopack dev server error by adding empty turbopack config for next-pwa compatibility
+
 ## 0.8.0 - 2026-02-03
 - Migrated to single-page app architecture with context-based routing and navigation state machine
 - Added sheet manager with gesture support for fluid view transitions

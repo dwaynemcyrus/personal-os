@@ -4,6 +4,7 @@ import runtimeCaching from 'next-pwa/cache';
 
 const config: NextConfig = {
   reactStrictMode: true,
+  turbopack: {},
 };
 
 export default withPWA({

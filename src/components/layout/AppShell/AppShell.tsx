@@ -1,7 +1,7 @@
 'use client';
 
 import type React from 'react';
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sheet,
@@ -9,7 +9,6 @@ import {
   SheetTitle,
 } from '@/components/ui/Sheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
-import { ContextPicker } from '@/components/layout/ContextPicker/ContextPicker';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -24,6 +23,13 @@ type NavItem = {
   context: NavigationContext;
   label: string;
   description: string;
+};
+
+type DragTarget = {
+  id: string;
+  context: NavigationContext;
+  label: string;
+  offset: [number, number];
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -44,12 +50,21 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const DRAG_TARGETS: DragTarget[] = [
+  { id: 'execution', context: 'execution', label: 'Execution', offset: [-96, 0] },
+  { id: 'knowledge', context: 'knowledge', label: 'Knowledge', offset: [96, 0] },
+  { id: 'strategy', context: 'strategy', label: 'Strategy', offset: [0, -96] },
+];
+
 const CONTEXT_TITLES: Record<NavigationContext, string> = {
   today: 'Today',
   strategy: 'Strategy',
   knowledge: 'Knowledge',
   execution: 'Execution',
 };
+
+const LONG_PRESS_MS = 300;
+const HIT_RADIUS = 48;
 
 const triggerHaptic = () => {
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -63,8 +78,20 @@ export function AppShell({ children }: AppShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
-  const [isContextPickerOpen, setIsContextPickerOpen] = useState(false);
-  const holdTimeoutRef = useRef<number | undefined>(undefined);
+
+  // Drag-to-navigate state
+  const [dragActive, setDragActive] = useState(false);
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+  const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [activeTarget, setActiveTarget] = useState<string | null>(null);
+
+  // Drag refs
+  const longPressTimerRef = useRef<number | undefined>(undefined);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+  const fabRef = useRef<HTMLButtonElement>(null);
+  const pointerStartRef = useRef({ x: 0, y: 0 });
 
   const {
     state: focusState,
@@ -93,26 +120,180 @@ export function AppShell({ children }: AppShellProps) {
     setIsMenuOpen(true);
   };
 
-  const handleOpenContextPicker = () => {
-    triggerHaptic();
-    setIsContextPickerOpen(true);
+  // --- Drag-to-navigate helpers ---
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current !== undefined) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = undefined;
+    }
+  }, []);
+
+  const resetDragState = useCallback(() => {
+    clearLongPressTimer();
+    setDragActive(false);
+    setActiveTarget(null);
+    dragPointerIdRef.current = null;
+  }, [clearLongPressTimer]);
+
+  // Disable scroll/selection during drag
+  useEffect(() => {
+    if (!dragActive) return;
+    const prevTouchAction = document.body.style.touchAction;
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.touchAction = 'none';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.body.style.touchAction = prevTouchAction;
+      document.body.style.userSelect = prevUserSelect;
+    };
+  }, [dragActive]);
+
+  const activateDrag = () => {
+    if (isCommandOpen) return;
+    if (!fabRef.current) return;
+    const rect = fabRef.current.getBoundingClientRect();
+    const origin = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+    setDragOrigin(origin);
+    setDragPosition({
+      x: pointerStartRef.current.x,
+      y: pointerStartRef.current.y,
+    });
+    setDragActive(true);
+    longPressTriggeredRef.current = true;
   };
 
-  const handleFABPointerDown = () => {
-    holdTimeoutRef.current = window.setTimeout(() => {
-      handleOpenContextPicker();
-    }, 500);
+  // --- Pointer event handlers ---
+
+  const handleFabPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (isCommandOpen) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    longPressTriggeredRef.current = false;
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    });
+    dragPointerIdRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    longPressTimerRef.current = window.setTimeout(() => {
+      activateDrag();
+    }, LONG_PRESS_MS);
   };
 
-  const handleFABPointerUp = () => {
-    window.clearTimeout(holdTimeoutRef.current);
+  const handleFabPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragActive) {
+      if (longPressTimerRef.current === undefined) return;
+      pointerStartRef.current = { x: event.clientX, y: event.clientY };
+      const rect = event.currentTarget.getBoundingClientRect();
+      setDragOffset({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+      return;
+    }
+    event.preventDefault();
+    setDragPosition({ x: event.clientX, y: event.clientY });
+    const hitTarget = DRAG_TARGETS.find((target) => {
+      const [offsetX, offsetY] = target.offset;
+      const centerX = dragOrigin.x + offsetX;
+      const centerY = dragOrigin.y + offsetY;
+      const distance = Math.hypot(event.clientX - centerX, event.clientY - centerY);
+      return distance < HIT_RADIUS;
+    });
+    setActiveTarget(hitTarget?.id ?? null);
   };
 
-  const handleFABClick = () => {
-    // Only open command if not already opening context picker
+  const handleFabPointerUp = () => {
+    if (dragActive && activeTarget) {
+      const target = DRAG_TARGETS.find((t) => t.id === activeTarget);
+      if (target) {
+        triggerHaptic();
+        switchContext(target.context);
+      }
+    }
+    resetDragState();
+  };
+
+  const handleFabPointerCancel = () => {
+    resetDragState();
+  };
+
+  const handleFabClick = () => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
+    clearLongPressTimer();
     triggerHaptic();
     setIsCommandOpen(true);
   };
+
+  // --- Touch event handlers (mobile fallback) ---
+
+  const touchEnabled =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(pointer: coarse)').matches ||
+      window.matchMedia('(hover: none)').matches);
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLButtonElement>) => {
+    if (isCommandOpen) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+    longPressTriggeredRef.current = false;
+    pointerStartRef.current = { x: touch.clientX, y: touch.clientY };
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    });
+    longPressTimerRef.current = window.setTimeout(() => {
+      activateDrag();
+    }, LONG_PRESS_MS);
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLButtonElement>) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    if (!dragActive) {
+      if (longPressTimerRef.current === undefined) return;
+      pointerStartRef.current = { x: touch.clientX, y: touch.clientY };
+      const rect = event.currentTarget.getBoundingClientRect();
+      setDragOffset({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      });
+      return;
+    }
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
+    const hitTarget = DRAG_TARGETS.find((target) => {
+      const [offsetX, offsetY] = target.offset;
+      const centerX = dragOrigin.x + offsetX;
+      const centerY = dragOrigin.y + offsetY;
+      const distance = Math.hypot(touch.clientX - centerX, touch.clientY - centerY);
+      return distance < HIT_RADIUS;
+    });
+    setActiveTarget(hitTarget?.id ?? null);
+  };
+
+  const handleTouchEnd = () => {
+    handleFabPointerUp();
+  };
+
+  const touchHandlers = touchEnabled
+    ? {
+        onTouchStart: handleTouchStart,
+        onTouchMove: handleTouchMove,
+        onTouchEnd: handleTouchEnd,
+      }
+    : {};
+
+  // --- Other handlers ---
 
   const handleOpenFocus = () => {
     triggerHaptic();
@@ -135,11 +316,6 @@ export function AppShell({ children }: AppShellProps) {
     triggerHaptic();
     setIsCommandOpen(false);
     setIsFocusOpen(true);
-  };
-
-  const handleSelectContext = (newContext: NavigationContext) => {
-    switchContext(newContext);
-    setIsContextPickerOpen(false);
   };
 
   const focusStatusLabel = formatFocusStatus(focusState);
@@ -195,15 +371,53 @@ export function AppShell({ children }: AppShellProps) {
 
       <button
         type="button"
-        className={styles['app-shell__fab']}
-        onClick={handleFABClick}
-        onPointerDown={handleFABPointerDown}
-        onPointerUp={handleFABPointerUp}
-        onPointerCancel={handleFABPointerUp}
-        aria-label="Open command center"
+        className={`${styles['app-shell__fab']} ${
+          dragActive ? styles['app-shell__fab--dragging'] : ''
+        }`}
+        aria-label="Quick capture"
+        ref={fabRef}
+        onClick={handleFabClick}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={handleFabPointerDown}
+        onPointerMove={handleFabPointerMove}
+        onPointerUp={handleFabPointerUp}
+        onPointerCancel={handleFabPointerCancel}
+        {...touchHandlers}
+        style={
+          dragActive
+            ? {
+                left: `${dragPosition.x - dragOffset.x}px`,
+                top: `${dragPosition.y - dragOffset.y}px`,
+                bottom: 'auto',
+                transform: 'none',
+              }
+            : undefined
+        }
       >
-        <PlusIcon />
+        +
       </button>
+
+      {dragActive ? (
+        <div className={styles['app-shell__targets-layer']} aria-hidden="true">
+          {DRAG_TARGETS.map((target) => {
+            const [offsetX, offsetY] = target.offset;
+            return (
+              <div
+                key={target.id}
+                className={`${styles['app-shell__target']} ${
+                  activeTarget === target.id ? styles['app-shell__target--active'] : ''
+                }`}
+                style={{
+                  left: `${dragOrigin.x + offsetX}px`,
+                  top: `${dragOrigin.y + offsetY}px`,
+                }}
+              >
+                {target.label}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       <SheetManager />
 
@@ -292,12 +506,6 @@ export function AppShell({ children }: AppShellProps) {
         onStop={stop}
       />
 
-      <ContextPicker
-        open={isContextPickerOpen}
-        onOpenChange={setIsContextPickerOpen}
-        onSelectContext={handleSelectContext}
-      />
-
       {/* Screen reader announcements for context changes */}
       <div
         role="status"
@@ -342,23 +550,6 @@ function BackIcon() {
       strokeLinejoin="round"
     >
       <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={styles['app-shell__fab-icon']}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M12 5v14" />
-      <path d="M5 12h14" />
     </svg>
   );
 }
