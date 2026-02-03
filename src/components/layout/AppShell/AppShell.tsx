@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/Sheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { ContextPicker } from '@/components/layout/ContextPicker/ContextPicker';
+import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
 import { useTimer } from '@/features/timer';
 import type { NavigationContext } from '@/lib/navigation/types';
 import styles from './AppShell.module.css';
@@ -222,6 +223,8 @@ export function AppShell({ children }: AppShellProps) {
       >
         <PlusIcon />
       </button>
+
+      <SheetManager />
 
       <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
         <SheetContent side="left" className={styles['app-shell__menu']} asChild>
