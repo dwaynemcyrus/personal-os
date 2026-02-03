@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 - 2026-02-03
+- Added notes list with derived titles, snippets, and relative updated timestamps
+- Added full note editor with debounced autosave, soft delete, and route detail view
+- Added offline navigation support with service worker caching and /offline fallback
+- Added offline note editor fallback for creating/editing notes without navigation
+
 ## 0.6.0 - 2026-02-03
 - Added project list on Execution with status filters and open task counts
 - Added project detail sheet with task list, status, and start/due dates
