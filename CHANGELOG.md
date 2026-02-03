@@ -5,6 +5,7 @@
 - Added full note editor with debounced autosave, soft delete, and route detail view
 - Added offline navigation support with service worker caching and /offline fallback
 - Added offline note editor fallback for creating/editing notes without navigation
+- Forced webpack builds to support next-pwa service worker generation
 
 ## 0.6.0 - 2026-02-03
 - Added project list on Execution with status filters and open task counts
