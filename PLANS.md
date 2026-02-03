@@ -207,7 +207,7 @@ Last updated: February 3, 2026
 **Goal:** Quick capture and search
 
 ### Tasks
-- [ ] Command center modal (on FAB tap)
+- [ ] Command center sheet full screen (on FAB tap)
 - [ ] Quick capture input
 - [ ] Parse input (create task, note, etc.)
 - [ ] Search functionality (across all content)
@@ -249,7 +249,7 @@ Last updated: February 3, 2026
 
 ### Tasks
 - [ ] Pull-to-refresh (trigger sync)
-- [ ] Swipe-to-go-back (like Bear app)
+- [ ] Swipe-to-go-back, swiping the full sheet to the right at 80% pull the auto pull triggers (like Bear app)
 - [ ] Skeleton loading states (all lists)
 - [ ] Offline indicator banner/chiklet
 - [ ] Sync status indicator (subtle)

@@ -8,6 +8,7 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
+import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
 import { useTimer } from '@/features/timer';
@@ -63,7 +64,7 @@ const CONTEXT_TITLES: Record<NavigationContext, string> = {
   execution: 'Execution',
 };
 
-const LONG_PRESS_MS = 300;
+const LONG_PRESS_MS = 500;
 const HIT_RADIUS = 48;
 
 const triggerHaptic = () => {
@@ -83,7 +84,7 @@ export function AppShell({ children }: AppShellProps) {
   const [dragActive, setDragActive] = useState(false);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
 
   // Drag refs
@@ -175,10 +176,10 @@ export function AppShell({ children }: AppShellProps) {
     longPressTriggeredRef.current = false;
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
     const rect = event.currentTarget.getBoundingClientRect();
-    setDragOffset({
+    dragOffsetRef.current = {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
-    });
+    };
     dragPointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     longPressTimerRef.current = window.setTimeout(() => {
@@ -191,10 +192,10 @@ export function AppShell({ children }: AppShellProps) {
       if (longPressTimerRef.current === undefined) return;
       pointerStartRef.current = { x: event.clientX, y: event.clientY };
       const rect = event.currentTarget.getBoundingClientRect();
-      setDragOffset({
+      dragOffsetRef.current = {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
-      });
+      };
       return;
     }
     event.preventDefault();
@@ -248,10 +249,10 @@ export function AppShell({ children }: AppShellProps) {
     longPressTriggeredRef.current = false;
     pointerStartRef.current = { x: touch.clientX, y: touch.clientY };
     const rect = event.currentTarget.getBoundingClientRect();
-    setDragOffset({
+    dragOffsetRef.current = {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top,
-    });
+    };
     longPressTimerRef.current = window.setTimeout(() => {
       activateDrag();
     }, LONG_PRESS_MS);
@@ -264,10 +265,10 @@ export function AppShell({ children }: AppShellProps) {
       if (longPressTimerRef.current === undefined) return;
       pointerStartRef.current = { x: touch.clientX, y: touch.clientY };
       const rect = event.currentTarget.getBoundingClientRect();
-      setDragOffset({
+      dragOffsetRef.current = {
         x: touch.clientX - rect.left,
         y: touch.clientY - rect.top,
-      });
+      };
       return;
     }
     setDragPosition({ x: touch.clientX, y: touch.clientY });
@@ -312,11 +313,17 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, []);
 
-  const handleOpenFocusFromCommand = () => {
-    triggerHaptic();
-    setIsCommandOpen(false);
-    setIsFocusOpen(true);
-  };
+  // Cmd/Ctrl+K keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const focusStatusLabel = formatFocusStatus(focusState);
   const showFocusChip = focusState !== 'idle';
@@ -386,8 +393,8 @@ export function AppShell({ children }: AppShellProps) {
         style={
           dragActive
             ? {
-                left: `${dragPosition.x - dragOffset.x}px`,
-                top: `${dragPosition.y - dragOffset.y}px`,
+                left: `${dragPosition.x - dragOffsetRef.current.x}px`,
+                top: `${dragPosition.y - dragOffsetRef.current.y}px`,
                 bottom: 'auto',
                 transform: 'none',
               }
@@ -462,32 +469,7 @@ export function AppShell({ children }: AppShellProps) {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={isCommandOpen} onOpenChange={setIsCommandOpen}>
-        <SheetContent
-          side="bottom"
-          className={styles['app-shell__command']}
-          aria-label="Command center"
-        >
-          <div className={styles['app-shell__command-actions']}>
-            <button
-              type="button"
-              className={styles['app-shell__command-action']}
-              onClick={handleOpenFocusFromCommand}
-            >
-              <span>Focus Timer</span>
-              <span className={styles['app-shell__command-meta']}>
-                {focusStatusLabel}
-              </span>
-            </button>
-          </div>
-          <div className={styles['app-shell__command-header']}>
-            Command Center
-          </div>
-          <p className={styles['app-shell__command-body']}>
-            Stub: quick capture and search will land here.
-          </p>
-        </SheetContent>
-      </Sheet>
+      <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
 
       <FocusSheet
         key={isFocusOpen ? 'focus-open' : 'focus-closed'}
