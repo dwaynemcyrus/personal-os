@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
+import { NoteEditor } from '@/features/notes/NoteEditor/NoteEditor';
 import {
   extractNoteSnippet,
   extractNoteTitle,
@@ -19,6 +20,20 @@ export function NoteList() {
   const { db, isReady } = useDatabase();
   const router = useRouter();
   const [notes, setNotes] = useState<NoteDocument[]>([]);
+  const [offlineNoteId, setOfflineNoteId] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    updateOnline();
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    return () => {
+      window.removeEventListener('online', updateOnline);
+      window.removeEventListener('offline', updateOnline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -62,6 +77,18 @@ export function NoteList() {
       is_trashed: false,
       trashed_at: null,
     });
+    if (!isOnline) {
+      setOfflineNoteId(noteId);
+      return;
+    }
+    router.push(`/knowledge/${noteId}`);
+  };
+
+  const handleOpenNote = (noteId: string) => {
+    if (!isOnline) {
+      setOfflineNoteId(noteId);
+      return;
+    }
     router.push(`/knowledge/${noteId}`);
   };
 
@@ -79,6 +106,16 @@ export function NoteList() {
         </button>
       </div>
 
+      {!isOnline && offlineNoteId ? (
+        <div className={styles.offlineEditor} role="region" aria-label="Offline note editor">
+          <NoteEditor
+            noteId={offlineNoteId}
+            variant="inline"
+            onClose={() => setOfflineNoteId(null)}
+          />
+        </div>
+      ) : null}
+
       {notePreviews.length === 0 ? (
         <p className={styles.empty}>No notes yet.</p>
       ) : (
@@ -88,7 +125,7 @@ export function NoteList() {
               key={note.id}
               type="button"
               className={styles.item}
-              onClick={() => router.push(`/knowledge/${note.id}`)}
+              onClick={() => handleOpenNote(note.id)}
             >
               <div className={styles.itemTitle}>{note.title}</div>
               {note.snippet ? (
