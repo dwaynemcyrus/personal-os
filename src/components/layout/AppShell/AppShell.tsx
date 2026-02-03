@@ -183,6 +183,7 @@ export function AppShell({ children }: AppShellProps) {
     };
     dragPointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
+    clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       activateDrag();
     }, LONG_PRESS_MS);
@@ -254,6 +255,7 @@ export function AppShell({ children }: AppShellProps) {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top,
     };
+    clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       activateDrag();
     }, LONG_PRESS_MS);
