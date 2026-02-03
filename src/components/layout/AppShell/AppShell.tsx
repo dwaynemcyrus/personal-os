@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import type React from 'react';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sheet,
@@ -14,6 +12,7 @@ import { FocusSheet } from '@/components/layout/FocusSheet';
 import { ContextPicker } from '@/components/layout/ContextPicker/ContextPicker';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
 import { useTimer } from '@/features/timer';
+import { useNavigationState, useNavigationActions } from '@/components/providers';
 import type { NavigationContext } from '@/lib/navigation/types';
 import styles from './AppShell.module.css';
 
@@ -22,36 +21,34 @@ type AppShellProps = {
 };
 
 type NavItem = {
-  href: string;
+  context: NavigationContext;
   label: string;
   description: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
   {
-    href: '/strategy',
+    context: 'strategy',
     label: 'Strategy',
     description: 'Projects, goals, and planning',
   },
   {
-    href: '/knowledge',
+    context: 'knowledge',
     label: 'Knowledge',
     description: 'Notes, ideas, and references',
   },
   {
-    href: '/execution',
+    context: 'execution',
     label: 'Execution',
     description: 'Tasks, habits, and focus',
   },
 ];
 
-const PAGE_TITLES: Record<string, string> = {
-  '/': 'Today',
-  '/strategy': 'Strategy',
-  '/knowledge': 'Knowledge',
-  '/execution': 'Execution',
-  '/dev': 'Dev',
-  '/offline': 'Offline',
+const CONTEXT_TITLES: Record<NavigationContext, string> = {
+  today: 'Today',
+  strategy: 'Strategy',
+  knowledge: 'Knowledge',
+  execution: 'Execution',
 };
 
 const triggerHaptic = () => {
@@ -60,15 +57,9 @@ const triggerHaptic = () => {
   }
 };
 
-const getBackHref = (pathname: string) => {
-  const segments = pathname.split('/').filter(Boolean);
-  if (segments.length <= 1) return '/';
-  return `/${segments[0]}`;
-};
-
 export function AppShell({ children }: AppShellProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const { context, stack } = useNavigationState();
+  const { switchContext, goBack } = useNavigationActions();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
@@ -89,20 +80,12 @@ export function AppShell({ children }: AppShellProps) {
     stop,
   } = useTimer();
 
-  const isRoot = pathname === '/';
-  const isNoteRoute = pathname?.startsWith('/knowledge/');
-  const pageTitle =
-    PAGE_TITLES[pathname] ?? (isNoteRoute ? 'Note' : 'Personal OS');
-
-  const activeHref = useMemo(() => {
-    const segments = pathname.split('/').filter(Boolean);
-    if (segments.length === 0) return '/';
-    return `/${segments[0]}`;
-  }, [pathname]);
+  const isRoot = stack.length === 0;
+  const pageTitle = CONTEXT_TITLES[context];
 
   const handleBack = () => {
     triggerHaptic();
-    router.push(getBackHref(pathname));
+    goBack();
   };
 
   const handleOpenMenu = () => {
@@ -154,10 +137,8 @@ export function AppShell({ children }: AppShellProps) {
     setIsFocusOpen(true);
   };
 
-  const handleSelectContext = (context: NavigationContext) => {
-    // For now, just close the picker
-    // In Phase 4, this will dispatch SWITCH_CONTEXT action
-    console.log('Selected context:', context);
+  const handleSelectContext = (newContext: NavigationContext) => {
+    switchContext(newContext);
     setIsContextPickerOpen(false);
   };
 
@@ -243,13 +224,14 @@ export function AppShell({ children }: AppShellProps) {
             </SheetTitle>
             <nav className={styles['app-shell__menu-nav']}>
               {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
+                <button
+                  key={item.context}
+                  type="button"
                   className={styles['app-shell__menu-link']}
-                  data-active={activeHref === item.href}
+                  data-active={context === item.context}
                   onClick={() => {
                     triggerHaptic();
+                    switchContext(item.context);
                     setIsMenuOpen(false);
                   }}
                 >
@@ -259,7 +241,7 @@ export function AppShell({ children }: AppShellProps) {
                   <span className={styles['app-shell__menu-description']}>
                     {item.description}
                   </span>
-                </Link>
+                </button>
               ))}
             </nav>
           </motion.div>
