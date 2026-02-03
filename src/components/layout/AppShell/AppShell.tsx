@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sheet,
@@ -11,7 +11,9 @@ import {
   SheetTitle,
 } from '@/components/ui/Sheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
+import { ContextPicker } from '@/components/layout/ContextPicker/ContextPicker';
 import { useTimer } from '@/features/timer';
+import type { NavigationContext } from '@/lib/navigation/types';
 import styles from './AppShell.module.css';
 
 type AppShellProps = {
@@ -69,6 +71,8 @@ export function AppShell({ children }: AppShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
+  const [isContextPickerOpen, setIsContextPickerOpen] = useState(false);
+  const holdTimeoutRef = useRef<number | undefined>(undefined);
 
   const {
     state: focusState,
@@ -105,7 +109,23 @@ export function AppShell({ children }: AppShellProps) {
     setIsMenuOpen(true);
   };
 
-  const handleOpenCommand = () => {
+  const handleOpenContextPicker = () => {
+    triggerHaptic();
+    setIsContextPickerOpen(true);
+  };
+
+  const handleFABPointerDown = () => {
+    holdTimeoutRef.current = window.setTimeout(() => {
+      handleOpenContextPicker();
+    }, 500);
+  };
+
+  const handleFABPointerUp = () => {
+    window.clearTimeout(holdTimeoutRef.current);
+  };
+
+  const handleFABClick = () => {
+    // Only open command if not already opening context picker
     triggerHaptic();
     setIsCommandOpen(true);
   };
@@ -131,6 +151,13 @@ export function AppShell({ children }: AppShellProps) {
     triggerHaptic();
     setIsCommandOpen(false);
     setIsFocusOpen(true);
+  };
+
+  const handleSelectContext = (context: NavigationContext) => {
+    // For now, just close the picker
+    // In Phase 4, this will dispatch SWITCH_CONTEXT action
+    console.log('Selected context:', context);
+    setIsContextPickerOpen(false);
   };
 
   const focusStatusLabel = formatFocusStatus(focusState);
@@ -187,7 +214,10 @@ export function AppShell({ children }: AppShellProps) {
       <button
         type="button"
         className={styles['app-shell__fab']}
-        onClick={handleOpenCommand}
+        onClick={handleFABClick}
+        onPointerDown={handleFABPointerDown}
+        onPointerUp={handleFABPointerUp}
+        onPointerCancel={handleFABPointerUp}
         aria-label="Open command center"
       >
         <PlusIcon />
@@ -275,6 +305,12 @@ export function AppShell({ children }: AppShellProps) {
         onPause={pause}
         onResume={resume}
         onStop={stop}
+      />
+
+      <ContextPicker
+        open={isContextPickerOpen}
+        onOpenChange={setIsContextPickerOpen}
+        onSelectContext={handleSelectContext}
       />
     </div>
   );
