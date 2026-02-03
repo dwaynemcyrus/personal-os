@@ -59,9 +59,13 @@ export function useNavigation() {
     loadNavigationState
   );
 
-  // Persist to localStorage on state change
+  // Debounced persistence to localStorage
   useEffect(() => {
-    saveNavigationState(state);
+    const timeoutId = setTimeout(() => {
+      saveNavigationState(state);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
   }, [state]);
 
   // Browser history integration

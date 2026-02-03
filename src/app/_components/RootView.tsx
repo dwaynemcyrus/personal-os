@@ -7,12 +7,21 @@
 
 'use client';
 
+import { lazy, Suspense } from 'react';
 import { useNavigationState } from '@/components/providers';
-import { ExecutionView } from './ExecutionView';
-import { KnowledgeView } from './KnowledgeView';
-import { StrategyView } from './StrategyView';
 import { useTimer } from '@/features/timer';
 import styles from '../page.module.css';
+
+// Lazy load context views for better performance
+const ExecutionView = lazy(() =>
+  import('./ExecutionView').then((mod) => ({ default: mod.ExecutionView }))
+);
+const KnowledgeView = lazy(() =>
+  import('./KnowledgeView').then((mod) => ({ default: mod.KnowledgeView }))
+);
+const StrategyView = lazy(() =>
+  import('./StrategyView').then((mod) => ({ default: mod.StrategyView }))
+);
 
 function TodayView() {
   const { state, elapsedLabel, activityLabel, projectLabel } = useTimer();
@@ -70,16 +79,36 @@ function TodayView() {
   );
 }
 
+function LoadingFallback() {
+  return (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      Loading...
+    </div>
+  );
+}
+
 export function RootView() {
   const { context } = useNavigationState();
 
   switch (context) {
     case 'execution':
-      return <ExecutionView />;
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <ExecutionView />
+        </Suspense>
+      );
     case 'knowledge':
-      return <KnowledgeView />;
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <KnowledgeView />
+        </Suspense>
+      );
     case 'strategy':
-      return <StrategyView />;
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <StrategyView />
+        </Suspense>
+      );
     case 'today':
     default:
       return <TodayView />;
