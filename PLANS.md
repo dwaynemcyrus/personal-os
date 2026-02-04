@@ -170,9 +170,12 @@ Last updated: February 4, 2026
 - [x] Basic textarea editor (MVP)
 - [x] Auto-save on blur (debounced)
 - [x] Delete note (trash)
-- [x] Add to /knowledge page
+- [x] Add to thoughts context
 - [x] Fullscreen note editor sheet (right swipe to exit, 30% threshold, 48px edge exclusion)
 - [x] Note editor actions menu (close + trash)
+- [x] Thoughts menu + notes list sheets (stacked navigation)
+- [x] Pin/unpin notes with pinned-first sorting
+- [x] Coming soon toast for placeholder thoughts views
 
 **Completion criteria:**
 - Can create notes offline
@@ -358,6 +361,7 @@ Last updated: February 4, 2026
 ### 2026-02-04
 - [x] Clear lint errors (exclude generated service worker files, fix hooks lint issues)
 - [x] Fix AppShell hydration mismatch with hydration-safe portal gating
+- [x] Add thoughts sheets, note pinning, and restore sheet drag visuals
 
 ---
 
