@@ -13,6 +13,7 @@ import styles from './Sheet.module.css';
 type SheetContentProps = React.ComponentPropsWithoutRef<typeof Dialog.Content> & {
   side?: 'left' | 'right' | 'top' | 'bottom';
   zIndex?: number;
+  overlayClassName?: string;
   enableGestures?: boolean;
   gestureDismissThreshold?: number;
   gestureEdgeExclusion?: number;
@@ -77,6 +78,7 @@ const SheetContent = forwardRef<
       className,
       children,
       zIndex,
+      overlayClassName,
       enableGestures = false,
       gestureDismissThreshold = DEFAULT_DISMISS_THRESHOLD,
       gestureEdgeExclusion = 0,
@@ -309,7 +311,7 @@ const SheetContent = forwardRef<
 
   return (
     <SheetPortal>
-      <SheetOverlay ref={overlayRef} zIndex={zIndex} />
+      <SheetOverlay ref={overlayRef} zIndex={zIndex} className={overlayClassName} />
       <Dialog.Content
         ref={setCombinedRef}
         className={[

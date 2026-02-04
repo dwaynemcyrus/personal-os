@@ -14,21 +14,19 @@ interface NoteDetailSheetProps {
   noteId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  zIndex?: number;
 }
 
 export function NoteDetailSheet({
   noteId,
   open,
   onOpenChange,
-  zIndex,
 }: NoteDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
         className={styles.sheet}
-        zIndex={zIndex}
+        overlayClassName={styles.overlay}
         enableGestures
         gestureDismissThreshold={0.3}
         gestureEdgeExclusion={48}

@@ -122,9 +122,10 @@
 }
 
 .app-shell__fab {
+  pointer-events: all;
   position: fixed;
   left: 50%;
-  bottom: calc(var(--space-4) + var(--safe-area-bottom));
+  bottom: calc(48px + var(--space-4) + var(--safe-area-bottom));
   transform: translateX(-50%);
   width: 56px;
   height: 56px;

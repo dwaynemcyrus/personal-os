@@ -45,7 +45,6 @@ export function SheetManager() {
                 onOpenChange={(open) => {
                   if (!open) popLayer();
                 }}
-                zIndex={zIndex}
               />
             );
 

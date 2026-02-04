@@ -2,6 +2,7 @@
 
 import type React from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
   Sheet,
@@ -345,178 +346,191 @@ export function AppShell({ children }: AppShellProps) {
   const focusStatusLabel = formatFocusStatus(focusState);
   const showFocusChip = focusState !== 'idle';
 
+  // Elements that must remain interactive when a Radix modal dialog is open.
+  // Radix sets `inert` on sibling elements of its portal (direct children of
+  // <body>). By portaling the FAB, CaptureModal, and InboxWizard to <body>
+  // they become siblings of the Radix portal — but since they're rendered
+  // *after* the portal, they won't be inerted.
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+
   return (
-    <div className={styles['app-shell']}>
-      <header className={styles['app-shell__topbar']}>
-        <div className={styles['app-shell__topbar-left']}>
-          {isRoot ? (
-            <button
-              type="button"
-              className={styles['app-shell__icon-button']}
-              onClick={handleOpenMenu}
-              aria-label="Open menu"
-            >
-              <MenuIcon />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles['app-shell__icon-button']}
-              onClick={handleBack}
-              aria-label="Go back"
-            >
-              <BackIcon />
-            </button>
-          )}
-        </div>
-        <div className={styles['app-shell__topbar-title']}>{pageTitle}</div>
-        <div className={styles['app-shell__topbar-right']}>
-          {showFocusChip ? (
-            <button
-              type="button"
-              className={styles['app-shell__focus-chip']}
-              data-status={focusState}
-              onClick={handleOpenFocus}
-              aria-label={`Open focus timer, ${focusStatusLabel}, ${focusElapsedLabel}`}
-            >
-              <span className={styles['app-shell__focus-time']}>
-                {focusElapsedLabel}
-              </span>
-              <span className={styles['app-shell__focus-status']}>
-                {focusStatusLabel}
-              </span>
-            </button>
-          ) : null}
-        </div>
-      </header>
-      <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
-
-      <main className={styles['app-shell__content']}>{children}</main>
-
-      <button
-        type="button"
-        className={`${styles['app-shell__fab']} ${
-          dragActive ? styles['app-shell__fab--dragging'] : ''
-        }`}
-        aria-label="Quick capture"
-        ref={fabRef}
-        onClick={handleFabClick}
-        onContextMenu={(e) => e.preventDefault()}
-        onPointerDown={handleFabPointerDown}
-        onPointerMove={handleFabPointerMove}
-        onPointerUp={handleFabPointerUp}
-        onPointerCancel={handleFabPointerCancel}
-        {...touchHandlers}
-        style={
-          dragActive
-            ? {
-                left: `${dragPosition.x - dragOffsetRef.current.x}px`,
-                top: `${dragPosition.y - dragOffsetRef.current.y}px`,
-                bottom: 'auto',
-                transform: 'none',
-              }
-            : undefined
-        }
-      >
-        +
-      </button>
-
-      {dragActive ? (
-        <div className={styles['app-shell__targets-layer']} aria-hidden="true">
-          {DRAG_TARGETS.map((target) => {
-            const [offsetX, offsetY] = target.offset;
-            return (
-              <div
-                key={target.id}
-                className={`${styles['app-shell__target']} ${
-                  activeTarget === target.id ? styles['app-shell__target--active'] : ''
-                }`}
-                style={{
-                  left: `${dragOrigin.x + offsetX}px`,
-                  top: `${dragOrigin.y + offsetY}px`,
-                }}
+    <>
+      <div className={styles['app-shell']}>
+        <header className={styles['app-shell__topbar']}>
+          <div className={styles['app-shell__topbar-left']}>
+            {isRoot ? (
+              <button
+                type="button"
+                className={styles['app-shell__icon-button']}
+                onClick={handleOpenMenu}
+                aria-label="Open menu"
               >
-                {target.label}
-              </div>
-            );
-          })}
+                <MenuIcon />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles['app-shell__icon-button']}
+                onClick={handleBack}
+                aria-label="Go back"
+              >
+                <BackIcon />
+              </button>
+            )}
+          </div>
+          <div className={styles['app-shell__topbar-title']}>{pageTitle}</div>
+          <div className={styles['app-shell__topbar-right']}>
+            {showFocusChip ? (
+              <button
+                type="button"
+                className={styles['app-shell__focus-chip']}
+                data-status={focusState}
+                onClick={handleOpenFocus}
+                aria-label={`Open focus timer, ${focusStatusLabel}, ${focusElapsedLabel}`}
+              >
+                <span className={styles['app-shell__focus-time']}>
+                  {focusElapsedLabel}
+                </span>
+                <span className={styles['app-shell__focus-status']}>
+                  {focusStatusLabel}
+                </span>
+              </button>
+            ) : null}
+          </div>
+        </header>
+        <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
+
+        <main className={styles['app-shell__content']}>{children}</main>
+
+        <SheetManager />
+
+        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <SheetContent side="left" className={styles['app-shell__menu']} asChild>
+            <motion.div
+              drag="x"
+              dragConstraints={{ left: -140, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -80 || info.velocity.x < -500) {
+                  setIsMenuOpen(false);
+                }
+              }}
+            >
+              <SheetTitle className={styles['app-shell__menu-title']}>
+                Navigate
+              </SheetTitle>
+              <nav className={styles['app-shell__menu-nav']}>
+                {NAV_ITEMS.map((item) => (
+                  <button
+                    key={item.context}
+                    type="button"
+                    className={styles['app-shell__menu-link']}
+                    data-active={context === item.context}
+                    onClick={() => {
+                      triggerHaptic();
+                      switchContext(item.context);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    <span className={styles['app-shell__menu-label']}>
+                      {item.label}
+                    </span>
+                    <span className={styles['app-shell__menu-description']}>
+                      {item.description}
+                    </span>
+                  </button>
+                ))}
+              </nav>
+            </motion.div>
+          </SheetContent>
+        </Sheet>
+
+        <FocusSheet
+          key={isFocusOpen ? 'focus-open' : 'focus-closed'}
+          open={isFocusOpen}
+          onOpenChange={setIsFocusOpen}
+          state={focusState}
+          elapsedLabel={focusElapsedLabel}
+          activityLabel={focusActivityLabel}
+          projectLabel={focusProjectLabel}
+          isUnplanned={focusIsUnplanned}
+          taskOptions={taskOptions}
+          unplannedSuggestions={unplannedSuggestions}
+          onStart={startEntry}
+          onPause={pause}
+          onResume={resume}
+          onStop={stop}
+        />
+
+        {/* Screen reader announcements for context changes */}
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {pageTitle} context
         </div>
-      ) : null}
-
-      <SheetManager />
-
-      <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <SheetContent side="left" className={styles['app-shell__menu']} asChild>
-          <motion.div
-            drag="x"
-            dragConstraints={{ left: -140, right: 0 }}
-            dragElastic={0.2}
-            onDragEnd={(_, info) => {
-              if (info.offset.x < -80 || info.velocity.x < -500) {
-                setIsMenuOpen(false);
-              }
-            }}
-          >
-            <SheetTitle className={styles['app-shell__menu-title']}>
-              Navigate
-            </SheetTitle>
-            <nav className={styles['app-shell__menu-nav']}>
-              {NAV_ITEMS.map((item) => (
-                <button
-                  key={item.context}
-                  type="button"
-                  className={styles['app-shell__menu-link']}
-                  data-active={context === item.context}
-                  onClick={() => {
-                    triggerHaptic();
-                    switchContext(item.context);
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  <span className={styles['app-shell__menu-label']}>
-                    {item.label}
-                  </span>
-                  <span className={styles['app-shell__menu-description']}>
-                    {item.description}
-                  </span>
-                </button>
-              ))}
-            </nav>
-          </motion.div>
-        </SheetContent>
-      </Sheet>
-
-      <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
-
-      <InboxWizard open={isInboxOpen} onOpenChange={setIsInboxOpen} />
-
-      <FocusSheet
-        key={isFocusOpen ? 'focus-open' : 'focus-closed'}
-        open={isFocusOpen}
-        onOpenChange={setIsFocusOpen}
-        state={focusState}
-        elapsedLabel={focusElapsedLabel}
-        activityLabel={focusActivityLabel}
-        projectLabel={focusProjectLabel}
-        isUnplanned={focusIsUnplanned}
-        taskOptions={taskOptions}
-        unplannedSuggestions={unplannedSuggestions}
-        onStart={startEntry}
-        onPause={pause}
-        onResume={resume}
-        onStop={stop}
-      />
-
-      {/* Screen reader announcements for context changes */}
-      <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
-        {pageTitle} context
       </div>
-    </div>
+
+      {portalTarget && createPortal(
+        <>
+          <button
+            type="button"
+            className={`${styles['app-shell__fab']} ${
+              dragActive ? styles['app-shell__fab--dragging'] : ''
+            }`}
+            aria-label="Quick capture"
+            ref={fabRef}
+            onClick={handleFabClick}
+            onContextMenu={(e) => e.preventDefault()}
+            onPointerDown={handleFabPointerDown}
+            onPointerMove={handleFabPointerMove}
+            onPointerUp={handleFabPointerUp}
+            onPointerCancel={handleFabPointerCancel}
+            {...touchHandlers}
+            style={
+              dragActive
+                ? {
+                    left: `${dragPosition.x - dragOffsetRef.current.x}px`,
+                    top: `${dragPosition.y - dragOffsetRef.current.y}px`,
+                    bottom: 'auto',
+                    transform: 'none',
+                  }
+                : undefined
+            }
+          >
+            +
+          </button>
+
+          {dragActive ? (
+            <div className={styles['app-shell__targets-layer']} aria-hidden="true">
+              {DRAG_TARGETS.map((target) => {
+                const [offsetX, offsetY] = target.offset;
+                return (
+                  <div
+                    key={target.id}
+                    className={`${styles['app-shell__target']} ${
+                      activeTarget === target.id ? styles['app-shell__target--active'] : ''
+                    }`}
+                    style={{
+                      left: `${dragOrigin.x + offsetX}px`,
+                      top: `${dragOrigin.y + offsetY}px`,
+                    }}
+                  >
+                    {target.label}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
+          <InboxWizard open={isInboxOpen} onOpenChange={setIsInboxOpen} />
+        </>,
+        portalTarget
+      )}
+    </>
   );
 }
 
