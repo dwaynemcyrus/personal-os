@@ -1,0 +1,2 @@
+ALTER TABLE notes ADD COLUMN IF NOT EXISTS inbox_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_notes_inbox_at ON notes(inbox_at) WHERE inbox_at IS NOT NULL;

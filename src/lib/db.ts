@@ -76,6 +76,7 @@ export const noteSchema = z.object({
   ...baseFields,
   title: z.string(),
   content: z.string().nullable(),
+  inbox_at: z.string().nullable(),
 });
 
 export const habitSchema = z.object({
@@ -204,15 +205,16 @@ const tasksRxSchema = {
 };
 
 const notesRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
     title: { type: 'string' },
     content: { type: ['string', 'null'] },
+    inbox_at: { type: ['string', 'null'] },
   },
-  required: [...baseRequired, 'title', 'content'],
+  required: [...baseRequired, 'title', 'content', 'inbox_at'],
 };
 
 const habitsRxSchema = {
@@ -354,6 +356,15 @@ const softDeleteMigrationStrategies = {
     migrateSoftDeleteFields(oldDoc),
 };
 
+const notesMigrationStrategies = {
+  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
+    migrateSoftDeleteFields(oldDoc),
+  2: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    inbox_at: oldDoc.inbox_at ?? null,
+  }),
+};
+
 const tasksMigrationStrategies = {
   1: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
     const migrated = migrateSoftDeleteFields(oldDoc);
@@ -478,7 +489,7 @@ export async function getDatabase() {
       },
       notes: {
         schema: notesRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
+        migrationStrategies: notesMigrationStrategies,
       },
       habits: {
         schema: habitsRxSchema,

@@ -14,7 +14,8 @@ export type NavigationLayer =
   | { view: 'note-detail'; noteId: string }
   | { view: 'project-detail'; projectId: string }
   | { view: 'context-picker' }
-  | { view: 'command-center' };
+  | { view: 'command-center' }
+  | { view: 'inbox-wizard' };
 
 export interface NavigationState {
   context: NavigationContext;

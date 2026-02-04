@@ -7,9 +7,11 @@
 
 'use client';
 
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigationState } from '@/components/providers';
 import { useTimer } from '@/features/timer';
+import { useDatabase } from '@/hooks/useDatabase';
+import type { NoteDocument } from '@/lib/db';
 import styles from '../page.module.css';
 
 // Lazy load context views for better performance
@@ -25,9 +27,14 @@ const StrategyView = lazy(() =>
 
 function TodayView() {
   const { state } = useTimer();
+  const { db, isReady } = useDatabase();
 
   const handleOpenFocus = () => {
     window.dispatchEvent(new CustomEvent('focus-sheet:open'));
+  };
+
+  const handleOpenInbox = () => {
+    window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
   };
 
   const todayLabel = useMemo(() => {
@@ -39,7 +46,20 @@ function TodayView() {
     });
   }, []);
 
-  const inboxCount = 0;
+  const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const subscription = db.notes
+      .find({
+        selector: { inbox_at: { $ne: null }, is_trashed: false },
+      })
+      .$.subscribe((docs) => {
+        setInboxNotes(docs.map((doc) => doc.toJSON()));
+      });
+    return () => subscription.unsubscribe();
+  }, [db, isReady]);
+
+  const inboxCount = inboxNotes.length;
 
   return (
     <section className={styles.home}>
@@ -69,7 +89,7 @@ function TodayView() {
         <button
           type="button"
           className={styles['home__inbox-card']}
-          onClick={handleOpenFocus}
+          onClick={handleOpenInbox}
           aria-label="Process inbox"
         >
           <div className={styles['home__inbox-text']}>

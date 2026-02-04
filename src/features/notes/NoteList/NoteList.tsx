@@ -66,6 +66,7 @@ export function NoteList() {
       id: noteId,
       title: 'Untitled',
       content: '',
+      inbox_at: null,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

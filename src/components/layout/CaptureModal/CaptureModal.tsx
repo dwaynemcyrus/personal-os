@@ -1,6 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { useDatabase } from '@/hooks/useDatabase';
+import { useNavigationActions } from '@/components/providers';
+import { searchNotes, type SearchResult } from '@/lib/search';
+import type { NoteDocument } from '@/lib/db';
+import {
+  extractNoteTitle,
+  formatNoteTitle,
+  formatRelativeTime,
+} from '@/features/notes/noteUtils';
 import styles from './CaptureModal.module.css';
 
 type CaptureModalProps = {
@@ -8,21 +18,89 @@ type CaptureModalProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-const PLACEHOLDER_RECENTS = [
-  'Weekly review notes',
-  'Project brainstorm',
-  'Meeting takeaways',
-];
-
 export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const [text, setText] = useState('');
   const [rapidCapture, setRapidCapture] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { db, isReady } = useDatabase();
+  const { pushLayer } = useNavigationActions();
+
+  // Subscribe to recent notes
+  const [allNotes, setAllNotes] = useState<NoteDocument[]>([]);
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const subscription = db.notes
+      .find({
+        selector: { is_trashed: false },
+        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+      })
+      .$.subscribe((docs) => {
+        setAllNotes(docs.map((doc) => doc.toJSON()));
+      });
+    return () => subscription.unsubscribe();
+  }, [db, isReady]);
+
+  const recentNotes = useMemo(() => allNotes.slice(0, 12), [allNotes]);
+
+  // Debounced search
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    if (text.trim().length < 2) {
+      setDebouncedQuery('');
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedQuery(text.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [text]);
+
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchResults(searchNotes(allNotes, debouncedQuery));
+  }, [debouncedQuery, allNotes]);
+
+  const isSearching = text.trim().length >= 2;
+
+  // Build display list
+  type DisplayItem = {
+    id: string;
+    noteId: string;
+    title: string;
+    subtitle: string;
+  };
+
+  const displayItems: DisplayItem[] = useMemo(() => {
+    if (isSearching) {
+      return searchResults.map((r) => ({
+        id: r.note.id,
+        noteId: r.note.id,
+        title: formatNoteTitle(extractNoteTitle(r.note.content, r.note.title)),
+        subtitle: r.snippet,
+      }));
+    }
+    return recentNotes.map((note) => ({
+      id: note.id,
+      noteId: note.id,
+      title: formatNoteTitle(extractNoteTitle(note.content, note.title)),
+      subtitle: formatRelativeTime(note.updated_at),
+    }));
+  }, [isSearching, searchResults, recentNotes]);
+
+  // Reset selection on text change
+  useEffect(() => {
+    setSelectedIndex(null);
+  }, [text]);
 
   // Auto-focus textarea on open
   useEffect(() => {
     if (!open) return;
-    // Use rAF to ensure the DOM has painted before focusing
     const id = requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
@@ -41,34 +119,97 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
 
   const handleClose = useCallback(() => {
     setText('');
+    setSelectedIndex(null);
     onOpenChange(false);
   }, [onOpenChange]);
 
-  // Escape: clear text first, then close if empty
+  const handleSave = useCallback(async () => {
+    if (!text.trim() || !db) return;
+    const noteId = uuidv4();
+    const timestamp = new Date().toISOString();
+    await db.notes.insert({
+      id: noteId,
+      title: 'Untitled',
+      content: text.trim(),
+      inbox_at: timestamp,
+      created_at: timestamp,
+      updated_at: timestamp,
+      is_trashed: false,
+      trashed_at: null,
+    });
+    setText('');
+    if (!rapidCapture) onOpenChange(false);
+  }, [text, db, rapidCapture, onOpenChange]);
+
+  const handleOpenNote = useCallback(
+    (noteId: string) => {
+      onOpenChange(false);
+      pushLayer({ view: 'note-detail', noteId });
+    },
+    [onOpenChange, pushLayer]
+  );
+
+  // Keyboard navigation
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (text.length > 0) {
+        if (selectedIndex !== null) {
+          setSelectedIndex(null);
+        } else if (text.length > 0) {
           setText('');
         } else {
           handleClose();
+        }
+        return;
+      }
+
+      if (e.key === 'Tab' && displayItems.length > 0) {
+        e.preventDefault();
+        setSelectedIndex(0);
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => {
+          if (prev === null) return 0;
+          return Math.min(prev + 1, displayItems.length - 1);
+        });
+        return;
+      }
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => {
+          if (prev === null || prev <= 0) return null;
+          return prev - 1;
+        });
+        return;
+      }
+
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (selectedIndex !== null && displayItems[selectedIndex]) {
+          e.preventDefault();
+          handleOpenNote(displayItems[selectedIndex].noteId);
+        } else if (text.trim()) {
+          e.preventDefault();
+          handleSave();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, text, handleClose]);
-
-  const handleSave = () => {
-    // Placeholder stub — will be wired to actual save logic later
-    if (!text.trim()) return;
-    setText('');
-    if (!rapidCapture) {
-      onOpenChange(false);
-    }
-  };
+  }, [
+    open,
+    text,
+    selectedIndex,
+    displayItems,
+    handleClose,
+    handleSave,
+    handleOpenNote,
+  ]);
 
   const canSave = text.trim().length > 0;
 
@@ -94,19 +235,32 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
           />
         </div>
 
-        {/* Recently Edited section */}
+        {/* Results section */}
         <div className={styles.results}>
-          <span className={styles.sectionTitle}>Recently Edited</span>
-          {PLACEHOLDER_RECENTS.length > 0 ? (
+          <span className={styles.sectionTitle}>
+            {isSearching ? 'Search Results' : 'Recently Edited'}
+          </span>
+          {displayItems.length > 0 ? (
             <ul className={styles.list} role="list">
-              {PLACEHOLDER_RECENTS.map((title) => (
-                <li key={title} className={styles.listItem}>
-                  <button type="button" className={styles.listButton}>
-                    {title}
+              {displayItems.map((item, index) => (
+                <li key={item.id} className={styles.listItem}>
+                  <button
+                    type="button"
+                    className={`${styles.listButton} ${
+                      selectedIndex === index ? styles.listButtonSelected : ''
+                    }`}
+                    onClick={() => handleOpenNote(item.noteId)}
+                  >
+                    {item.title}
+                    <div className={styles.listButtonSubtitle}>
+                      {item.subtitle}
+                    </div>
                   </button>
                 </li>
               ))}
             </ul>
+          ) : isSearching ? (
+            <p className={styles.emptyState}>No results</p>
           ) : (
             <p className={styles.emptyState}>No recent documents</p>
           )}

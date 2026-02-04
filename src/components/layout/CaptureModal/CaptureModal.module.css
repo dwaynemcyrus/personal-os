@@ -137,13 +137,22 @@
   cursor: pointer;
 }
 
-.listButton:hover {
+.listButton:hover,
+.listButtonSelected {
   border-color: rgba(20, 17, 15, 0.2);
+  background: #f6f2ea;
 }
 
 .listButton:focus-visible {
   outline: 2px solid #14110f;
   outline-offset: 2px;
+}
+
+.listButtonSubtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: #7b6f61;
+  margin-top: 2px;
 }
 
 .toggle {

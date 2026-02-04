@@ -1,0 +1,144 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: #f6f2ea;
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-modal);
+}
+
+.container {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(20px + env(safe-area-inset-top)) 16px
+    calc(20px + env(safe-area-inset-bottom));
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerTitle {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5a4e41;
+}
+
+.remaining {
+  font-size: 13px;
+  color: #7b6f61;
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #5a4e41;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.titleInput {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(20, 17, 15, 0.12);
+  background: #ffffff;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #14110f;
+  font-family: inherit;
+}
+
+.titleInput:focus {
+  outline: 2px solid #14110f;
+  outline-offset: 2px;
+}
+
+.bodyPreview {
+  flex: 1;
+  border-radius: 18px;
+  border: 1px dashed rgba(20, 17, 15, 0.12);
+  background: #fcfbf8;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #14110f;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.extractButton {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #5a4e41;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.actionButton {
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid rgba(20, 17, 15, 0.2);
+  background: transparent;
+  color: #14110f;
+  cursor: pointer;
+}
+
+.actionButtonPrimary {
+  background: #14110f;
+  color: #f6f2ea;
+  border-color: transparent;
+}
+
+.actionButtonDanger {
+  color: #a33;
+  border-color: rgba(170, 51, 51, 0.3);
+}
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #14110f;
+}
+
+.emptySubtitle {
+  font-size: 14px;
+  color: #7b6f61;
+}
+
+@media (min-width: 700px) {
+  .container {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}

@@ -57,6 +57,7 @@ const collectionConfig = {
       'id',
       'title',
       'content',
+      'inbox_at',
       'created_at',
       'updated_at',
       'is_trashed',

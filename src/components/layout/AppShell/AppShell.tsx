@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/Sheet';
 import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
 import { FocusSheet } from '@/components/layout/FocusSheet';
+import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -80,6 +81,7 @@ export function AppShell({ children }: AppShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
 
   // Drag-to-navigate state
   const [dragActive, setDragActive] = useState(false);
@@ -316,6 +318,18 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const handleOpenInbox = () => {
+      triggerHaptic();
+      setIsInboxOpen(true);
+    };
+
+    window.addEventListener('inbox-wizard:open', handleOpenInbox);
+    return () => {
+      window.removeEventListener('inbox-wizard:open', handleOpenInbox);
+    };
+  }, []);
+
   // Cmd/Ctrl+K keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -473,6 +487,8 @@ export function AppShell({ children }: AppShellProps) {
       </Sheet>
 
       <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
+
+      <InboxWizard open={isInboxOpen} onOpenChange={setIsInboxOpen} />
 
       <FocusSheet
         key={isFocusOpen ? 'focus-open' : 'focus-closed'}
