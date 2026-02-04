@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 - 2026-02-04
+- Made the note editor sheet full-viewport and right-sided to fully cover the list
+- Added right-swipe dismiss with a 30% threshold and 48px edge exclusion
+- Moved note editor actions into a Radix dropdown menu (Close + Trash)
+- Fixed duplicate note editor sheet rendering during gesture transitions
+
 ## 0.9.0 - 2026-02-03
 - Replaced Geist font with New Atten local font (5 weights + italics via next/font/local)
 - Replaced iOS design tokens with warm paper aesthetic: paper (#f6f2ea) backgrounds, ink (#14110f) text, warm border alphas
