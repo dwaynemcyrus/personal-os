@@ -17,8 +17,6 @@ export function SheetManager() {
   return (
     <>
       {stack.map((layer, index) => {
-        const zIndex = 100 + index * 100;
-
         switch (layer.view) {
           case 'execution-tasks':
             // TODO: Implement TaskListSheet

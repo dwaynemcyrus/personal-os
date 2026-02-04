@@ -10,7 +10,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
-import { useTimer } from '@/features/timer';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
 import styles from '../page.module.css';
@@ -27,7 +26,6 @@ const StrategyView = lazy(() =>
 );
 
 function TodayView() {
-  const { state } = useTimer();
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
 
