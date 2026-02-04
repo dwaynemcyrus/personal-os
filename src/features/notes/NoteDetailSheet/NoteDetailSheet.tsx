@@ -8,6 +8,7 @@
 
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { NoteEditor } from '../NoteEditor/NoteEditor';
+import styles from './NoteDetailSheet.module.css';
 
 interface NoteDetailSheetProps {
   noteId: string;
@@ -25,14 +26,17 @@ export function NoteDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        side="bottom"
+        side="right"
+        className={styles.sheet}
         zIndex={zIndex}
         enableGestures
+        gestureDismissThreshold={0.3}
+        gestureEdgeExclusion={48}
+        onDismiss={() => onOpenChange(false)}
         aria-label="Note editor"
       >
         <NoteEditor
           noteId={noteId}
-          variant="inline"
           onClose={() => onOpenChange(false)}
         />
       </SheetContent>

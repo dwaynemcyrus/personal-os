@@ -4,7 +4,7 @@
   background: #f6f2ea;
   display: flex;
   flex-direction: column;
-  z-index: var(--z-modal);
+  z-index: var(--z-sheet);
 }
 
 .container {

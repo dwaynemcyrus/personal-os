@@ -8,6 +8,7 @@ import { searchNotes, type SearchResult } from '@/lib/search';
 import type { NoteDocument } from '@/lib/db';
 import {
   extractNoteTitle,
+  extractTitleFromFirstLine,
   formatNoteTitle,
   formatRelativeTime,
 } from '@/features/notes/noteUtils';
@@ -33,7 +34,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     if (!db || !isReady) return;
     const subscription = db.notes
       .find({
-        selector: { is_trashed: false },
+        selector: { is_trashed: false, inbox_at: null },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
@@ -127,10 +128,11 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     if (!text.trim() || !db) return;
     const noteId = uuidv4();
     const timestamp = new Date().toISOString();
+    const trimmedText = text.trim();
     await db.notes.insert({
       id: noteId,
-      title: 'Untitled',
-      content: text.trim(),
+      title: extractTitleFromFirstLine(trimmedText),
+      content: trimmedText,
       inbox_at: timestamp,
       created_at: timestamp,
       updated_at: timestamp,

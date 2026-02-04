@@ -26,6 +26,20 @@ export const formatNoteTitle = (title: string) => {
   return `${trimmed.slice(0, TITLE_MAX_LENGTH - 3)}...`;
 };
 
+export const extractTitleFromFirstLine = (content: string | null | undefined) => {
+  const lines = getTrimmedLines(content);
+  if (!lines[0]) return TITLE_FALLBACK;
+  const stripped = lines[0]
+    .replace(/^#{1,6}\s+/, '')
+    .replace(/^[-*+]\s+/, '')
+    .replace(/^\d+\.\s+/, '')
+    .replace(/^>\s*/, '')
+    .trim();
+  if (!stripped) return TITLE_FALLBACK;
+  if (stripped.length <= TITLE_MAX_LENGTH) return stripped;
+  return stripped.slice(0, TITLE_MAX_LENGTH);
+};
+
 export const extractNoteSnippet = (content: string | null | undefined) => {
   const lines = getTrimmedLines(content);
   if (lines.length <= 1) return '';

@@ -8,43 +8,49 @@
 'use client';
 
 import { useNavigationState, useNavigationActions } from '@/components/providers';
+import { NoteDetailSheet } from '@/features/notes/NoteDetailSheet/NoteDetailSheet';
 
 export function SheetManager() {
   const { stack } = useNavigationState();
-  // popLayer will be used in Phase 4 when sheets are implemented
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { popLayer } = useNavigationActions();
 
   return (
     <>
       {stack.map((layer, index) => {
-        // zIndex will be used in Phase 4 when sheets are implemented
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const zIndex = 100 + index * 100;
 
         switch (layer.view) {
           case 'execution-tasks':
-            // TODO: Implement TaskListSheet in Phase 4
+            // TODO: Implement TaskListSheet
             return null;
 
           case 'execution-projects':
-            // TODO: Implement ProjectListSheet in Phase 4
+            // TODO: Implement ProjectListSheet
             return null;
 
           case 'knowledge-notes':
-            // TODO: Implement NoteListSheet in Phase 4
+            // TODO: Implement NoteListSheet
             return null;
 
           case 'task-detail':
-            // TODO: Implement TaskDetailSheet in Phase 4
+            // TODO: Implement TaskDetailSheet
             return null;
 
           case 'note-detail':
-            // TODO: Implement NoteDetailSheet in Phase 4
-            return null;
+            return (
+              <NoteDetailSheet
+                key={`note-${layer.noteId}-${index}`}
+                noteId={layer.noteId}
+                open
+                onOpenChange={(open) => {
+                  if (!open) popLayer();
+                }}
+                zIndex={zIndex}
+              />
+            );
 
           case 'project-detail':
-            // TODO: Implement ProjectDetailSheet in Phase 4
+            // TODO: Implement ProjectDetailSheet
             return null;
 
           case 'context-picker':
@@ -53,6 +59,10 @@ export function SheetManager() {
 
           case 'command-center':
             // Command center is handled separately in AppShell
+            return null;
+
+          case 'inbox-wizard':
+            // Inbox wizard is handled separately in AppShell
             return null;
 
           default:

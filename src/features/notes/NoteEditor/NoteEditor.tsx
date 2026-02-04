@@ -15,15 +15,10 @@ const SAVE_DEBOUNCE_MS = 1000;
 
 type NoteEditorProps = {
   noteId: string;
-  variant?: 'page' | 'inline';
   onClose?: () => void;
 };
 
-export function NoteEditor({
-  noteId,
-  variant = 'page',
-  onClose,
-}: NoteEditorProps) {
+export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [content, setContent] = useState('');
@@ -68,8 +63,8 @@ export function NoteEditor({
   );
 
   const displayTitle = useMemo(
-    () => (variant === 'inline' ? formatNoteTitle(derivedTitle) : derivedTitle),
-    [derivedTitle, variant]
+    () => formatNoteTitle(derivedTitle),
+    [derivedTitle]
   );
 
   const updatedLabel = useMemo(
@@ -122,19 +117,6 @@ export function NoteEditor({
     }
   };
 
-  const handleDelete = async () => {
-    if (!db || !note) return;
-    const doc = await db.notes.findOne(note.id).exec();
-    if (!doc) return;
-    const timestamp = nowIso();
-    await doc.patch({
-      is_trashed: true,
-      trashed_at: timestamp,
-      updated_at: timestamp,
-    });
-    onClose?.();
-  };
-
   if (!noteId) {
     return (
       <section className={styles.editor}>
@@ -160,13 +142,13 @@ export function NoteEditor({
   }
 
   return (
-    <section className={styles.editor} data-variant={variant}>
+    <section className={styles.editor}>
       <header className={styles.header}>
         <div>
           <div className={styles.title}>{displayTitle}</div>
           <div className={styles.meta}>Updated {updatedLabel}</div>
         </div>
-        {variant === 'inline' && onClose ? (
+        {onClose ? (
           <button type="button" className={styles.close} onClick={onClose}>
             Close
           </button>
@@ -179,20 +161,7 @@ export function NoteEditor({
         onChange={handleChange}
         onBlur={handleBlur}
         placeholder="Start writing..."
-        rows={variant === 'inline' ? 10 : 14}
       />
-
-      {variant === 'page' ? (
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.deleteButton}
-            onClick={handleDelete}
-          >
-            Delete note
-          </button>
-        </div>
-      ) : null}
     </section>
   );
 }

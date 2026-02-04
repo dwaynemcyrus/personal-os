@@ -1,0 +1,11 @@
+.sheet {
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  max-height: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  touch-action: pan-y;
+  animation: none;
+}

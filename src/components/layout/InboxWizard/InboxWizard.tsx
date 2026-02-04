@@ -4,31 +4,13 @@ import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
-import { extractNoteTitle } from '@/features/notes/noteUtils';
+import { extractNoteTitle, extractTitleFromFirstLine } from '@/features/notes/noteUtils';
 import styles from './InboxWizard.module.css';
 
 type InboxWizardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
-
-function stripMarkdownMarkers(line: string): string {
-  return line
-    .replace(/^#{1,6}\s+/, '')
-    .replace(/^[-*+]\s+/, '')
-    .replace(/^\d+\.\s+/, '')
-    .replace(/^>\s*/, '')
-    .trim();
-}
-
-function extractFirstLineTitle(content: string | null): string {
-  if (!content) return 'Untitled';
-  const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (!lines[0]) return 'Untitled';
-  const cleaned = stripMarkdownMarkers(lines[0]);
-  if (!cleaned) return 'Untitled';
-  return cleaned.length > 80 ? `${cleaned.slice(0, 80)}` : cleaned;
-}
 
 export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const { db, isReady } = useDatabase();
@@ -169,7 +151,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
 
   const handleExtractTitle = () => {
     if (!currentNote) return;
-    setEditTitle(extractFirstLineTitle(currentNote.content));
+    setEditTitle(extractTitleFromFirstLine(currentNote.content));
   };
 
   // Empty state

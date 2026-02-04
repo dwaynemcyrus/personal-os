@@ -2,7 +2,7 @@
 
 ## Current Status: MVP Phase - Sync Proof of Concept ✅
 
-Last updated: February 3, 2026
+Last updated: February 4, 2026
 
 ---
 
@@ -171,6 +171,7 @@ Last updated: February 3, 2026
 - [x] Auto-save on blur (debounced)
 - [x] Delete note
 - [x] Add to /knowledge page
+- [ ] Fullscreen note editor sheet (right swipe, 30% threshold, 48px edge exclusion)
 
 **Completion criteria:**
 - Can create notes offline

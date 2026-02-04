@@ -1,13 +1,11 @@
 .editor {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
-}
-
-.editor[data-variant='inline'] {
-  padding: var(--space-16);
-  border-radius: var(--radius-14);
-  border: 1px solid var(--color-border-200);
-  background: var(--color-surface);
+  height: 100%;
+  padding: var(--space-4);
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
 }
 
 .header {
@@ -21,10 +19,6 @@
   font-size: var(--font-2xl);
   font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
-}
-
-.editor[data-variant='inline'] .title {
-  font-size: var(--font-lg);
 }
 
 .meta {
@@ -47,7 +41,8 @@
 }
 
 .textarea {
-  min-height: 50vh;
+  flex: 1;
+  min-height: 0;
   border-radius: var(--radius-10);
   border: 1px solid var(--color-border-300);
   background: var(--color-white);
@@ -55,12 +50,7 @@
   padding: var(--space-3);
   font-size: 16px;
   line-height: var(--leading-relaxed);
-  resize: vertical;
-}
-
-.editor[data-variant='inline'] .textarea {
-  min-height: 260px;
-  background: var(--color-white);
+  resize: none;
 }
 
 .textarea::placeholder {
@@ -69,27 +59,6 @@
 
 .textarea:focus-visible {
   outline: 2px solid var(--color-ink-900);
-  outline-offset: 2px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.deleteButton {
-  min-height: var(--touch-target);
-  padding: 0 var(--space-18);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-error-border);
-  background: transparent;
-  color: var(--color-error-ink);
-  font-size: var(--font-sm);
-  font-weight: 600;
-}
-
-.deleteButton:focus-visible {
-  outline: 2px solid var(--color-error-ink);
   outline-offset: 2px;
 }
 

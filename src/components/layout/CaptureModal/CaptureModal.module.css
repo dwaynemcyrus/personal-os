@@ -4,7 +4,7 @@
   background: #f6f2ea;
   display: block;
   padding: 0;
-  z-index: var(--z-modal);
+  z-index: var(--z-sheet);
 }
 
 .modal {
