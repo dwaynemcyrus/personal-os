@@ -139,12 +139,12 @@ const SheetContent = forwardRef<
 
   useEffect(() => {
     if (!shouldEnableRightSwipe) return;
-    const overlayNode = overlayRef.current;
-    const contentNode = contentRef.current;
     const unsubscribe = dragX.on('change', (value) => {
       const width = sheetWidthRef.current || 1;
       const progress = clamp(value / width, 0, 1);
       const opacity = String(1 - progress);
+      const overlayNode = overlayRef.current;
+      const contentNode = contentRef.current;
       if (overlayNode) {
         overlayNode.style.opacity = opacity;
       }
@@ -154,11 +154,11 @@ const SheetContent = forwardRef<
     });
     return () => {
       unsubscribe();
-      if (overlayNode) {
-        overlayNode.style.opacity = '';
+      if (overlayRef.current) {
+        overlayRef.current.style.opacity = '';
       }
-      if (contentNode) {
-        contentNode.style.transform = '';
+      if (contentRef.current) {
+        contentRef.current.style.transform = '';
       }
     };
   }, [dragX, shouldEnableRightSwipe]);

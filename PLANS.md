@@ -1,5 +1,5 @@
 # Personal OS - Development Plan
-
+`codex resume 019c264c-af4c-7763-b52e-ab053833111a`
 ## Current Status: MVP Phase - Sync Proof of Concept ✅
 
 Last updated: February 4, 2026
@@ -169,9 +169,10 @@ Last updated: February 4, 2026
 - [x] Create note
 - [x] Basic textarea editor (MVP)
 - [x] Auto-save on blur (debounced)
-- [x] Delete note
+- [x] Delete note (trash)
 - [x] Add to /knowledge page
-- [ ] Fullscreen note editor sheet (right swipe, 30% threshold, 48px edge exclusion)
+- [x] Fullscreen note editor sheet (right swipe to exit, 30% threshold, 48px edge exclusion)
+- [x] Note editor actions menu (close + trash)
 
 **Completion criteria:**
 - Can create notes offline

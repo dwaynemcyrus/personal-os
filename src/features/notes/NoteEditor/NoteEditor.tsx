@@ -4,6 +4,13 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
 import {
+  Dropdown,
+  DropdownContent,
+  DropdownItem,
+  DropdownSeparator,
+  DropdownTrigger,
+} from '@/components/ui/Dropdown';
+import {
   extractNoteTitle,
   formatNoteTitle,
   formatRelativeTime,
@@ -71,6 +78,23 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     () => formatRelativeTime(note?.updated_at),
     [note?.updated_at]
   );
+
+  const handleClose = () => {
+    onClose?.();
+  };
+
+  const handleDelete = async () => {
+    if (!db || !note) return;
+    const doc = await db.notes.findOne(note.id).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      is_trashed: true,
+      trashed_at: timestamp,
+      updated_at: timestamp,
+    });
+    onClose?.();
+  };
 
   const saveContent = async (nextContent: string) => {
     if (!db || !noteId) return;
@@ -149,9 +173,24 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           <div className={styles.meta}>Updated {updatedLabel}</div>
         </div>
         {onClose ? (
-          <button type="button" className={styles.close} onClick={onClose}>
-            Close
-          </button>
+          <Dropdown>
+            <DropdownTrigger asChild>
+              <button
+                type="button"
+                className={styles.more}
+                aria-label="Note actions"
+              >
+                <MoreIcon />
+              </button>
+            </DropdownTrigger>
+            <DropdownContent align="end" sideOffset={12}>
+              <DropdownItem onSelect={handleClose}>Close</DropdownItem>
+              <DropdownSeparator />
+              <DropdownItem data-variant="danger" onSelect={handleDelete}>
+                Trash
+              </DropdownItem>
+            </DropdownContent>
+          </Dropdown>
         ) : null}
       </header>
 
@@ -163,5 +202,20 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         placeholder="Start writing..."
       />
     </section>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className={styles.moreIcon}
+    >
+      <circle cx="12" cy="5" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="12" cy="19" r="2" />
+    </svg>
   );
 }

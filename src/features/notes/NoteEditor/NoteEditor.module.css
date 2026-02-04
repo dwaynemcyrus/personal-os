@@ -28,16 +28,25 @@
   color: var(--color-ink-500);
 }
 
-.close {
+.more {
   min-height: var(--touch-target);
-  padding: 0 var(--space-3);
+  min-width: var(--touch-target);
+  display: grid;
+  place-items: center;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border-200);
   background: transparent;
   color: var(--color-ink-500);
-  font-size: var(--font-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+}
+
+.more:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.moreIcon {
+  width: 20px;
+  height: 20px;
 }
 
 .textarea {

@@ -2,7 +2,7 @@
 
 Track all UI components to avoid duplication and maintain consistency.
 
-**Last updated:** January 30, 2026
+**Last updated:** February 4, 2026
 
 ---
 
@@ -35,7 +35,7 @@ Wrappers around Radix primitives with consistent styling.
 ### Overlays
 - [ ] ⏳ Sheet - Bottom sheet modal (mobile-optimized)
 - [ ] ⏳ Dialog - Centered dialog/modal
-- [ ] ⏳ Dropdown - Dropdown menu for actions
+- [x] ✅ Dropdown - Dropdown menu for actions
 - [ ] ⏳ Popover - Floating content container
 - [ ] ⏳ Toast - Temporary notification
 
