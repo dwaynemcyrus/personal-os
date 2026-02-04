@@ -1,7 +1,13 @@
 'use client';
 
 import type React from 'react';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -75,6 +81,16 @@ const triggerHaptic = () => {
     navigator.vibrate(10);
   }
 };
+
+const useHydrated = () =>
+  useSyncExternalStore(
+    (onStoreChange) => {
+      const id = window.requestAnimationFrame(onStoreChange);
+      return () => window.cancelAnimationFrame(id);
+    },
+    () => true,
+    () => false
+  );
 
 export function AppShell({ children }: AppShellProps) {
   const { context, stack } = useNavigationState();
@@ -244,9 +260,9 @@ export function AppShell({ children }: AppShellProps) {
 
   // --- Touch event handlers (mobile fallback) ---
 
-  const canUseDom = typeof window !== 'undefined';
+  const hydrated = useHydrated();
   const touchEnabled =
-    canUseDom &&
+    hydrated &&
     (window.matchMedia('(pointer: coarse)').matches ||
       window.matchMedia('(hover: none)').matches);
 
@@ -354,7 +370,7 @@ export function AppShell({ children }: AppShellProps) {
   // <body>). By portaling the FAB, CaptureModal, and InboxWizard to <body>
   // they become siblings of the Radix portal — but since they're rendered
   // *after* the portal, they won't be inerted.
-  const portalTarget = canUseDom ? document.body : null;
+  const portalTarget = hydrated ? document.body : null;
 
   return (
     <>

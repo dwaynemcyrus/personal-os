@@ -357,6 +357,7 @@ Last updated: February 4, 2026
 
 ### 2026-02-04
 - [x] Clear lint errors (exclude generated service worker files, fix hooks lint issues)
+- [x] Fix AppShell hydration mismatch with hydration-safe portal gating
 
 ---
 
