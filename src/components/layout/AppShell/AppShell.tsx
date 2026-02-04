@@ -49,8 +49,8 @@ const NAV_ITEMS: NavItem[] = [
     description: 'Projects, goals, and planning',
   },
   {
-    context: 'knowledge',
-    label: 'Knowledge',
+    context: 'thoughts',
+    label: 'Thoughts',
     description: 'Notes, ideas, and references',
   },
   {
@@ -62,7 +62,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const DRAG_TARGETS: DragTarget[] = [
   { id: 'execution', context: 'execution', label: 'Execution', offset: [-96, 0] },
-  { id: 'knowledge', context: 'knowledge', label: 'Knowledge', offset: [96, 0] },
+  { id: 'thoughts', context: 'thoughts', label: 'Thoughts', offset: [96, 0] },
   { id: 'strategy', context: 'strategy', label: 'Strategy', offset: [0, -96] },
   { id: 'today', context: 'today', label: 'Home', offset: [0, 96] },
 ];
@@ -70,7 +70,7 @@ const DRAG_TARGETS: DragTarget[] = [
 const CONTEXT_TITLES: Record<NavigationContext, string> = {
   today: 'Today',
   strategy: 'Strategy',
-  knowledge: 'Knowledge',
+  thoughts: 'Thoughts',
   execution: 'Execution',
 };
 

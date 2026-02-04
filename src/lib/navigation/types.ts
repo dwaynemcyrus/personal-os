@@ -4,12 +4,13 @@
  * Core type definitions for the SPA navigation state machine.
  */
 
-export type NavigationContext = 'today' | 'execution' | 'knowledge' | 'strategy';
+export type NavigationContext = 'today' | 'execution' | 'thoughts' | 'strategy';
 
 export type NavigationLayer =
   | { view: 'execution-tasks' }
   | { view: 'execution-projects' }
-  | { view: 'knowledge-notes' }
+  | { view: 'thoughts-menu' }
+  | { view: 'thoughts-list' }
   | { view: 'task-detail'; taskId: string }
   | { view: 'note-detail'; noteId: string }
   | { view: 'project-detail'; projectId: string }

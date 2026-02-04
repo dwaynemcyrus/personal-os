@@ -182,7 +182,7 @@ export function RootView() {
           <ExecutionView />
         </Suspense>
       );
-    case 'knowledge':
+    case 'thoughts':
       return (
         <Suspense fallback={<LoadingFallback />}>
           <ThoughtsView />

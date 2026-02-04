@@ -26,8 +26,12 @@ export function SheetManager() {
             // TODO: Implement ProjectListSheet
             return null;
 
-          case 'knowledge-notes':
-            // TODO: Implement NoteListSheet
+          case 'thoughts-menu':
+            // TODO: Implement ThoughtsMenuSheet
+            return null;
+
+          case 'thoughts-list':
+            // TODO: Implement ThoughtsListSheet
             return null;
 
           case 'task-detail':
