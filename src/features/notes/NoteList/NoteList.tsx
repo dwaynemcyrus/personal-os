@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
-import { NoteDetailSheet } from '@/features/notes/NoteDetailSheet/NoteDetailSheet';
-import { useNavigationState, useNavigationActions } from '@/components/providers';
+import { useNavigationActions } from '@/components/providers';
 import {
   extractNoteSnippet,
   extractNoteTitle,
@@ -20,14 +19,7 @@ export function NoteList() {
   const { db, isReady } = useDatabase();
   const [notes, setNotes] = useState<NoteDocument[]>([]);
 
-  const { stack } = useNavigationState();
-  const { pushLayer, popLayer } = useNavigationActions();
-
-  // Find if note-detail is in stack
-  const noteDetailLayer = stack.find((layer) => layer.view === 'note-detail');
-  const selectedNoteId = noteDetailLayer && noteDetailLayer.view === 'note-detail'
-    ? noteDetailLayer.noteId
-    : null;
+  const { pushLayer } = useNavigationActions();
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -80,12 +72,6 @@ export function NoteList() {
     pushLayer({ view: 'note-detail', noteId });
   };
 
-  const handleDetailOpenChange = (open: boolean) => {
-    if (!open) {
-      popLayer();
-    }
-  };
-
   return (
     <div className={styles.notes}>
       <div className={styles.header}>
@@ -121,14 +107,6 @@ export function NoteList() {
         </div>
       )}
 
-      {selectedNoteId ? (
-        <NoteDetailSheet
-          key={selectedNoteId}
-          noteId={selectedNoteId}
-          open={Boolean(selectedNoteId)}
-          onOpenChange={handleDetailOpenChange}
-        />
-      ) : null}
     </div>
   );
 }
