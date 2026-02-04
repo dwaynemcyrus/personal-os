@@ -73,6 +73,18 @@ export function SheetManager() {
               />
             );
 
+          case 'thoughts-note':
+            return (
+              <NoteDetailSheet
+                key={`thoughts-note-${layer.noteId}-${index}`}
+                noteId={layer.noteId}
+                open
+                onOpenChange={(open) => {
+                  if (!open) popLayer();
+                }}
+              />
+            );
+
           case 'project-detail':
             // TODO: Implement ProjectDetailSheet
             return null;

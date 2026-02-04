@@ -12,6 +12,7 @@ export type NavigationLayer =
   | { view: 'thoughts-menu' }
   | { view: 'thoughts-list' }
   | { view: 'task-detail'; taskId: string }
+  | { view: 'thoughts-note'; noteId: string }
   | { view: 'note-detail'; noteId: string }
   | { view: 'project-detail'; projectId: string }
   | { view: 'context-picker' }
