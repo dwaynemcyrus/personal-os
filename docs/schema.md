@@ -97,6 +97,9 @@ CREATE TABLE notes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
   content TEXT,
+  inbox_at TIMESTAMPTZ DEFAULT NULL,
+  note_type TEXT DEFAULT NULL,
+  is_pinned BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   is_trashed BOOLEAN DEFAULT FALSE,
@@ -108,6 +111,7 @@ CREATE TABLE notes (
 ```sql
 CREATE INDEX idx_notes_is_trashed ON notes(is_trashed);
 CREATE INDEX idx_notes_updated_at ON notes(updated_at DESC);
+CREATE INDEX idx_notes_is_pinned_updated_at ON notes(is_pinned DESC, updated_at DESC, id ASC);
 ```
 
 ---

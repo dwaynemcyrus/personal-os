@@ -72,10 +72,10 @@ transition: all var(--transition-normal);
 
 **Bottom center:**
 - FAB: Tap = command center (quick capture/search)
-- FAB: Hold + drag = navigate to strategy|knowledge|execution
+- FAB: Hold + drag = navigate to strategy|thoughts|execution
 
 **Slide menu:**
-- 3 sections: Strategy, Knowledge, Execution
+- 3 sections: Strategy, Thoughts, Execution
 - Full height, 80% width
 - Swipe or tap outside to dismiss
 

@@ -9,7 +9,7 @@
 ## File Structure
 ```
 src/
-├── app/                    # Next.js routes (strategy|knowledge|execution)
+├── app/                    # Next.js routes (strategy|thoughts|execution)
 ├── components/
 │   ├── ui/                # Radix wrappers (Button, Sheet, Dropdown)
 │   ├── layout/            # Navigation, FAB, TopBar, SlideMenu
