@@ -19,6 +19,7 @@ import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
+import { ToastHost } from '@/components/ui/Toast';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import type { NavigationContext } from '@/lib/navigation/types';
@@ -374,6 +375,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <>
+      <ToastHost />
       <div className={styles['app-shell']}>
         <header className={styles['app-shell__topbar']}>
           <div className={styles['app-shell__topbar-left']}>
