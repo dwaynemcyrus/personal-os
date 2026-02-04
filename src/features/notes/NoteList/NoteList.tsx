@@ -71,11 +71,11 @@ export function NoteList() {
       is_trashed: false,
       trashed_at: null,
     });
-    pushLayer({ view: 'note-detail', noteId });
+    pushLayer({ view: 'thoughts-note', noteId });
   };
 
   const handleOpenNote = (noteId: string) => {
-    pushLayer({ view: 'note-detail', noteId });
+    pushLayer({ view: 'thoughts-note', noteId });
   };
 
   return (

@@ -62,7 +62,7 @@ function TodayView() {
   const handleTodayNote = async () => {
     if (!db) return;
     if (todayNote) {
-      pushLayer({ view: 'note-detail', noteId: todayNote.id });
+      pushLayer({ view: 'thoughts-note', noteId: todayNote.id });
     } else {
       const noteId = uuidv4();
       const timestamp = new Date().toISOString();
@@ -78,7 +78,7 @@ function TodayView() {
         is_trashed: false,
         trashed_at: null,
       });
-      pushLayer({ view: 'note-detail', noteId });
+      pushLayer({ view: 'thoughts-note', noteId });
     }
   };
 

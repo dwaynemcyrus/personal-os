@@ -135,7 +135,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const handleOpenNote = useCallback(
     (noteId: string) => {
       onOpenChange(false);
-      pushLayer({ view: 'note-detail', noteId });
+      pushLayer({ view: 'thoughts-note', noteId });
     },
     [onOpenChange, pushLayer]
   );
