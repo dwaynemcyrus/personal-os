@@ -18,8 +18,8 @@ import styles from '../page.module.css';
 const ExecutionView = lazy(() =>
   import('./ExecutionView').then((mod) => ({ default: mod.ExecutionView }))
 );
-const KnowledgeView = lazy(() =>
-  import('./KnowledgeView').then((mod) => ({ default: mod.KnowledgeView }))
+const ThoughtsView = lazy(() =>
+  import('./ThoughtsView').then((mod) => ({ default: mod.ThoughtsView }))
 );
 const StrategyView = lazy(() =>
   import('./StrategyView').then((mod) => ({ default: mod.StrategyView }))
@@ -185,7 +185,7 @@ export function RootView() {
     case 'knowledge':
       return (
         <Suspense fallback={<LoadingFallback />}>
-          <KnowledgeView />
+          <ThoughtsView />
         </Suspense>
       );
     case 'strategy':
