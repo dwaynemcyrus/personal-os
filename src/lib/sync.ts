@@ -59,6 +59,7 @@ const collectionConfig = {
       'content',
       'inbox_at',
       'note_type',
+      'is_pinned',
       'created_at',
       'updated_at',
       'is_trashed',

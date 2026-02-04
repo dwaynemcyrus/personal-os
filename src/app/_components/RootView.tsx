@@ -72,6 +72,7 @@ function TodayView() {
         content: `# ${todayTitle}\n`,
         inbox_at: null,
         note_type: todayNoteType,
+        is_pinned: false,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,

@@ -121,6 +121,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       content: trimmedText,
       inbox_at: timestamp,
       note_type: null,
+      is_pinned: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

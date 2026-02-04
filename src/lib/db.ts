@@ -78,6 +78,7 @@ export const noteSchema = z.object({
   content: z.string().nullable(),
   inbox_at: z.string().nullable(),
   note_type: z.string().nullable(),
+  is_pinned: z.boolean(),
 });
 
 export const habitSchema = z.object({
@@ -206,7 +207,7 @@ const tasksRxSchema = {
 };
 
 const notesRxSchema = {
-  version: 3,
+  version: 4,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -215,8 +216,16 @@ const notesRxSchema = {
     content: { type: ['string', 'null'] },
     inbox_at: { type: ['string', 'null'] },
     note_type: { type: ['string', 'null'] },
+    is_pinned: { type: 'boolean' },
   },
-  required: [...baseRequired, 'title', 'content', 'inbox_at', 'note_type'],
+  required: [
+    ...baseRequired,
+    'title',
+    'content',
+    'inbox_at',
+    'note_type',
+    'is_pinned',
+  ],
 };
 
 const habitsRxSchema = {
@@ -368,6 +377,10 @@ const notesMigrationStrategies = {
   3: (oldDoc: Record<string, unknown>) => ({
     ...oldDoc,
     note_type: oldDoc.note_type ?? null,
+  }),
+  4: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    is_pinned: oldDoc.is_pinned ?? false,
   }),
 };
 
