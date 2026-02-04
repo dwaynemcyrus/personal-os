@@ -61,18 +61,6 @@ export function SheetManager() {
             // TODO: Implement TaskDetailSheet
             return null;
 
-          case 'note-detail':
-            return (
-              <NoteDetailSheet
-                key={`note-${layer.noteId}-${index}`}
-                noteId={layer.noteId}
-                open
-                onOpenChange={(open) => {
-                  if (!open) popLayer();
-                }}
-              />
-            );
-
           case 'thoughts-note':
             return (
               <NoteDetailSheet
