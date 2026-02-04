@@ -10,8 +10,8 @@ export default function OfflinePage() {
           You&apos;re offline. Some pages may not load yet, but your data will
           continue to save locally and sync when you&apos;re back online.
         </p>
-        <Link className={styles.link} href="/knowledge">
-          Go to Knowledge
+        <Link className={styles.link} href="/thoughts">
+          Go to Thoughts
         </Link>
       </div>
     </section>
