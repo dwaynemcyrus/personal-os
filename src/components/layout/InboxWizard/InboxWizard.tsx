@@ -15,7 +15,6 @@ type InboxWizardProps = {
 export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const { db, isReady } = useDatabase();
   const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [editTitle, setEditTitle] = useState('');
 
   // Subscribe to inbox notes
@@ -27,25 +26,17 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         sort: [{ inbox_at: 'asc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setInboxNotes(docs.map((doc) => doc.toJSON()));
+        const nextNotes = docs.map((doc) => doc.toJSON());
+        setInboxNotes(nextNotes);
+        if (nextNotes.length === 0) {
+          setEditTitle('');
+          return;
+        }
+        const note = nextNotes[0];
+        setEditTitle(extractNoteTitle(note.content, note.title));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
-
-  // When notes change, clamp index and sync title
-  useEffect(() => {
-    if (inboxNotes.length === 0) {
-      setCurrentIndex(0);
-      setEditTitle('');
-      return;
-    }
-    const idx = Math.min(currentIndex, inboxNotes.length - 1);
-    setCurrentIndex(idx);
-    const note = inboxNotes[idx];
-    if (note) {
-      setEditTitle(extractNoteTitle(note.content, note.title));
-    }
-  }, [inboxNotes, currentIndex]);
 
   // Body scroll lock
   useEffect(() => {
@@ -59,7 +50,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
 
   if (!open) return null;
 
-  const currentNote = inboxNotes[currentIndex];
+  const currentNote = inboxNotes[0];
   const remaining = inboxNotes.length;
 
   const advanceToNext = () => {

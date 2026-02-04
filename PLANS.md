@@ -209,11 +209,11 @@ Last updated: February 4, 2026
 **Goal:** Quick capture and search
 
 ### Tasks
-- [ ] Command center sheet full screen (on FAB tap)
-- [ ] Quick capture input
+- [x] Command center sheet full screen (on FAB tap)
+- [x] Quick capture input
 - [ ] Parse input (create task, note, etc.)
 - [ ] Search functionality (across all content)
-- [ ] Keyboard shortcuts
+- [x] Keyboard shortcuts
 - [ ] Haptic feedback
 
 **Completion criteria:**
@@ -229,13 +229,13 @@ Last updated: February 4, 2026
 **Goal:** Drag FAB to navigate
 
 ### Tasks
-- [ ] FAB hold detection (500ms)
-- [ ] Show 3 target zones (strategy, knowledge, execution)
+- [x] FAB hold detection (500ms)
+- [x] Show 3 target zones (strategy, knowledge, execution)
 - [ ] Drag mechanics (framer-motion)
-- [ ] Visual feedback (zones highlight on drag)
-- [ ] Navigate on drop to zone
+- [x] Visual feedback (zones highlight on drag)
+- [x] Navigate on drop to zone
 - [ ] Haptic feedback on zone enter
-- [ ] Cancel drag (drag outside zones)
+- [x] Cancel drag (drag outside zones)
 
 **Completion criteria:**
 - Hold FAB → zones appear
@@ -350,6 +350,13 @@ Last updated: February 4, 2026
 - Sheet opens from bottom
 - Shows relevant stats
 - Mobile-optimized
+
+---
+
+## Maintenance
+
+### 2026-02-04
+- [x] Clear lint errors (exclude generated service worker files, fix hooks lint issues)
 
 ---
 

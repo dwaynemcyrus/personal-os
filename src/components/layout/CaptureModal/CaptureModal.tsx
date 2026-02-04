@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useNavigationActions } from '@/components/providers';
@@ -45,29 +52,13 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
 
   const recentNotes = useMemo(() => allNotes.slice(0, 12), [allNotes]);
 
-  // Debounced search
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-
-  useEffect(() => {
-    if (text.trim().length < 2) {
-      setDebouncedQuery('');
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(() => setDebouncedQuery(text.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [text]);
-
-  useEffect(() => {
-    if (!debouncedQuery) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchResults(searchNotes(allNotes, debouncedQuery));
-  }, [debouncedQuery, allNotes]);
-
-  const isSearching = text.trim().length >= 2;
+  const deferredText = useDeferredValue(text);
+  const deferredQuery = deferredText.trim();
+  const isSearching = deferredQuery.length >= 2;
+  const searchResults: SearchResult[] = useMemo(() => {
+    if (!isSearching) return [];
+    return searchNotes(allNotes, deferredQuery);
+  }, [allNotes, deferredQuery, isSearching]);
 
   // Build display list
   type DisplayItem = {
@@ -93,11 +84,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       subtitle: formatRelativeTime(note.updated_at),
     }));
   }, [isSearching, searchResults, recentNotes]);
-
-  // Reset selection on text change
-  useEffect(() => {
-    setSelectedIndex(null);
-  }, [text]);
 
   // Auto-focus textarea on open
   useEffect(() => {
@@ -141,6 +127,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       trashed_at: null,
     });
     setText('');
+    setSelectedIndex(null);
     if (!rapidCapture) onOpenChange(false);
   }, [text, db, rapidCapture, onOpenChange]);
 
@@ -234,7 +221,10 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
             className={styles.input}
             placeholder="What's on your mind?"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              setSelectedIndex(null);
+            }}
           />
         </div>
 

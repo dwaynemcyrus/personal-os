@@ -88,6 +88,7 @@ export function AppShell({ children }: AppShellProps) {
   const [dragActive, setDragActive] = useState(false);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
 
@@ -167,6 +168,7 @@ export function AppShell({ children }: AppShellProps) {
       x: pointerStartRef.current.x,
       y: pointerStartRef.current.y,
     });
+    setDragOffset({ ...dragOffsetRef.current });
     setDragActive(true);
     longPressTriggeredRef.current = true;
   };
@@ -242,13 +244,9 @@ export function AppShell({ children }: AppShellProps) {
 
   // --- Touch event handlers (mobile fallback) ---
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  const canUseDom = typeof window !== 'undefined';
   const touchEnabled =
-    mounted &&
+    canUseDom &&
     (window.matchMedia('(pointer: coarse)').matches ||
       window.matchMedia('(hover: none)').matches);
 
@@ -356,7 +354,7 @@ export function AppShell({ children }: AppShellProps) {
   // <body>). By portaling the FAB, CaptureModal, and InboxWizard to <body>
   // they become siblings of the Radix portal — but since they're rendered
   // *after* the portal, they won't be inerted.
-  const portalTarget = mounted ? document.body : null;
+  const portalTarget = canUseDom ? document.body : null;
 
   return (
     <>
@@ -497,8 +495,8 @@ export function AppShell({ children }: AppShellProps) {
             style={
               dragActive
                 ? {
-                    left: `${dragPosition.x - dragOffsetRef.current.x}px`,
-                    top: `${dragPosition.y - dragOffsetRef.current.y}px`,
+                    left: `${dragPosition.x - dragOffset.x}px`,
+                    top: `${dragPosition.y - dragOffset.y}px`,
                     bottom: 'auto',
                     transform: 'none',
                   }
