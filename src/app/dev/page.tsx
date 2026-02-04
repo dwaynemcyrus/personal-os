@@ -340,6 +340,7 @@ export default function DevValidationPage() {
         title: trimmedTitle,
         content,
         inbox_at: null,
+        note_type: null,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,

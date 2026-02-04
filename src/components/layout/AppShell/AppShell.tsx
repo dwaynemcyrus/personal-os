@@ -242,8 +242,13 @@ export function AppShell({ children }: AppShellProps) {
 
   // --- Touch event handlers (mobile fallback) ---
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const touchEnabled =
-    typeof window !== 'undefined' &&
+    mounted &&
     (window.matchMedia('(pointer: coarse)').matches ||
       window.matchMedia('(hover: none)').matches);
 
@@ -351,7 +356,7 @@ export function AppShell({ children }: AppShellProps) {
   // <body>). By portaling the FAB, CaptureModal, and InboxWizard to <body>
   // they become siblings of the Radix portal — but since they're rendered
   // *after* the portal, they won't be inerted.
-  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  const portalTarget = mounted ? document.body : null;
 
   return (
     <>

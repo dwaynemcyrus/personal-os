@@ -8,7 +8,8 @@
 'use client';
 
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { useNavigationState } from '@/components/providers';
+import { v4 as uuidv4 } from 'uuid';
+import { useNavigationState, useNavigationActions } from '@/components/providers';
 import { useTimer } from '@/features/timer';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
@@ -28,10 +29,7 @@ const StrategyView = lazy(() =>
 function TodayView() {
   const { state } = useTimer();
   const { db, isReady } = useDatabase();
-
-  const handleOpenFocus = () => {
-    window.dispatchEvent(new CustomEvent('focus-sheet:open'));
-  };
+  const { pushLayer } = useNavigationActions();
 
   const handleOpenInbox = () => {
     window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
@@ -45,6 +43,45 @@ function TodayView() {
       day: 'numeric',
     });
   }, []);
+
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayNoteType = `daily:${todayIso}`;
+  const todayTitle = `daily_${todayIso}`;
+
+  const [todayNote, setTodayNote] = useState<NoteDocument | null>(null);
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const subscription = db.notes
+      .findOne({
+        selector: { note_type: todayNoteType, is_trashed: false },
+      })
+      .$.subscribe((doc) => {
+        setTodayNote(doc ? doc.toJSON() : null);
+      });
+    return () => subscription.unsubscribe();
+  }, [db, isReady, todayNoteType]);
+
+  const handleTodayNote = async () => {
+    if (!db) return;
+    if (todayNote) {
+      pushLayer({ view: 'note-detail', noteId: todayNote.id });
+    } else {
+      const noteId = uuidv4();
+      const timestamp = new Date().toISOString();
+      await db.notes.insert({
+        id: noteId,
+        title: todayTitle,
+        content: `# ${todayTitle}\n`,
+        inbox_at: null,
+        note_type: todayNoteType,
+        created_at: timestamp,
+        updated_at: timestamp,
+        is_trashed: false,
+        trashed_at: null,
+      });
+      pushLayer({ view: 'note-detail', noteId });
+    }
+  };
 
   const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
   useEffect(() => {
@@ -71,7 +108,7 @@ function TodayView() {
       <button
         type="button"
         className={styles['home__now-card']}
-        onClick={handleOpenFocus}
+        onClick={handleTodayNote}
         aria-label="Open today's working surface"
       >
         <div>
@@ -80,7 +117,9 @@ function TodayView() {
             Your daily working surface
           </div>
         </div>
-        <div className={styles['home__now-button']}>Open Today</div>
+        <div className={styles['home__now-button']}>
+          {todayNote ? "Open Today's Note" : 'Create Today Note'}
+        </div>
       </button>
 
       {/* ── Inbox ── */}
@@ -116,7 +155,7 @@ function TodayView() {
         <button
           type="button"
           className={styles['home__workbench-add']}
-          onClick={handleOpenFocus}
+          onClick={handleTodayNote}
           aria-label="Add to workbench"
         >
           + Add to Workbench

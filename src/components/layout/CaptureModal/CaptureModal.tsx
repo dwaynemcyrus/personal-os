@@ -134,6 +134,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       title: extractTitleFromFirstLine(trimmedText),
       content: trimmedText,
       inbox_at: timestamp,
+      note_type: null,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

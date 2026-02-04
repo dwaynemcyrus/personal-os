@@ -77,6 +77,7 @@ export const noteSchema = z.object({
   title: z.string(),
   content: z.string().nullable(),
   inbox_at: z.string().nullable(),
+  note_type: z.string().nullable(),
 });
 
 export const habitSchema = z.object({
@@ -205,7 +206,7 @@ const tasksRxSchema = {
 };
 
 const notesRxSchema = {
-  version: 2,
+  version: 3,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -213,8 +214,9 @@ const notesRxSchema = {
     title: { type: 'string' },
     content: { type: ['string', 'null'] },
     inbox_at: { type: ['string', 'null'] },
+    note_type: { type: ['string', 'null'] },
   },
-  required: [...baseRequired, 'title', 'content', 'inbox_at'],
+  required: [...baseRequired, 'title', 'content', 'inbox_at', 'note_type'],
 };
 
 const habitsRxSchema = {
@@ -362,6 +364,10 @@ const notesMigrationStrategies = {
   2: (oldDoc: Record<string, unknown>) => ({
     ...oldDoc,
     inbox_at: oldDoc.inbox_at ?? null,
+  }),
+  3: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    note_type: oldDoc.note_type ?? null,
   }),
 };
 
