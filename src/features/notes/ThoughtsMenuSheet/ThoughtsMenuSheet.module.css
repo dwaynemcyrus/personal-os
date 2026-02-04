@@ -15,6 +15,8 @@
   box-shadow: none;
   background: var(--color-surface);
   gap: var(--space-3);
+  transform: translateX(var(--thoughts-menu-offset, 0px));
+  will-change: transform;
 }
 
 .header {

@@ -17,6 +17,7 @@ type SheetContentProps = React.ComponentPropsWithoutRef<typeof Dialog.Content> &
   enableGestures?: boolean;
   gestureDismissThreshold?: number;
   gestureEdgeExclusion?: number;
+  onDragProgress?: (value: number, width: number) => void;
   onDismiss?: () => void;
 };
 
@@ -82,6 +83,7 @@ const SheetContent = forwardRef<
       enableGestures = false,
       gestureDismissThreshold = DEFAULT_DISMISS_THRESHOLD,
       gestureEdgeExclusion = 0,
+      onDragProgress,
       onDismiss,
       onPointerDownOutside,
       ...props
@@ -139,19 +141,22 @@ const SheetContent = forwardRef<
 
   useEffect(() => {
     if (!shouldEnableRightSwipe) return;
-    const overlayNode = overlayRef.current;
-    const contentNode = contentRef.current;
     const unsubscribe = dragX.on('change', (value) => {
       const width = sheetWidthRef.current || 1;
       const progress = clamp(value / width, 0, 1);
       const opacity = String(1 - progress);
+      const overlayNode = overlayRef.current;
+      const contentNode = contentRef.current;
       if (overlayNode) {
         overlayNode.style.opacity = opacity;
       }
       if (contentNode) {
         contentNode.style.transform = `translateX(${value}px)`;
       }
+      onDragProgress?.(value, width);
     });
+    const overlayNode = overlayRef.current;
+    const contentNode = contentRef.current;
     return () => {
       unsubscribe();
       if (overlayNode) {
@@ -161,7 +166,7 @@ const SheetContent = forwardRef<
         contentNode.style.transform = '';
       }
     };
-  }, [dragX, shouldEnableRightSwipe]);
+  }, [dragX, onDragProgress, shouldEnableRightSwipe]);
 
   const handleDragEnd = (_: unknown, info: { offset: { x?: number; y?: number }; velocity: { x?: number; y?: number } }) => {
     if (!enableGestures) return;
