@@ -95,7 +95,7 @@ const useHydrated = () =>
 
 export function AppShell({ children }: AppShellProps) {
   const { context, stack } = useNavigationState();
-  const { switchContext, goBack } = useNavigationActions();
+  const { switchContext, goBack, pushLayer } = useNavigationActions();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
@@ -137,6 +137,17 @@ export function AppShell({ children }: AppShellProps) {
     triggerHaptic();
     goBack();
   };
+
+  const openContext = useCallback(
+    (nextContext: NavigationContext) => {
+      switchContext(nextContext);
+      if (nextContext === 'thoughts') {
+        pushLayer({ view: 'thoughts-menu' });
+        pushLayer({ view: 'thoughts-list' });
+      }
+    },
+    [pushLayer, switchContext]
+  );
 
   const handleOpenMenu = () => {
     triggerHaptic();
@@ -239,7 +250,7 @@ export function AppShell({ children }: AppShellProps) {
       const target = DRAG_TARGETS.find((t) => t.id === activeTarget);
       if (target) {
         triggerHaptic();
-        switchContext(target.context);
+        openContext(target.context);
       }
     }
     resetDragState();
@@ -449,7 +460,7 @@ export function AppShell({ children }: AppShellProps) {
                     data-active={context === item.context}
                     onClick={() => {
                       triggerHaptic();
-                      switchContext(item.context);
+                      openContext(item.context);
                       setIsMenuOpen(false);
                     }}
                   >

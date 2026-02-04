@@ -9,10 +9,13 @@
 
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import { NoteDetailSheet } from '@/features/notes/NoteDetailSheet/NoteDetailSheet';
+import { ThoughtsListSheet } from '@/features/notes/ThoughtsListSheet/ThoughtsListSheet';
+import { ThoughtsMenuSheet } from '@/features/notes/ThoughtsMenuSheet/ThoughtsMenuSheet';
 
 export function SheetManager() {
   const { stack } = useNavigationState();
-  const { popLayer } = useNavigationActions();
+  const { popLayer, pushLayer } = useNavigationActions();
+  const hasThoughtsList = stack.some((layer) => layer.view === 'thoughts-list');
 
   return (
     <>
@@ -27,12 +30,32 @@ export function SheetManager() {
             return null;
 
           case 'thoughts-menu':
-            // TODO: Implement ThoughtsMenuSheet
-            return null;
+            return (
+              <ThoughtsMenuSheet
+                key={`thoughts-menu-${index}`}
+                open
+                isNotesActive={hasThoughtsList}
+                onOpenChange={(open) => {
+                  if (!open) popLayer();
+                }}
+                onOpenNotes={() => {
+                  if (!hasThoughtsList) {
+                    pushLayer({ view: 'thoughts-list' });
+                  }
+                }}
+              />
+            );
 
           case 'thoughts-list':
-            // TODO: Implement ThoughtsListSheet
-            return null;
+            return (
+              <ThoughtsListSheet
+                key={`thoughts-list-${index}`}
+                open
+                onOpenChange={(open) => {
+                  if (!open) popLayer();
+                }}
+              />
+            );
 
           case 'task-detail':
             // TODO: Implement TaskDetailSheet
