@@ -76,6 +76,27 @@
   text-overflow: ellipsis;
 }
 
+.itemTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pinIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-ink-500);
+}
+
+.pinIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .itemSnippet {
   font-size: var(--font-sm);
   color: var(--color-ink-500);

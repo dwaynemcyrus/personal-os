@@ -27,7 +27,11 @@ export function NoteList() {
     const subscription = db.notes
       .find({
         selector: { is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+        sort: [
+          { is_pinned: 'desc' },
+          { updated_at: 'desc' },
+          { id: 'asc' },
+        ],
       })
       .$.subscribe((docs) => {
         setNotes(docs.map((doc) => doc.toJSON()));
@@ -45,6 +49,7 @@ export function NoteList() {
           title: formatNoteTitle(rawTitle),
           snippet: extractNoteSnippet(note.content),
           updatedLabel: formatRelativeTime(note.updated_at),
+          isPinned: note.is_pinned,
         };
       }),
     [notes]
@@ -98,7 +103,10 @@ export function NoteList() {
               className={styles.item}
               onClick={() => handleOpenNote(note.id)}
             >
-              <div className={styles.itemTitle}>{note.title}</div>
+              <div className={styles.itemTitleRow}>
+                <div className={styles.itemTitle}>{note.title}</div>
+                {note.isPinned ? <PinIcon /> : null}
+              </div>
               {note.snippet ? (
                 <div className={styles.itemSnippet}>{note.snippet}</div>
               ) : null}
@@ -109,5 +117,18 @@ export function NoteList() {
       )}
 
     </div>
+  );
+}
+
+function PinIcon() {
+  return (
+    <span className={styles.pinIcon} aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path
+          d="M8 4h8l-1.6 3.2c-.2.4-.2.8 0 1.2L16 12v4l-4-2.2L8 16v-4l1.6-3.6c.2-.4.2-.8 0-1.2L8 4z"
+          fill="currentColor"
+        />
+      </svg>
+    </span>
   );
 }

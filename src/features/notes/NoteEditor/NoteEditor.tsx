@@ -96,6 +96,17 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     onClose?.();
   };
 
+  const handleTogglePinned = async () => {
+    if (!db || !note) return;
+    const doc = await db.notes.findOne(note.id).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      is_pinned: !note.is_pinned,
+      updated_at: timestamp,
+    });
+  };
+
   const saveContent = async (nextContent: string) => {
     if (!db || !noteId) return;
     if (nextContent === lastSavedContentRef.current) {
@@ -185,6 +196,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
             </DropdownTrigger>
             <DropdownContent align="end" sideOffset={12}>
               <DropdownItem onSelect={handleClose}>Close</DropdownItem>
+              <DropdownItem onSelect={handleTogglePinned}>
+                {note.is_pinned ? 'Unpin' : 'Pin'}
+              </DropdownItem>
               <DropdownSeparator />
               <DropdownItem data-variant="danger" onSelect={handleDelete}>
                 Trash
