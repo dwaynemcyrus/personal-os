@@ -5,7 +5,17 @@
       "Bash(npm run lint)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npx next build:*)"
+      "Bash(npx next build:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(git -C /Users/cyrus/Code/personal-os status -u)",
+      "Bash(git -C /Users/cyrus/Code/personal-os diff --stat)",
+      "Bash(git -C /Users/cyrus/Code/personal-os add CHANGELOG.md src/app/_components/RootView.tsx src/app/execution/page.module.css src/app/globals.css src/app/layout.tsx src/app/offline/page.module.css src/app/page.module.css src/app/section.module.css src/components/layout/AppShell/AppShell.module.css src/components/layout/CaptureModal/CaptureModal.module.css src/components/layout/FocusSheet/FocusSheet.module.css src/components/ui/Sheet/Sheet.module.css src/features/notes/NoteEditor/NoteEditor.module.css src/features/notes/NoteList/NoteList.module.css src/features/projects/ProjectDetailSheet/ProjectDetailSheet.module.css src/features/projects/ProjectList/ProjectList.module.css src/features/tasks/TaskDetailSheet/TaskDetailSheet.module.css src/features/tasks/TaskList/TaskList.module.css src/styles/variables.css)",
+      "Bash(git -C /Users/cyrus/Code/personal-os commit -m \"$\\(cat <<''EOF''\nfeat: replace iOS design system with warm paper aesthetic\n\n- New Atten font \\(5 weights + italics\\) via next/font/local\n- Full token overhaul: paper backgrounds, ink text, warm borders/shadows\n- Rebuilt home page with Now / Inbox / Workbench sections\n- All focus rings and primary actions use ink-900 instead of blue\n- Removed dark mode; light-only warm palette\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /Users/cyrus/Code/personal-os tag -a v0.9.0 -m \"v0.9.0 - Visual design overhaul: warm paper aesthetic\")",
+      "Bash(git -C /Users/cyrus/Code/personal-os log --oneline -3)",
+      "Bash(git -C /Users/cyrus/Code/personal-os tag -l -n1 v0.9.0)",
+      "Bash(git -C /Users/cyrus/Code/personal-os push)",
+      "Bash(git -C /Users/cyrus/Code/personal-os push --tags)"
     ]
   }
 }

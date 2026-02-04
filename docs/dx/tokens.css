@@ -1,0 +1,130 @@
+:root {
+  /* Base colors */
+  --color-paper: #f6f2ea;
+  --color-surface: #fcfbf8;
+  --color-white: #ffffff;
+  --color-white-alt: #fff;
+
+  /* Ink / text */
+  --color-ink-900: #14110f;
+  --color-ink-700: #3b3227;
+  --color-ink-650: #3b342c;
+  --color-ink-600: #4d4238;
+  --color-ink-500: #5a4f45;
+  --color-ink-450: #5a4e41;
+  --color-ink-420: #6a5f54;
+  --color-ink-400: #6a5d52;
+  --color-ink-350: #7b6f61;
+  --color-ink-300: #8a7f73;
+
+  /* Ink tints (utility washes) */
+  --color-ink-alpha-03: rgba(20, 17, 15, 0.03);
+  --color-ink-alpha-06: rgba(20, 17, 15, 0.06);
+  --color-ink-alpha-08: rgba(20, 17, 15, 0.08);
+  --color-ink-alpha-10: rgba(20, 17, 15, 0.1);
+  --color-ink-alpha-12: rgba(20, 17, 15, 0.12);
+
+  /* Borders / separators */
+  --color-border-200: rgba(20, 17, 15, 0.12);
+  --color-border-300: rgba(20, 17, 15, 0.15);
+  --color-border-400: rgba(20, 17, 15, 0.2);
+  --color-border-500: rgba(20, 17, 15, 0.3);
+  --color-border-600: rgba(20, 17, 15, 0.4);
+  --color-border-dashed: #c8bfb1;
+  --color-border-warm: #e1d4be;
+
+  /* Status */
+  --color-error-ink: #7b1b1b;
+  --color-error-ink-strong: #b3261e;
+  --color-error-border: #fecaca;
+  --color-error-bg: #fffaf8;
+  --color-error-bg-strong: #fef2f2;
+
+  --color-warning-ink: #8a6914;
+  --color-warning-bg: #fff6df;
+
+  --color-success-ink: #2b6b3f;
+  --color-success-bg: rgba(43, 107, 63, 0.1);
+  --color-success-bg-strong: #e8f4e8;
+
+  /* Accent / highlight */
+  --color-highlight: rgba(255, 209, 102, 0.55);
+
+  /* Gradients (page exceptions) */
+  --gradient-focus: radial-gradient(circle at top, #fbf7ef 0%, #f5efe6 50%, #efe7db 100%);
+  --gradient-login: linear-gradient(160deg, #f6f2ea 0%, #f2ede4 50%, #ede7dd 100%);
+
+  /* Typography */
+  --font-family-primary: var(--font-atten), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-xxl: 32px;
+  --font-size-xl: 28px;
+  --font-size-lg: 24px;
+  --font-size-md: 18px;
+  --font-size-base: 16px;
+  --font-size-sm: 14px;
+  --font-size-xs: 12px;
+  --font-size-timer: 64px;
+  --font-weight-book: 350;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --letter-tight: -0.02em;
+  --letter-wide: 0.04em;
+  --letter-wider: 0.2em;
+
+  /* Spacing scale */
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+
+  /* Radius scale */
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --radius-20: 20px;
+  --radius-pill: 999px;
+
+  /* Shadows / elevation */
+  --shadow-fab: 0 12px 24px rgba(20, 17, 15, 0.28);
+  --shadow-modal: 0 10px 40px rgba(20, 17, 15, 0.25);
+  --shadow-menu: 0 16px 32px rgba(20, 17, 15, 0.2);
+  --shadow-login: 0 20px 40px rgba(20, 17, 15, 0.12);
+  --shadow-timer: 0 18px 36px rgba(20, 17, 15, 0.25);
+  --shadow-toast: 0 4px 20px rgba(20, 17, 15, 0.2);
+  --shadow-hover: 0 4px 12px rgba(20, 17, 15, 0.08);
+
+  /* Motion */
+  --ease-default: ease;
+  --duration-100: 100ms;
+  --duration-160: 160ms;
+  --duration-180: 180ms;
+  --duration-800: 800ms;
+
+  /* Shell layout vars (existing globals) */
+  --shell-header-h: 56px;
+  --shell-fab-safe: 96px;
+  --shell-fab-x: 16px;
+  --shell-fab-y: 16px;
+  --shell-keyboard-inset: 0px;
+
+  /* Z-index scale */
+  --z-shell-overlay: 20;
+  --z-drag-targets: 21;
+  --z-menu-overlay: 25;
+  --z-modal: 40;
+  --z-overlay: 50;
+  --z-toast: 1000;
+}

@@ -253,7 +253,6 @@ Last updated: February 3, 2026
 - [ ] Skeleton loading states (all lists)
 - [ ] Offline indicator banner/chiklet
 - [ ] Sync status indicator (subtle)
-- [ ] Haptic feedback throughout
 - [ ] Loading transitions
 - [ ] Empty states
 
