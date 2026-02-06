@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   Sheet,
   SheetClose,
@@ -42,6 +42,16 @@ export function TaskDetailSheet({
   const [status, setStatus] = useState<'backlog' | 'waiting' | 'next'>(
     task?.status ?? 'backlog'
   );
+
+  // Sync state when task prop changes
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title ?? '');
+      setDescription(task.description ?? '');
+      setProjectId(task.project_id ?? '');
+      setStatus(task.status ?? 'backlog');
+    }
+  }, [task]);
 
   const canSave = useMemo(() => Boolean(title.trim()), [title]);
 

@@ -213,7 +213,7 @@ export function TaskList() {
         </button>
       </form>
 
-      <div className={styles.filters} role="tablist" aria-label="Task filters">
+      <div className={styles.filters} role="group" aria-label="Task filters">
         {(['all', 'next', 'backlog', 'waiting', 'completed'] as const).map(
           (value) => (
             <button

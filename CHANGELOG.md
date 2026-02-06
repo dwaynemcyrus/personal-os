@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.2 - 2026-02-06
+- Fixed TaskList filter buttons overflow on mobile by switching to flexbox with wrap
+- Fixed touch targets in InboxWizard (closeButton, extractButton) to meet 44px minimum
+- Fixed TaskDetailSheet form state not syncing when task prop changes
+- Fixed incorrect ARIA pattern (tablist → group) for filter buttons
+- Fixed hardcoded z-index in drag targets layer to use CSS variable
+- Added CSS variables for success/warning border colors
+- Replaced hardcoded colors in CaptureModal with CSS variables
+- Replaced hardcoded colors in InboxWizard with CSS variables
+- Replaced hardcoded colors in AppShell FAB with CSS variables
+- Added fill="currentColor" to NoteEditor MoreIcon for proper color inheritance
+- Added focus-visible outlines to buttons missing them
+- Moved LoadingFallback inline styles to CSS module
+- Consolidated and reorganized z-index variables
+
 ## 0.9.1 - 2026-02-04
 - Made the note editor sheet full-viewport and right-sided to fully cover the list
 - Added right-swipe dismiss with a 30% threshold and 48px edge exclusion

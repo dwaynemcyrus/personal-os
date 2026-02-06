@@ -3,6 +3,13 @@
   gap: var(--space-28);
 }
 
+.home__loading {
+  padding: var(--space-32);
+  text-align: center;
+  color: var(--color-ink-500);
+  font-size: var(--font-sm);
+}
+
 /* ── Now section ── */
 .home__now-title {
   font-size: 32px;

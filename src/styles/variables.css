@@ -42,10 +42,12 @@
 
   --color-warning-ink: #8a6914;
   --color-warning-bg: #fff6df;
+  --color-warning-border: rgba(138, 105, 20, 0.5);
 
   --color-success-ink: #2b6b3f;
   --color-success-bg: rgba(43, 107, 63, 0.1);
   --color-success-bg-strong: #e8f4e8;
+  --color-success-border: rgba(43, 107, 63, 0.5);
 
   /* ── Accent / highlight ── */
   --color-highlight: rgba(255, 209, 102, 0.55);
@@ -191,19 +193,19 @@
   /* ── Z-index scale ── */
   --z-base: 0;
   --z-shell-overlay: 20;
-  --z-drag-targets: 21;
+  --z-drag-targets: 2900;
   --z-menu-overlay: 25;
   --z-modal: 40;
   --z-overlay: 50;
-  --z-toast: 1000;
 
-  /* Old z-index aliases */
+  /* Component z-index values */
   --z-dropdown: 1000;
   --z-sticky: 1100;
   --z-sheet: 2000;
-  --z-fab: 5000;
   --z-menu: 4000;
+  --z-fab: 5000;
   --z-tooltip: 6000;
+  --z-toast: 9000;
 
   /* ── Layout ── */
   --max-width-sm: 640px;

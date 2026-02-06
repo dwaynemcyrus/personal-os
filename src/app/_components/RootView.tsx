@@ -166,7 +166,7 @@ function TodayView() {
 
 function LoadingFallback() {
   return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
+    <div className={styles['home__loading']}>
       Loading...
     </div>
   );
