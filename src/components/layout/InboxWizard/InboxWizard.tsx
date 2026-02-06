@@ -26,7 +26,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         sort: [{ inbox_at: 'asc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        const nextNotes = docs.map((doc) => doc.toJSON());
+        const nextNotes = docs.map((doc) => doc.toJSON() as NoteDocument);
         setInboxNotes(nextNotes);
         if (nextNotes.length === 0) {
           setEditTitle('');

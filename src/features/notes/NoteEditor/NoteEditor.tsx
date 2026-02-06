@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
+import { useNavigationActions } from '@/components/providers';
 import type { NoteDocument } from '@/lib/db';
 import {
   Dropdown,
@@ -10,6 +12,9 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
+import { CodeMirrorEditor, PropertiesSheet } from '@/components/editor';
+import type { NoteProperties } from '@/lib/db';
+import { syncNoteLinks } from '@/lib/noteLinks';
 import {
   extractNoteTitle,
   formatNoteTitle,
@@ -27,10 +32,12 @@ type NoteEditorProps = {
 
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
+  const { pushLayer } = useNavigationActions();
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -44,7 +51,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
     const subscription = db.notes.findOne(noteId).$.subscribe((doc) => {
       setHasLoaded(true);
-      const nextNote = doc?.toJSON() ?? null;
+      const nextNote = doc ? (doc.toJSON() as NoteDocument) : null;
       setNote(nextNote);
       if (nextNote && !isDirtyRef.current) {
         const nextContent = nextNote.content ?? '';
@@ -107,7 +114,56 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     });
   };
 
-  const saveContent = async (nextContent: string) => {
+  const handleSaveProperties = async (properties: NoteProperties) => {
+    if (!db || !note) return;
+    const doc = await db.notes.findOne(note.id).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({
+      properties,
+      updated_at: timestamp,
+    });
+  };
+
+  const handleWikiLinkClick = useCallback(
+    async (target: string, existingNoteId: string | null) => {
+      if (!db) return;
+
+      if (existingNoteId) {
+        // Note exists, navigate to it
+        pushLayer({ view: 'thoughts-note', noteId: existingNoteId });
+      } else {
+        // Note doesn't exist, ask user to confirm creation
+        const shouldCreate = window.confirm(
+          `Create new note "${target}"?`
+        );
+        if (!shouldCreate) return;
+
+        const newNoteId = uuidv4();
+        const timestamp = nowIso();
+        await db.notes.insert({
+          id: newNoteId,
+          title: target,
+          content: `# ${target}\n`,
+          inbox_at: null,
+          note_type: null,
+          is_pinned: false,
+          properties: null,
+          created_at: timestamp,
+          updated_at: timestamp,
+          is_trashed: false,
+          trashed_at: null,
+        });
+        pushLayer({ view: 'thoughts-note', noteId: newNoteId });
+      }
+    },
+    [db, pushLayer]
+  );
+
+  // Use ref to always have latest save function available
+  const saveContentRef = useRef<(content: string) => Promise<void>>(async () => {});
+
+  saveContentRef.current = async (nextContent: string) => {
     if (!db || !noteId) return;
     if (nextContent === lastSavedContentRef.current) {
       setIsDirty(false);
@@ -124,33 +180,41 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     });
     lastSavedContentRef.current = nextContent;
     setIsDirty(false);
+
+    // Sync wiki-links in background (don't await)
+    syncNoteLinks(db, noteId, nextContent).catch(() => {
+      // Ignore errors - link sync is non-critical
+    });
   };
 
-  const scheduleSave = (nextContent: string) => {
+  const scheduleSave = useCallback((nextContent: string) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      saveContent(nextContent);
+      saveContentRef.current?.(nextContent);
     }, SAVE_DEBOUNCE_MS);
-  };
+  }, []);
 
-  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    const nextContent = event.target.value;
+  const handleChange = useCallback((nextContent: string) => {
     setContent(nextContent);
     setIsDirty(true);
     scheduleSave(nextContent);
-  };
+  }, [scheduleSave]);
 
-  const handleBlur = () => {
+  const handleBlur = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
     }
-    if (isDirty) {
-      saveContent(content);
+    if (isDirtyRef.current) {
+      // Get latest content from state
+      setContent((currentContent) => {
+        saveContentRef.current?.(currentContent);
+        return currentContent;
+      });
     }
-  };
+  }, []);
 
   if (!noteId) {
     return (
@@ -196,6 +260,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
             </DropdownTrigger>
             <DropdownContent align="end" sideOffset={12}>
               <DropdownItem onSelect={handleClose}>Close</DropdownItem>
+              <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
+                Properties
+              </DropdownItem>
               <DropdownItem onSelect={handleTogglePinned}>
                 {note.is_pinned ? 'Unpin' : 'Pin'}
               </DropdownItem>
@@ -208,12 +275,22 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         ) : null}
       </header>
 
-      <textarea
-        className={styles.textarea}
-        value={content}
+      <CodeMirrorEditor
+        initialContent={content}
         onChange={handleChange}
         onBlur={handleBlur}
-        placeholder="Start writing..."
+        onWikiLinkClick={handleWikiLinkClick}
+        placeholderText="Start writing..."
+        autoFocus
+        db={db}
+      />
+
+      <PropertiesSheet
+        open={isPropertiesOpen}
+        onOpenChange={setIsPropertiesOpen}
+        noteId={noteId}
+        properties={note.properties ?? null}
+        onSave={handleSaveProperties}
       />
     </section>
   );

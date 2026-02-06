@@ -54,7 +54,7 @@ function TodayView() {
         selector: { note_type: todayNoteType, is_trashed: false },
       })
       .$.subscribe((doc) => {
-        setTodayNote(doc ? doc.toJSON() : null);
+        setTodayNote(doc ? (doc.toJSON() as NoteDocument) : null);
       });
     return () => subscription.unsubscribe();
   }, [db, isReady, todayNoteType]);
@@ -73,6 +73,7 @@ function TodayView() {
         inbox_at: null,
         note_type: todayNoteType,
         is_pinned: false,
+        properties: null,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,
@@ -90,7 +91,7 @@ function TodayView() {
         selector: { inbox_at: { $ne: null }, is_trashed: false },
       })
       .$.subscribe((docs) => {
-        setInboxNotes(docs.map((doc) => doc.toJSON()));
+        setInboxNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);

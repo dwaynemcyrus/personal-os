@@ -15,7 +15,15 @@
       "Bash(git -C /Users/cyrus/Code/personal-os log --oneline -3)",
       "Bash(git -C /Users/cyrus/Code/personal-os tag -l -n1 v0.9.0)",
       "Bash(git -C /Users/cyrus/Code/personal-os push)",
-      "Bash(git -C /Users/cyrus/Code/personal-os push --tags)"
+      "Bash(git -C /Users/cyrus/Code/personal-os push --tags)",
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

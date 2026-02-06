@@ -9,14 +9,38 @@ const getTrimmedLines = (content: string | null | undefined) => {
     .filter((line) => line.length > 0);
 };
 
+/**
+ * Strip common markdown syntax from a line to get clean title text
+ */
+const stripMarkdown = (line: string) => {
+  return line
+    .replace(/^#{1,6}\s+/, '') // Headers: # ## ### etc
+    .replace(/^[-*+]\s+/, '') // Unordered list items
+    .replace(/^\d+\.\s+/, '') // Ordered list items
+    .replace(/^>\s*/, '') // Block quotes
+    .replace(/\*\*(.+?)\*\*/g, '$1') // Bold **text**
+    .replace(/\*(.+?)\*/g, '$1') // Italic *text*
+    .replace(/__(.+?)__/g, '$1') // Bold __text__
+    .replace(/_(.+?)_/g, '$1') // Italic _text_
+    .replace(/~~(.+?)~~/g, '$1') // Strikethrough
+    .replace(/`(.+?)`/g, '$1') // Inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Links [text](url)
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2') // Wiki-links with alias
+    .replace(/\[\[([^\]]+)\]\]/g, '$1') // Wiki-links without alias
+    .trim();
+};
+
 export const extractNoteTitle = (
   content: string | null | undefined,
   fallback?: string | null
 ) => {
   const lines = getTrimmedLines(content);
   const fallbackTitle = (fallback ?? '').trim();
-  if (lines[0]) return lines[0];
-  if (fallbackTitle) return fallbackTitle;
+  if (lines[0]) {
+    const stripped = stripMarkdown(lines[0]);
+    if (stripped) return stripped;
+  }
+  if (fallbackTitle) return stripMarkdown(fallbackTitle);
   return TITLE_FALLBACK;
 };
 
@@ -29,12 +53,7 @@ export const formatNoteTitle = (title: string) => {
 export const extractTitleFromFirstLine = (content: string | null | undefined) => {
   const lines = getTrimmedLines(content);
   if (!lines[0]) return TITLE_FALLBACK;
-  const stripped = lines[0]
-    .replace(/^#{1,6}\s+/, '')
-    .replace(/^[-*+]\s+/, '')
-    .replace(/^\d+\.\s+/, '')
-    .replace(/^>\s*/, '')
-    .trim();
+  const stripped = stripMarkdown(lines[0]);
   if (!stripped) return TITLE_FALLBACK;
   if (stripped.length <= TITLE_MAX_LENGTH) return stripped;
   return stripped.slice(0, TITLE_MAX_LENGTH);

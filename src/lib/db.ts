@@ -72,6 +72,15 @@ export const taskSchema = z.object({
   due_date: z.string().nullable(),
 });
 
+export const notePropertiesSchema = z.object({
+  project_id: z.string().uuid().nullable().optional(),
+  status: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  related_notes: z.array(z.string().uuid()).optional(),
+  due_date: z.string().nullable().optional(),
+  priority: z.number().int().min(1).max(5).nullable().optional(),
+}).passthrough(); // Allow additional custom properties
+
 export const noteSchema = z.object({
   ...baseFields,
   title: z.string(),
@@ -79,6 +88,7 @@ export const noteSchema = z.object({
   inbox_at: z.string().nullable(),
   note_type: z.string().nullable(),
   is_pinned: z.boolean(),
+  properties: notePropertiesSchema.nullable(),
 });
 
 export const habitSchema = z.object({
@@ -91,6 +101,16 @@ export const habitCompletionSchema = z.object({
   ...baseFields,
   habit_id: z.string().uuid(),
   completed_date: z.string(),
+});
+
+export const noteLinkSchema = z.object({
+  ...baseFields,
+  source_id: z.string().uuid(), // Note containing the link
+  target_id: z.string().uuid().nullable(), // Note being linked to (null if unresolved)
+  target_title: z.string(), // Title text used in the link
+  header: z.string().nullable(), // Section header if [[Note#Header]]
+  alias: z.string().nullable(), // Alias text if [[Note|alias]]
+  position: z.number().int().nonnegative(), // Character position in source content
 });
 
 export const timeEntrySchema = z.object({
@@ -207,7 +227,7 @@ const tasksRxSchema = {
 };
 
 const notesRxSchema = {
-  version: 4,
+  version: 5,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -217,6 +237,7 @@ const notesRxSchema = {
     inbox_at: { type: ['string', 'null'] },
     note_type: { type: ['string', 'null'] },
     is_pinned: { type: 'boolean' },
+    properties: { type: ['object', 'null'] },
   },
   required: [
     ...baseRequired,
@@ -225,6 +246,7 @@ const notesRxSchema = {
     'inbox_at',
     'note_type',
     'is_pinned',
+    'properties',
   ],
 };
 
@@ -250,6 +272,31 @@ const habitCompletionsRxSchema = {
     completed_date: { type: 'string', format: 'date' },
   },
   required: [...baseRequired, 'habit_id', 'completed_date'],
+};
+
+const noteLinksRxSchema = {
+  version: 1,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    source_id: { type: 'string', maxLength: 36 },
+    target_id: { type: ['string', 'null'], maxLength: 36 },
+    target_title: { type: 'string' },
+    header: { type: ['string', 'null'] },
+    alias: { type: ['string', 'null'] },
+    position: { type: 'number' },
+  },
+  required: [
+    ...baseRequired,
+    'source_id',
+    'target_id',
+    'target_title',
+    'header',
+    'alias',
+    'position',
+  ],
+  indexes: ['source_id'],
 };
 
 const timeEntriesRxSchema = {
@@ -382,6 +429,10 @@ const notesMigrationStrategies = {
     ...oldDoc,
     is_pinned: oldDoc.is_pinned ?? false,
   }),
+  5: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    properties: oldDoc.properties ?? null,
+  }),
 };
 
 const tasksMigrationStrategies = {
@@ -466,9 +517,11 @@ export type SyncTestDocument = z.infer<typeof syncTestSchema>;
 export type ProjectDocument = z.infer<typeof projectSchema>;
 export type TaskDocument = z.infer<typeof taskSchema>;
 export type NoteDocument = z.infer<typeof noteSchema>;
+export type NoteProperties = z.infer<typeof notePropertiesSchema>;
 export type HabitDocument = z.infer<typeof habitSchema>;
 export type HabitCompletionDocument = z.infer<typeof habitCompletionSchema>;
 export type TimeEntryDocument = z.infer<typeof timeEntrySchema>;
+export type NoteLinkDocument = z.infer<typeof noteLinkSchema>;
 
 export type DatabaseCollections = {
   sync_test: RxCollection<SyncTestDocument>;
@@ -478,6 +531,7 @@ export type DatabaseCollections = {
   habits: RxCollection<HabitDocument>;
   habit_completions: RxCollection<HabitCompletionDocument>;
   time_entries: RxCollection<TimeEntryDocument>;
+  note_links: RxCollection<NoteLinkDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -521,6 +575,10 @@ export async function getDatabase() {
       time_entries: {
         schema: timeEntriesRxSchema,
         migrationStrategies: timeEntriesMigrationStrategies,
+      },
+      note_links: {
+        schema: noteLinksRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
       },
     });
 

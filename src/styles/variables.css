@@ -51,6 +51,7 @@
 
   /* ── Accent / highlight ── */
   --color-highlight: rgba(255, 209, 102, 0.55);
+  --color-link: #0071e3;
 
   /* ── Gradients (page exceptions) ── */
   --gradient-focus: radial-gradient(circle at top, #fbf7ef 0%, #f5efe6 50%, #efe7db 100%);

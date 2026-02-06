@@ -34,7 +34,7 @@ export function NoteList() {
         ],
       })
       .$.subscribe((docs) => {
-        setNotes(docs.map((doc) => doc.toJSON()));
+        setNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
       });
 
     return () => subscription.unsubscribe();
@@ -66,6 +66,7 @@ export function NoteList() {
       inbox_at: null,
       note_type: null,
       is_pinned: false,
+      properties: null,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

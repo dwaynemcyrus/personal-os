@@ -229,7 +229,7 @@ Last updated: February 4, 2026
 
 ## Phase 10: FAB Navigation
 
-**Goal:** Drag FAB to navigate
+**GoUpdate the `/CHANGELOG.md` with a summary of our changes and the recommended version release number. Read the latest changelog entry for context. Then commit using `git tag -a vX.X.X -m "". then ask for confirmation.al:** Drag FAB to navigate
 
 ### Tasks
 - [x] FAB hold detection (500ms)

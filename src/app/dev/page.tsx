@@ -99,7 +99,7 @@ export default function DevValidationPage() {
           selector: { is_trashed: false },
           sort: [{ updated_at: 'desc' }, { id: 'asc' }],
         })
-        .$.subscribe((docs) => setNotes(docs.map((doc) => doc.toJSON()))),
+        .$.subscribe((docs) => setNotes(docs.map((doc) => doc.toJSON() as NoteDocument))),
       db.habits
         .find({
           selector: { is_trashed: false },
@@ -342,6 +342,7 @@ export default function DevValidationPage() {
         inbox_at: null,
         note_type: null,
         is_pinned: false,
+        properties: null,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,

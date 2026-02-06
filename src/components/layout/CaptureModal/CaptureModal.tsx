@@ -45,7 +45,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setAllNotes(docs.map((doc) => doc.toJSON()));
+        setAllNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
@@ -122,6 +122,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       inbox_at: timestamp,
       note_type: null,
       is_pinned: false,
+      properties: null,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
