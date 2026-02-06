@@ -1,4 +1,6 @@
 .overlay {
+  /* Allow FAB and other higher z-index elements to receive events */
+  pointer-events: none;
 }
 
 .sheet {

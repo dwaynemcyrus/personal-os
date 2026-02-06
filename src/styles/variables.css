@@ -194,7 +194,7 @@
   /* ── Z-index scale ── */
   --z-base: 0;
   --z-shell-overlay: 20;
-  --z-drag-targets: 2900;
+  --z-drag-targets: 4500;
   --z-menu-overlay: 25;
   --z-modal: 40;
   --z-overlay: 50;
