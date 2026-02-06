@@ -12,7 +12,12 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { CodeMirrorEditor, PropertiesSheet } from '@/components/editor';
+import {
+  CodeMirrorEditor,
+  PropertiesSheet,
+  BacklinksPanel,
+  UnlinkedMentions,
+} from '@/components/editor';
 import type { NoteProperties } from '@/lib/db';
 import { syncNoteLinks } from '@/lib/noteLinks';
 import {
@@ -283,6 +288,22 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         placeholderText="Start writing..."
         autoFocus
         db={db}
+      />
+
+      <BacklinksPanel
+        noteId={noteId}
+        db={db}
+        onNavigate={(targetNoteId) => {
+          pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
+        }}
+      />
+
+      <UnlinkedMentions
+        noteTitle={derivedTitle}
+        db={db}
+        onNavigate={(targetNoteId) => {
+          pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
+        }}
       />
 
       <PropertiesSheet

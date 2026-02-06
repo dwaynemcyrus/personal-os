@@ -31,6 +31,22 @@ type WikiLinkConfig = {
 };
 
 /**
+ * Extract headers from markdown content
+ */
+function extractHeaders(content: string | null): string[] {
+  if (!content) return [];
+  const headers: string[] = [];
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^#{1,6}\s+(.+)$/);
+    if (match) {
+      headers.push(match[1].trim());
+    }
+  }
+  return headers;
+}
+
+/**
  * Create wiki-link autocomplete extension
  */
 function wikiLinkAutocomplete(config: WikiLinkConfig): Extension {
@@ -45,10 +61,53 @@ function wikiLinkAutocomplete(config: WikiLinkConfig): Extension {
 
         if (!match) return null;
 
-        const query = match[1].toLowerCase();
-        const from = context.pos - match[1].length;
+        const linkContent = match[1];
+        const from = context.pos - linkContent.length;
 
         try {
+          // Check if we're completing a header (after #)
+          const headerMatch = linkContent.match(/^([^#]+)#(.*)$/);
+
+          if (headerMatch) {
+            // User typed [[Note#, show headers from that note
+            const noteTitle = headerMatch[1].trim();
+            const headerQuery = headerMatch[2].toLowerCase();
+
+            // Find the note by title
+            const docs = await config.db.notes
+              .find({
+                selector: {
+                  is_trashed: false,
+                },
+              })
+              .exec();
+
+            const targetNote = docs
+              .map((doc) => doc.toJSON() as NoteDocument)
+              .find((note) => note.title.toLowerCase() === noteTitle.toLowerCase());
+
+            if (!targetNote) return null;
+
+            const headers = extractHeaders(targetNote.content);
+            const filteredHeaders = headers.filter((h) =>
+              h.toLowerCase().includes(headerQuery)
+            );
+
+            if (filteredHeaders.length === 0) return null;
+
+            return {
+              from: from + noteTitle.length + 1, // After the #
+              options: filteredHeaders.map((header) => ({
+                label: header,
+                apply: `${header}]]`,
+                type: 'text',
+              })),
+            };
+          }
+
+          // Regular note title completion
+          const query = linkContent.toLowerCase();
+
           // Search notes by title
           const docs = await config.db.notes
             .find({
