@@ -572,11 +572,11 @@ const instantRenderTheme = EditorView.theme({
     color: 'var(--color-ink-900)',
   },
   '.cm-ir-header-1': {
-    fontSize: '1.75em',
+    fontSize: '1.6em',
     lineHeight: '1.3',
   },
   '.cm-ir-header-2': {
-    fontSize: '1.5em',
+    fontSize: '1.4em',
     lineHeight: '1.35',
   },
   '.cm-ir-header-3': {
@@ -652,10 +652,13 @@ const instantRenderTheme = EditorView.theme({
     userSelect: 'none',
     fontSize: '0',
     position: 'relative',
+    display: 'inline-flex',
+    alignItems: 'center',
   },
   '.cm-ir-checkbox-widget::before': {
-    fontSize: '16px',
-    display: 'inline',
+    fontSize: '20px',
+    display: 'inline-block',
+    marginRight: '6px',
   },
   '.cm-ir-checkbox::before': {
     content: '"☐"',
