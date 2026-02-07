@@ -208,8 +208,8 @@ export function CodeMirrorEditor({
           '.cm-content': {
             fontFamily: 'var(--font-atten), ui-sans-serif, system-ui, sans-serif',
             fontSize: '16px',
-            padding: 'var(--space-16) var(--space-4)',
-            lineHeight: 'var(--leading-relaxed)',
+            padding: '0',
+            lineHeight: 'normal',
             caretColor: 'var(--color-ink-900)',
           },
           '.cm-line': {
