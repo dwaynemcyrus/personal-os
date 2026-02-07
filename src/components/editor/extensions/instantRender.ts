@@ -252,6 +252,7 @@ function parseInlineMarkdown(
  */
 function createInstantRenderDecorations(view: EditorView): DecorationSet {
   const decorations: Array<{ from: number; to: number; decoration: Decoration }> = [];
+  const lineDecorations: Array<{ from: number; decoration: Decoration }> = [];
   const doc = view.state.doc;
 
   for (let i = 1; i <= doc.lines; i++) {
@@ -305,16 +306,43 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
         decoration: Decoration.replace({}),
       });
 
-      // Style the line as blockquote
-      decorations.push({
+      // Style the line as blockquote (line decoration - added separately)
+      lineDecorations.push({
         from: lineFrom,
-        to: line.to,
         decoration: Decoration.line({ class: 'cm-ir-blockquote-line' }),
       });
 
       // Parse inline markdown in the content
       if (content) {
         parseInlineMarkdown(content, lineFrom + prefix.length, decorations);
+      }
+      continue;
+    }
+
+    // Task list: - [ ] or - [x] (MUST be checked before unordered list)
+    const taskMatch = lineText.match(/^(\s*[-*+])\s+\[([ xX])\]\s+(.*)$/);
+    if (taskMatch) {
+      const prefix = taskMatch[1];
+      const checked = taskMatch[2].toLowerCase() === 'x';
+      const content = taskMatch[3];
+      const checkboxStart = lineFrom + prefix.length + 1;
+      const checkboxEnd = checkboxStart + 3; // [ ] or [x]
+
+      // Replace entire prefix and checkbox with styled checkbox
+      decorations.push({
+        from: lineFrom,
+        to: checkboxEnd + 1, // +1 for space after checkbox
+        decoration: Decoration.replace({
+          widget: new FormattedTextWidget(
+            checked ? '\u2611 ' : '\u2610 ',
+            checked ? 'cm-ir-checkbox-checked' : 'cm-ir-checkbox'
+          ),
+        }),
+      });
+
+      // Parse inline markdown in content
+      if (content) {
+        parseInlineMarkdown(content, checkboxEnd + 1, decorations);
       }
       continue;
     }
@@ -369,47 +397,34 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
       continue;
     }
 
-    // Task list: - [ ] or - [x]
-    const taskMatch = lineText.match(/^(\s*[-*+])\s+\[([ xX])\]\s+(.*)$/);
-    if (taskMatch) {
-      const prefix = taskMatch[1];
-      const checked = taskMatch[2].toLowerCase() === 'x';
-      const content = taskMatch[3];
-      const checkboxStart = lineFrom + prefix.length + 1;
-      const checkboxEnd = checkboxStart + 3; // [ ] or [x]
-
-      // Replace entire prefix and checkbox with styled checkbox
-      decorations.push({
-        from: lineFrom,
-        to: checkboxEnd + 1, // +1 for space after checkbox
-        decoration: Decoration.replace({
-          widget: new FormattedTextWidget(
-            checked ? '\u2611 ' : '\u2610 ',
-            checked ? 'cm-ir-checkbox-checked' : 'cm-ir-checkbox'
-          ),
-        }),
-      });
-
-      // Parse inline markdown in content
-      if (content) {
-        parseInlineMarkdown(content, checkboxEnd + 1, decorations);
-      }
-      continue;
-    }
-
     // Parse inline markdown for regular lines
     parseInlineMarkdown(lineText, lineFrom, decorations);
   }
 
-  // Sort decorations by from position and filter overlaps
-  decorations.sort((a, b) => a.from - b.from);
+  // Combine all decorations with proper from/to
+  const allDecorations: Array<{ from: number; to: number; decoration: Decoration }> = [
+    ...decorations,
+    // Line decorations are point decorations (from === to)
+    ...lineDecorations.map((ld) => ({ from: ld.from, to: ld.from, decoration: ld.decoration })),
+  ];
+
+  // Sort by from position, then by to position (point decorations first at same position)
+  allDecorations.sort((a, b) => {
+    if (a.from !== b.from) return a.from - b.from;
+    return a.to - b.to;
+  });
 
   // Build decoration set
   const builder = new RangeSetBuilder<Decoration>();
   let lastTo = 0;
 
-  for (const dec of decorations) {
-    // Skip overlapping decorations
+  for (const dec of allDecorations) {
+    // Line decorations (point decorations) don't conflict with range decorations
+    if (dec.from === dec.to) {
+      builder.add(dec.from, dec.to, dec.decoration);
+      continue;
+    }
+    // Skip overlapping range decorations
     if (dec.from < lastTo) continue;
     builder.add(dec.from, dec.to, dec.decoration);
     lastTo = dec.to;
