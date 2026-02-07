@@ -1,15 +1,18 @@
 /**
  * Typewriter Mode CodeMirror Extension
  *
- * Keeps the cursor vertically centered as you type.
- * Text scrolls up, cursor stays in place - like a typewriter.
+ * Keeps the cursor at ~35% from the top as you type.
+ * Positioned higher than center to compensate for on-screen keyboard.
  */
 
 import { Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 
+// Position cursor at 35% from top (compensates for keyboard)
+const CURSOR_POSITION_RATIO = 0.35;
+
 /**
- * Typewriter mode plugin - scrolls to keep cursor centered
+ * Typewriter mode plugin - scrolls to keep cursor at target position
  */
 const typewriterPlugin = ViewPlugin.fromClass(
   class {
@@ -26,27 +29,27 @@ const typewriterPlugin = ViewPlugin.fromClass(
       // Schedule scroll after the update cycle completes
       requestAnimationFrame(() => {
         this.scrollPending = false;
-        this.centerCursor(view);
+        this.positionCursor(view);
       });
     }
 
-    centerCursor(view: EditorView) {
+    positionCursor(view: EditorView) {
       const selection = view.state.selection.main;
 
       // Get cursor position in viewport
       const cursorCoords = view.coordsAtPos(selection.head);
       if (!cursorCoords) return;
 
-      // Get viewport dimensions
+      // Get viewport dimensions - position at 35% from top
       const viewportHeight = view.dom.clientHeight;
-      const targetY = viewportHeight / 2;
+      const targetY = viewportHeight * CURSOR_POSITION_RATIO;
 
-      // Calculate scroll offset to center cursor
+      // Calculate scroll offset to position cursor
       const currentScrollTop = view.scrollDOM.scrollTop;
       const cursorY = cursorCoords.top - view.dom.getBoundingClientRect().top + currentScrollTop;
       const targetScrollTop = cursorY - targetY;
 
-      // Smooth scroll to center
+      // Smooth scroll to target position
       view.scrollDOM.scrollTo({
         top: Math.max(0, targetScrollTop),
         behavior: 'smooth',
@@ -61,7 +64,7 @@ const typewriterPlugin = ViewPlugin.fromClass(
  */
 const typewriterTheme = EditorView.theme({
   '.cm-content': {
-    paddingBottom: '50vh',
+    paddingBottom: '65vh',
   },
 });
 

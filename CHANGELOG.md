@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.1 - 2026-02-07
+- Fixed iOS trackpad cursor navigation by switching instant render from replacement widgets to mark decorations
+- Fixed checkbox rendering to show icons via CSS ::before while preserving cursor stability
+- Fixed checkboxes to show raw markdown when cursor is on that line
+- Fixed callouts to not inherit blockquote styles (removed border-left, padding-left, italic)
+- Fixed callout spacing by hiding underlying cm-line elements
+- Fixed iOS text selection handles not working by adding proper touch-action and user-select CSS
+- Fixed accessibility warning by adding visually hidden SheetTitle to NoteDetailSheet
+- Changed editor font to explicitly use New Atten at 16px
+- Changed typewriter mode cursor position from 50% to 35% from top to compensate for on-screen keyboard
+
 ## 0.11.0 - 2026-02-07
 - Added version history system with note_versions table (Supabase migration + RxDB schema)
 - Added auto-save versions every 30 minutes during editing

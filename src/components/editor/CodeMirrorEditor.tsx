@@ -194,10 +194,10 @@ export function CodeMirrorEditor({
         EditorView.theme({
           '&': {
             height: '100%',
-            fontSize: '16px',
           },
           '.cm-content': {
-            fontFamily: 'var(--font-family-primary)',
+            fontFamily: 'var(--font-atten), ui-sans-serif, system-ui, sans-serif',
+            fontSize: '16px',
             padding: 'var(--space-16) var(--space-4)',
             lineHeight: 'var(--leading-relaxed)',
             caretColor: 'var(--color-ink-900)',

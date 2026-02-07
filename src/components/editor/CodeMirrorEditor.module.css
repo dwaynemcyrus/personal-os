@@ -5,6 +5,8 @@
   background: var(--color-white);
   border-radius: var(--radius-10);
   border: 1px solid var(--color-border-300);
+  /* Override parent touch-action restrictions for iOS selection */
+  touch-action: auto;
 }
 
 .editor :global(.cm-editor) {
@@ -13,6 +15,18 @@
 
 .editor :global(.cm-scroller) {
   -webkit-overflow-scrolling: touch;
+}
+
+/* Enable iOS text selection handles */
+.editor :global(.cm-content) {
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: pan-x pan-y;
+}
+
+.editor :global(.cm-line) {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Markdown syntax highlighting */

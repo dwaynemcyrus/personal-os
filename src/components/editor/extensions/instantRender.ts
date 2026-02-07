@@ -1,9 +1,9 @@
 /**
  * Instant Render CodeMirror Extension
  *
- * Hides markdown syntax when not editing and shows formatted text.
- * Reveals syntax when cursor moves to that line.
- * Creates a Bear-like editing experience.
+ * Styles markdown syntax to appear rendered while keeping characters in DOM.
+ * Uses mark decorations (not replacement widgets) to preserve cursor positions.
+ * This fixes iOS trackpad cursor navigation issues.
  */
 
 import { Extension, RangeSetBuilder } from '@codemirror/state';
@@ -17,89 +17,25 @@ import {
 } from '@codemirror/view';
 
 /**
- * Widget for rendering formatted inline content
+ * Custom checkbox states and their display
  */
-class FormattedTextWidget extends WidgetType {
-  constructor(
-    readonly text: string,
-    readonly className: string
-  ) {
-    super();
-  }
+const CHECKBOX_STATES: Record<string, { className: string }> = {
+  ' ': { className: 'cm-ir-checkbox' },
+  'x': { className: 'cm-ir-checkbox-checked' },
+  'X': { className: 'cm-ir-checkbox-checked' },
+  '>': { className: 'cm-ir-checkbox-forwarded' },
+  '<': { className: 'cm-ir-checkbox-cancelled' },
+  '!': { className: 'cm-ir-checkbox-important' },
+  '?': { className: 'cm-ir-checkbox-question' },
+  '/': { className: 'cm-ir-checkbox-progress' },
+  '-': { className: 'cm-ir-checkbox-irrelevant' },
+};
 
-  toDOM(): HTMLElement {
-    const span = document.createElement('span');
-    span.className = this.className;
-    span.textContent = this.text;
-    return span;
-  }
-
-  ignoreEvent(): boolean {
-    return false;
-  }
-
-  eq(other: FormattedTextWidget): boolean {
-    return this.text === other.text && this.className === other.className;
-  }
-}
+// Cycle order for clicking checkboxes
+const CHECKBOX_CYCLE = [' ', 'x', '>', '/', '!', '?', '-', '<'];
 
 /**
- * Widget for rendering headers with proper styling
- */
-class HeaderWidget extends WidgetType {
-  constructor(
-    readonly text: string,
-    readonly level: number
-  ) {
-    super();
-  }
-
-  toDOM(): HTMLElement {
-    const span = document.createElement('span');
-    span.className = `cm-ir-header cm-ir-header-${this.level}`;
-    span.textContent = this.text;
-    return span;
-  }
-
-  ignoreEvent(): boolean {
-    return false;
-  }
-
-  eq(other: HeaderWidget): boolean {
-    return this.text === other.text && this.level === other.level;
-  }
-}
-
-/**
- * Widget for rendering links
- */
-class LinkWidget extends WidgetType {
-  constructor(
-    readonly text: string,
-    readonly url: string
-  ) {
-    super();
-  }
-
-  toDOM(): HTMLElement {
-    const span = document.createElement('span');
-    span.className = 'cm-ir-link';
-    span.textContent = this.text;
-    span.title = this.url;
-    return span;
-  }
-
-  ignoreEvent(): boolean {
-    return false;
-  }
-
-  eq(other: LinkWidget): boolean {
-    return this.text === other.text && this.url === other.url;
-  }
-}
-
-/**
- * Widget for rendering horizontal rules
+ * Widget for rendering horizontal rules (the only widget we keep)
  */
 class HorizontalRuleWidget extends WidgetType {
   toDOM(): HTMLElement {
@@ -118,105 +54,6 @@ class HorizontalRuleWidget extends WidgetType {
 }
 
 /**
- * Widget for interactive checkboxes with custom states
- */
-class CheckboxWidget extends WidgetType {
-  constructor(
-    readonly state: string,
-    readonly lineFrom: number
-  ) {
-    super();
-  }
-
-  toDOM(): HTMLElement {
-    const config = CHECKBOX_STATES[this.state] || CHECKBOX_STATES[' '];
-    const span = document.createElement('span');
-    span.className = `cm-ir-checkbox-widget ${config.className}`;
-    span.textContent = config.icon + ' ';
-    span.dataset.checkboxState = this.state;
-    span.dataset.lineFrom = String(this.lineFrom);
-    span.style.cursor = 'pointer';
-    span.setAttribute('role', 'checkbox');
-    span.setAttribute('aria-checked', this.state === 'x' || this.state === 'X' ? 'true' : 'false');
-    return span;
-  }
-
-  ignoreEvent(): boolean {
-    // Allow click events to pass through
-    return false;
-  }
-
-  eq(other: CheckboxWidget): boolean {
-    return this.state === other.state && this.lineFrom === other.lineFrom;
-  }
-}
-
-/**
- * Widget for footnote references
- */
-class FootnoteRefWidget extends WidgetType {
-  constructor(readonly id: string) {
-    super();
-  }
-
-  toDOM(): HTMLElement {
-    const sup = document.createElement('sup');
-    sup.className = 'cm-ir-footnote-ref';
-    sup.textContent = `[${this.id}]`;
-    sup.title = `Footnote ${this.id}`;
-    return sup;
-  }
-
-  ignoreEvent(): boolean {
-    return false;
-  }
-
-  eq(other: FootnoteRefWidget): boolean {
-    return this.id === other.id;
-  }
-}
-
-/**
- * Custom checkbox states and their display
- */
-const CHECKBOX_STATES: Record<string, { icon: string; className: string }> = {
-  ' ': { icon: '\u2610', className: 'cm-ir-checkbox' },           // ☐ Unchecked
-  'x': { icon: '\u2611', className: 'cm-ir-checkbox-checked' },   // ☑ Checked
-  'X': { icon: '\u2611', className: 'cm-ir-checkbox-checked' },   // ☑ Checked
-  '>': { icon: '\u27A1', className: 'cm-ir-checkbox-forwarded' }, // ➡ Forwarded
-  '<': { icon: '\u2716', className: 'cm-ir-checkbox-cancelled' }, // ✖ Cancelled
-  '!': { icon: '\u2757', className: 'cm-ir-checkbox-important' }, // ❗ Important
-  '?': { icon: '\u2753', className: 'cm-ir-checkbox-question' },  // ❓ Question
-  '/': { icon: '\u25D4', className: 'cm-ir-checkbox-progress' },  // ◔ In progress
-  '-': { icon: '\u2014', className: 'cm-ir-checkbox-irrelevant' }, // — Irrelevant
-};
-
-// Cycle order for clicking checkboxes
-const CHECKBOX_CYCLE = [' ', 'x', '>', '/', '!', '?', '-', '<'];
-
-/**
- * Patterns for inline markdown syntax
- */
-const INLINE_PATTERNS = {
-  // Bold: **text** or __text__
-  bold: /(\*\*|__)(?=\S)([^\*_]+?)(?<=\S)\1/g,
-  // Italic: *text* or _text_ (but not inside bold)
-  italic: /(?<!\*|_)(\*|_)(?!\*|_)(?=\S)([^\*_]+?)(?<=\S)\1(?!\*|_)/g,
-  // Strikethrough: ~~text~~
-  strikethrough: /~~(?=\S)(.+?)(?<=\S)~~/g,
-  // Highlight: ==text==
-  highlight: /==(.+?)==/g,
-  // Inline code: `code`
-  inlineCode: /`([^`\n]+)`/g,
-  // Links: [text](url)
-  link: /\[([^\]]+)\]\(([^)]+)\)/g,
-  // Images: ![alt](url)
-  image: /!\[([^\]]*)\]\(([^)]+)\)/g,
-  // Footnote reference: [^id]
-  footnoteRef: /\[\^([^\]]+)\]/g,
-};
-
-/**
  * Check if a line is the active line (has cursor)
  */
 function isActiveLine(view: EditorView, lineNumber: number): boolean {
@@ -226,41 +63,55 @@ function isActiveLine(view: EditorView, lineNumber: number): boolean {
 }
 
 /**
- * Parse inline markdown and create decorations
+ * Add mark decorations for inline markdown
+ * Uses marks to style text while preserving character positions
  */
 function parseInlineMarkdown(
   lineText: string,
   lineFrom: number,
-  decorations: Array<{ from: number; to: number; decoration: Decoration }>
+  decorations: Array<{ from: number; to: number; decoration: Decoration }>,
+  isActive: boolean
 ): void {
-  // Bold
   let match;
+
+  // Bold: **text** or __text__
   const boldRegex = /(\*\*|__)(.+?)\1/g;
   while ((match = boldRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const content = match[2];
     const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
+    const markerLen = match[1].length;
+    const contentStart = from + markerLen;
+    const contentEnd = contentStart + match[2].length;
+    const to = contentEnd + markerLen;
 
+    // Hide opening marker
     decorations.push({
       from,
+      to: contentStart,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+    // Style content
+    decorations.push({
+      from: contentStart,
+      to: contentEnd,
+      decoration: Decoration.mark({ class: 'cm-ir-bold' }),
+    });
+    // Hide closing marker
+    decorations.push({
+      from: contentEnd,
       to,
-      decoration: Decoration.replace({
-        widget: new FormattedTextWidget(content, 'cm-ir-bold'),
-      }),
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
     });
   }
 
-  // Italic (avoid matching inside bold markers)
-  const italicRegex = /(?<!\*)(\*)(?!\*)(.+?)(?<!\*)\1(?!\*)|(?<!_)(_)(?!_)(.+?)(?<!_)\3(?!_)/g;
+  // Italic: *text* or _text_ (single markers)
+  const italicRegex = /(?<!\*|_)(\*|_)(?!\*|_)(.+?)(?<!\*|_)\1(?!\*|_)/g;
   while ((match = italicRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const content = match[2] || match[4];
-    if (!content) continue;
     const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
+    const contentStart = from + 1;
+    const contentEnd = contentStart + match[2].length;
+    const to = contentEnd + 1;
 
-    // Check if this overlaps with a bold decoration
+    // Check overlap with bold
     const overlaps = decorations.some(
       (d) => (from >= d.from && from < d.to) || (to > d.from && to <= d.to)
     );
@@ -268,74 +119,54 @@ function parseInlineMarkdown(
 
     decorations.push({
       from,
+      to: contentStart,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+    decorations.push({
+      from: contentStart,
+      to: contentEnd,
+      decoration: Decoration.mark({ class: 'cm-ir-italic' }),
+    });
+    decorations.push({
+      from: contentEnd,
       to,
-      decoration: Decoration.replace({
-        widget: new FormattedTextWidget(content, 'cm-ir-italic'),
-      }),
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
     });
   }
 
-  // Strikethrough
+  // Strikethrough: ~~text~~
   const strikethroughRegex = /~~(.+?)~~/g;
   while ((match = strikethroughRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const content = match[1];
     const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
+    const contentStart = from + 2;
+    const contentEnd = contentStart + match[1].length;
+    const to = contentEnd + 2;
 
     decorations.push({
       from,
-      to,
-      decoration: Decoration.replace({
-        widget: new FormattedTextWidget(content, 'cm-ir-strikethrough'),
-      }),
+      to: contentStart,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
     });
-  }
-
-  // Inline code
-  const codeRegex = /`([^`\n]+)`/g;
-  while ((match = codeRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const content = match[1];
-    const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
-
     decorations.push({
-      from,
-      to,
-      decoration: Decoration.replace({
-        widget: new FormattedTextWidget(content, 'cm-ir-code'),
-      }),
+      from: contentStart,
+      to: contentEnd,
+      decoration: Decoration.mark({ class: 'cm-ir-strikethrough' }),
     });
-  }
-
-  // Links [text](url) - but not footnotes
-  const linkRegex = /\[([^\]^][^\]]*)\]\(([^)]+)\)/g;
-  while ((match = linkRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const text = match[1];
-    const url = match[2];
-    const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
-
     decorations.push({
-      from,
+      from: contentEnd,
       to,
-      decoration: Decoration.replace({
-        widget: new LinkWidget(text, url),
-      }),
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
     });
   }
 
-  // Highlight ==text==
+  // Highlight: ==text==
   const highlightRegex = /==(.+?)==/g;
   while ((match = highlightRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const content = match[1];
     const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
+    const contentStart = from + 2;
+    const contentEnd = contentStart + match[1].length;
+    const to = contentEnd + 2;
 
-    // Check for overlaps
     const overlaps = decorations.some(
       (d) => (from >= d.from && from < d.to) || (to > d.from && to <= d.to)
     );
@@ -343,22 +174,82 @@ function parseInlineMarkdown(
 
     decorations.push({
       from,
+      to: contentStart,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+    decorations.push({
+      from: contentStart,
+      to: contentEnd,
+      decoration: Decoration.mark({ class: 'cm-ir-highlight' }),
+    });
+    decorations.push({
+      from: contentEnd,
       to,
-      decoration: Decoration.replace({
-        widget: new FormattedTextWidget(content, 'cm-ir-highlight'),
-      }),
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
     });
   }
 
-  // Footnote references [^id] - but not definitions
+  // Inline code: `code`
+  const codeRegex = /`([^`\n]+)`/g;
+  while ((match = codeRegex.exec(lineText)) !== null) {
+    const from = lineFrom + match.index;
+    const contentStart = from + 1;
+    const contentEnd = contentStart + match[1].length;
+    const to = contentEnd + 1;
+
+    decorations.push({
+      from,
+      to: contentStart,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+    decorations.push({
+      from: contentStart,
+      to: contentEnd,
+      decoration: Decoration.mark({ class: 'cm-ir-code' }),
+    });
+    decorations.push({
+      from: contentEnd,
+      to,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+  }
+
+  // Links: [text](url)
+  const linkRegex = /\[([^\]^][^\]]*)\]\(([^)]+)\)/g;
+  while ((match = linkRegex.exec(lineText)) !== null) {
+    const from = lineFrom + match.index;
+    const textStart = from + 1;
+    const textEnd = textStart + match[1].length;
+    const urlStart = textEnd + 2; // ](
+    const urlEnd = urlStart + match[2].length;
+    const to = urlEnd + 1; // )
+
+    // Hide [
+    decorations.push({
+      from,
+      to: textStart,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+    // Style link text
+    decorations.push({
+      from: textStart,
+      to: textEnd,
+      decoration: Decoration.mark({ class: 'cm-ir-link' }),
+    });
+    // Hide ](url)
+    decorations.push({
+      from: textEnd,
+      to,
+      decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
+    });
+  }
+
+  // Footnote references: [^id]
   const footnoteRefRegex = /\[\^([^\]]+)\](?!:)/g;
   while ((match = footnoteRefRegex.exec(lineText)) !== null) {
-    const fullMatch = match[0];
-    const id = match[1];
     const from = lineFrom + match.index;
-    const to = from + fullMatch.length;
+    const to = from + match[0].length;
 
-    // Check for overlaps
     const overlaps = decorations.some(
       (d) => (from >= d.from && from < d.to) || (to > d.from && to <= d.to)
     );
@@ -367,11 +258,41 @@ function parseInlineMarkdown(
     decorations.push({
       from,
       to,
-      decoration: Decoration.replace({
-        widget: new FootnoteRefWidget(id),
-      }),
+      decoration: Decoration.mark({ class: 'cm-ir-footnote-ref' }),
     });
   }
+}
+
+/**
+ * Find all line ranges that are part of callouts
+ */
+function getCalloutLineRanges(doc: { lines: number; line: (n: number) => { text: string } }): Set<number> {
+  const calloutLines = new Set<number>();
+  const calloutStartRegex = /^>\s*\[!\w+\]/;
+
+  let i = 1;
+  while (i <= doc.lines) {
+    const line = doc.line(i);
+    if (calloutStartRegex.test(line.text)) {
+      // This is a callout start, mark it and find continuation lines
+      calloutLines.add(i);
+      let j = i + 1;
+      while (j <= doc.lines) {
+        const nextLine = doc.line(j);
+        if (nextLine.text.match(/^>\s*/) && !calloutStartRegex.test(nextLine.text)) {
+          calloutLines.add(j);
+          j++;
+        } else {
+          break;
+        }
+      }
+      i = j;
+    } else {
+      i++;
+    }
+  }
+
+  return calloutLines;
 }
 
 /**
@@ -382,90 +303,134 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
   const lineDecorations: Array<{ from: number; decoration: Decoration }> = [];
   const doc = view.state.doc;
 
+  // Pre-compute which lines are part of callouts (to skip blockquote styling)
+  const calloutLines = getCalloutLineRanges(doc);
+
   for (let i = 1; i <= doc.lines; i++) {
     const line = doc.line(i);
     const lineText = line.text;
     const lineFrom = line.from;
-
-    // Skip active line - show raw markdown
-    if (isActiveLine(view, i)) {
-      continue;
-    }
+    const isActive = isActiveLine(view, i);
 
     // Headers: # to ######
     const headerMatch = lineText.match(/^(#{1,6})\s+(.+)$/);
     if (headerMatch) {
       const level = headerMatch[1].length;
-      const content = headerMatch[2];
+      const prefixEnd = lineFrom + headerMatch[1].length + 1; // "# " including space
 
+      // Style/hide the "# " prefix
       decorations.push({
         from: lineFrom,
-        to: line.to,
-        decoration: Decoration.replace({
-          widget: new HeaderWidget(content, level),
-        }),
+        to: prefixEnd,
+        decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
       });
+
+      // Style the header content
+      decorations.push({
+        from: prefixEnd,
+        to: line.to,
+        decoration: Decoration.mark({ class: `cm-ir-header cm-ir-header-${level}` }),
+      });
+
+      // Parse inline markdown in header content
+      parseInlineMarkdown(headerMatch[2], prefixEnd, decorations, isActive);
       continue;
     }
 
     // Horizontal rule: --- or *** or ___
     if (/^(\*{3,}|-{3,}|_{3,})$/.test(lineText.trim())) {
-      decorations.push({
-        from: lineFrom,
-        to: line.to,
-        decoration: Decoration.replace({
-          widget: new HorizontalRuleWidget(),
-        }),
-      });
+      // Keep using widget for HR since it's a visual element
+      if (!isActive) {
+        decorations.push({
+          from: lineFrom,
+          to: line.to,
+          decoration: Decoration.replace({
+            widget: new HorizontalRuleWidget(),
+          }),
+        });
+      }
       continue;
     }
 
-    // Block quotes: > text
+    // Block quotes: > text (but NOT callouts)
     const blockquoteMatch = lineText.match(/^(>\s*)(.*)$/);
     if (blockquoteMatch) {
-      const prefix = blockquoteMatch[1];
-      const content = blockquoteMatch[2];
+      // Skip if this line is part of a callout
+      if (calloutLines.has(i)) {
+        continue;
+      }
 
-      // Hide the > prefix
+      const prefix = blockquoteMatch[1];
+      const prefixEnd = lineFrom + prefix.length;
+
+      // Style/hide the "> " prefix
       decorations.push({
         from: lineFrom,
-        to: lineFrom + prefix.length,
-        decoration: Decoration.replace({}),
+        to: prefixEnd,
+        decoration: Decoration.mark({ class: isActive ? 'cm-ir-syntax-active' : 'cm-ir-syntax-hidden' }),
       });
 
-      // Style the line as blockquote (line decoration - added separately)
+      // Line decoration for blockquote styling
       lineDecorations.push({
         from: lineFrom,
         decoration: Decoration.line({ class: 'cm-ir-blockquote-line' }),
       });
 
-      // Parse inline markdown in the content
-      if (content) {
-        parseInlineMarkdown(content, lineFrom + prefix.length, decorations);
+      // Parse inline markdown in content
+      if (blockquoteMatch[2]) {
+        parseInlineMarkdown(blockquoteMatch[2], prefixEnd, decorations, isActive);
       }
       continue;
     }
 
-    // Task list: - [ ] or - [x] or custom states (MUST be checked before unordered list)
-    const taskMatch = lineText.match(/^(\s*[-*+])\s+\[([ xX><!?/\-])\]\s+(.*)$/);
+    // Task list: - [ ] or - [x] or custom states
+    const taskMatch = lineText.match(/^(\s*)([-*+])\s+(\[([ xX><!?/\-])\])\s*(.*)$/);
     if (taskMatch) {
-      const prefix = taskMatch[1];
-      const checkboxState = taskMatch[2];
-      const content = taskMatch[3];
-      const checkboxEnd = lineFrom + prefix.length + 1 + 3; // prefix + space + [x]
+      const indent = taskMatch[1];
+      const bullet = taskMatch[2];
+      const checkbox = taskMatch[3];
+      const checkboxState = taskMatch[4];
+      const content = taskMatch[5];
 
-      // Replace entire prefix and checkbox with interactive checkbox widget
-      decorations.push({
-        from: lineFrom,
-        to: checkboxEnd + 1, // +1 for space after checkbox
-        decoration: Decoration.replace({
-          widget: new CheckboxWidget(checkboxState, lineFrom),
-        }),
-      });
+      const bulletStart = lineFrom + indent.length;
+      const bulletEnd = bulletStart + bullet.length + 1; // bullet + space
+      const checkboxStart = bulletEnd;
+      const checkboxEnd = checkboxStart + checkbox.length;
+      const contentStart = checkboxEnd + (content ? 1 : 0); // +1 for space if there's content
+
+      if (isActive) {
+        // Show raw markdown on active line, just dim the syntax
+        decorations.push({
+          from: bulletStart,
+          to: checkboxEnd,
+          decoration: Decoration.mark({ class: 'cm-ir-syntax-active' }),
+        });
+      } else {
+        // Hide bullet
+        decorations.push({
+          from: bulletStart,
+          to: bulletEnd,
+          decoration: Decoration.mark({ class: 'cm-ir-syntax-hidden' }),
+        });
+
+        // Style checkbox with interactive class and icon
+        const stateClass = CHECKBOX_STATES[checkboxState]?.className || 'cm-ir-checkbox';
+        decorations.push({
+          from: checkboxStart,
+          to: checkboxEnd,
+          decoration: Decoration.mark({
+            class: `cm-ir-checkbox-widget ${stateClass}`,
+            attributes: {
+              'data-checkbox-state': checkboxState,
+              'data-line-from': String(lineFrom),
+            },
+          }),
+        });
+      }
 
       // Parse inline markdown in content
       if (content) {
-        parseInlineMarkdown(content, checkboxEnd + 1, decorations);
+        parseInlineMarkdown(content, contentStart, decorations, isActive);
       }
       continue;
     }
@@ -477,20 +442,19 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
       const bullet = ulMatch[2];
       const content = ulMatch[3];
       const bulletFrom = lineFrom + indent.length;
-      const bulletTo = bulletFrom + bullet.length + 1; // +1 for space
+      const bulletTo = bulletFrom + bullet.length;
+      const contentStart = bulletTo + 1; // +1 for space
 
-      // Replace bullet with styled bullet
+      // Style bullet
       decorations.push({
         from: bulletFrom,
         to: bulletTo,
-        decoration: Decoration.replace({
-          widget: new FormattedTextWidget('\u2022 ', 'cm-ir-bullet'),
-        }),
+        decoration: Decoration.mark({ class: 'cm-ir-bullet' }),
       });
 
       // Parse inline markdown in content
       if (content) {
-        parseInlineMarkdown(content, bulletTo, decorations);
+        parseInlineMarkdown(content, contentStart, decorations, isActive);
       }
       continue;
     }
@@ -502,47 +466,44 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
       const number = olMatch[2];
       const content = olMatch[3];
       const numFrom = lineFrom + indent.length;
-      const numTo = numFrom + number.length + 2; // +2 for ". "
+      const numTo = numFrom + number.length + 1; // number + "."
+      const contentStart = numTo + 1; // +1 for space
 
-      // Style the number
+      // Style number
       decorations.push({
         from: numFrom,
         to: numTo,
-        decoration: Decoration.replace({
-          widget: new FormattedTextWidget(`${number}. `, 'cm-ir-list-number'),
-        }),
+        decoration: Decoration.mark({ class: 'cm-ir-list-number' }),
       });
 
       // Parse inline markdown in content
       if (content) {
-        parseInlineMarkdown(content, numTo, decorations);
+        parseInlineMarkdown(content, contentStart, decorations, isActive);
       }
       continue;
     }
 
     // Parse inline markdown for regular lines
-    parseInlineMarkdown(lineText, lineFrom, decorations);
+    parseInlineMarkdown(lineText, lineFrom, decorations, isActive);
   }
 
-  // Combine all decorations with proper from/to
-  const allDecorations: Array<{ from: number; to: number; decoration: Decoration }> = [
+  // Combine and sort decorations
+  const allDecorations = [
     ...decorations,
-    // Line decorations are point decorations (from === to)
     ...lineDecorations.map((ld) => ({ from: ld.from, to: ld.from, decoration: ld.decoration })),
   ];
 
-  // Sort by from position, then by to position (point decorations first at same position)
   allDecorations.sort((a, b) => {
     if (a.from !== b.from) return a.from - b.from;
     return a.to - b.to;
   });
 
-  // Build decoration set
+  // Build decoration set, handling overlaps
   const builder = new RangeSetBuilder<Decoration>();
   let lastTo = 0;
 
   for (const dec of allDecorations) {
-    // Line decorations (point decorations) don't conflict with range decorations
+    // Line decorations (point decorations) don't conflict
     if (dec.from === dec.to) {
       builder.add(dec.from, dec.to, dec.decoration);
       continue;
@@ -582,6 +543,20 @@ const instantRenderPlugin = ViewPlugin.fromClass(
  * Theme styles for instant render
  */
 const instantRenderTheme = EditorView.theme({
+  // Hidden syntax (non-active lines) - keeps characters but visually hides them
+  '.cm-ir-syntax-hidden': {
+    fontSize: '0',
+    opacity: '0',
+    width: '0',
+    display: 'inline-block',
+    overflow: 'hidden',
+  },
+
+  // Active line syntax - visible but dimmed
+  '.cm-ir-syntax-active': {
+    color: 'var(--color-ink-300)',
+  },
+
   // Headers
   '.cm-ir-header': {
     fontWeight: 'var(--font-semibold)',
@@ -660,38 +635,49 @@ const instantRenderTheme = EditorView.theme({
     color: 'var(--color-link)',
     cursor: 'pointer',
     fontSize: '0.85em',
-    verticalAlign: 'super',
   },
 
-  // Checkboxes - base widget
+  // Checkboxes - hide text, show icon via ::before
   '.cm-ir-checkbox-widget': {
     cursor: 'pointer',
     userSelect: 'none',
+    fontSize: '0',
+    position: 'relative',
   },
-  '.cm-ir-checkbox': {
+  '.cm-ir-checkbox-widget::before': {
+    fontSize: '16px',
+    display: 'inline',
+  },
+  '.cm-ir-checkbox::before': {
+    content: '"☐"',
     color: 'var(--color-ink-400)',
   },
-  '.cm-ir-checkbox-checked': {
+  '.cm-ir-checkbox-checked::before': {
+    content: '"☑"',
     color: 'var(--color-success)',
   },
-  '.cm-ir-checkbox-forwarded': {
+  '.cm-ir-checkbox-forwarded::before': {
+    content: '"➡"',
     color: 'var(--color-info, #3b82f6)',
   },
-  '.cm-ir-checkbox-cancelled': {
+  '.cm-ir-checkbox-cancelled::before': {
+    content: '"✖"',
     color: 'var(--color-danger, #ef4444)',
-    textDecoration: 'line-through',
   },
-  '.cm-ir-checkbox-important': {
+  '.cm-ir-checkbox-important::before': {
+    content: '"❗"',
     color: 'var(--color-warning, #f59e0b)',
-    fontWeight: 'bold',
   },
-  '.cm-ir-checkbox-question': {
+  '.cm-ir-checkbox-question::before': {
+    content: '"❓"',
     color: 'var(--color-info, #8b5cf6)',
   },
-  '.cm-ir-checkbox-progress': {
+  '.cm-ir-checkbox-progress::before': {
+    content: '"◔"',
     color: 'var(--color-warning, #f59e0b)',
   },
-  '.cm-ir-checkbox-irrelevant': {
+  '.cm-ir-checkbox-irrelevant::before': {
+    content: '"—"',
     color: 'var(--color-ink-300)',
     opacity: '0.6',
   },
@@ -719,15 +705,16 @@ const checkboxClickHandler = EditorView.domEventHandlers({
   click: (event, view) => {
     const target = event.target as HTMLElement;
 
-    // Check if click was on a checkbox widget
+    // Check if click was on a checkbox widget (now a mark, not a widget)
     if (!target.classList.contains('cm-ir-checkbox-widget')) {
       return false;
     }
 
-    const lineFromStr = target.dataset.lineFrom;
-    const currentState = target.dataset.checkboxState;
+    // Get data from the mark's attributes
+    const lineFromStr = target.getAttribute('data-line-from');
+    const currentState = target.getAttribute('data-checkbox-state');
 
-    if (!lineFromStr || currentState === undefined) {
+    if (!lineFromStr || currentState === null) {
       return false;
     }
 

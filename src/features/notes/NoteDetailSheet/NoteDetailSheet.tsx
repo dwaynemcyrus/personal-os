@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Sheet, SheetContent } from '@/components/ui/Sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 import { NoteEditor } from '../NoteEditor/NoteEditor';
 import styles from './NoteDetailSheet.module.css';
 
@@ -31,8 +31,8 @@ export function NoteDetailSheet({
         gestureDismissThreshold={0.3}
         gestureEdgeExclusion={48}
         onDismiss={() => onOpenChange(false)}
-        aria-label="Note editor"
       >
+        <SheetTitle className={styles.visuallyHidden}>Note editor</SheetTitle>
         <NoteEditor
           noteId={noteId}
           onClose={() => onOpenChange(false)}

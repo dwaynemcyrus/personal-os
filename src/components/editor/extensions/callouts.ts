@@ -8,13 +8,11 @@
  * Supported types: note, tip, warning, danger, info, success, question, quote
  */
 
-import { Extension, RangeSetBuilder } from '@codemirror/state';
+import { Extension, RangeSetBuilder, StateField } from '@codemirror/state';
 import {
   Decoration,
   DecorationSet,
   EditorView,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
 } from '@codemirror/view';
 
@@ -42,7 +40,8 @@ const CALLOUT_TYPES: Record<string, { icon: string; color: string; bg: string }>
 class CalloutHeaderWidget extends WidgetType {
   constructor(
     readonly type: string,
-    readonly title: string
+    readonly title: string,
+    readonly isOnlyLine: boolean
   ) {
     super();
   }
@@ -51,6 +50,8 @@ class CalloutHeaderWidget extends WidgetType {
     const config = CALLOUT_TYPES[this.type] || CALLOUT_TYPES.note;
     const div = document.createElement('div');
     div.className = `cm-callout-header cm-callout-header--${this.type}`;
+    if (this.isOnlyLine) div.classList.add('cm-callout-header--only');
+    div.style.setProperty('--callout-bg', config.bg);
     div.style.setProperty('--callout-color', config.color);
     div.textContent = `${config.icon} ${this.title || this.type.charAt(0).toUpperCase() + this.type.slice(1)}`;
     return div;
@@ -61,7 +62,7 @@ class CalloutHeaderWidget extends WidgetType {
   }
 
   eq(other: CalloutHeaderWidget): boolean {
-    return this.type === other.type && this.title === other.title;
+    return this.type === other.type && this.title === other.title && this.isOnlyLine === other.isOnlyLine;
   }
 }
 
@@ -72,17 +73,18 @@ class CalloutContentWidget extends WidgetType {
   constructor(
     readonly content: string,
     readonly type: string,
-    readonly isFirst: boolean,
     readonly isLast: boolean
   ) {
     super();
   }
 
   toDOM(): HTMLElement {
+    const config = CALLOUT_TYPES[this.type] || CALLOUT_TYPES.note;
     const div = document.createElement('div');
     div.className = `cm-callout-content cm-callout-content--${this.type}`;
-    if (this.isFirst) div.classList.add('cm-callout-content--first');
     if (this.isLast) div.classList.add('cm-callout-content--last');
+    div.style.setProperty('--callout-bg', config.bg);
+    div.style.setProperty('--callout-color', config.color);
     div.textContent = this.content;
     return div;
   }
@@ -95,7 +97,6 @@ class CalloutContentWidget extends WidgetType {
     return (
       this.content === other.content &&
       this.type === other.type &&
-      this.isFirst === other.isFirst &&
       this.isLast === other.isLast
     );
   }
@@ -104,18 +105,24 @@ class CalloutContentWidget extends WidgetType {
 /**
  * Check if cursor is within the given line range
  */
-function isCursorInRange(view: EditorView, startLine: number, endLine: number): boolean {
-  const selection = view.state.selection.main;
-  const cursorLine = view.state.doc.lineAt(selection.head).number;
+function isCursorInRange(
+  selection: { head: number },
+  doc: { lineAt: (pos: number) => { number: number } },
+  startLine: number,
+  endLine: number
+): boolean {
+  const cursorLine = doc.lineAt(selection.head).number;
   return cursorLine >= startLine && cursorLine <= endLine;
 }
 
 /**
  * Parse callouts from document and create decorations
  */
-function createCalloutDecorations(view: EditorView): DecorationSet {
+function createCalloutDecorations(
+  doc: { lines: number; line: (n: number) => { from: number; to: number; text: string }; lineAt: (pos: number) => { number: number } },
+  selection: { head: number }
+): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
-  const doc = view.state.doc;
 
   // Regex to match callout start: > [!type] or > [!type] Title
   const calloutStartRegex = /^>\s*\[!(\w+)\]\s*(.*)$/;
@@ -135,7 +142,7 @@ function createCalloutDecorations(view: EditorView): DecorationSet {
       let j = i + 1;
       while (j <= doc.lines) {
         const nextLine = doc.line(j);
-        if (nextLine.text.match(/^>\s*/)) {
+        if (nextLine.text.match(/^>\s*/) && !nextLine.text.match(/^>\s*\[!/)) {
           calloutEndLine = j;
           j++;
         } else {
@@ -144,18 +151,28 @@ function createCalloutDecorations(view: EditorView): DecorationSet {
       }
 
       // Skip rendering if cursor is within the callout
-      if (isCursorInRange(view, calloutStartLine, calloutEndLine)) {
+      if (isCursorInRange(selection, doc, calloutStartLine, calloutEndLine)) {
         i = calloutEndLine + 1;
         continue;
       }
 
-      // Decorate the header line
+      const isOnlyLine = calloutStartLine === calloutEndLine;
+
+      // Decorate the header line with block widget and hide the original line
       builder.add(
         line.from,
-        line.to,
-        Decoration.replace({
-          widget: new CalloutHeaderWidget(calloutType, calloutTitle),
+        line.from,
+        Decoration.widget({
+          widget: new CalloutHeaderWidget(calloutType, calloutTitle, isOnlyLine),
+          block: true,
         })
+      );
+
+      // Add line decoration to hide the cm-line element
+      builder.add(
+        line.from,
+        line.from,
+        Decoration.line({ class: 'cm-callout-line-hidden' })
       );
 
       // Decorate content lines
@@ -164,15 +181,22 @@ function createCalloutDecorations(view: EditorView): DecorationSet {
         const contentMatch = contentLine.text.match(/^>\s*(.*)$/);
         if (contentMatch) {
           const content = contentMatch[1];
-          const isFirst = k === calloutStartLine + 1;
           const isLast = k === calloutEndLine;
 
           builder.add(
             contentLine.from,
-            contentLine.to,
-            Decoration.replace({
-              widget: new CalloutContentWidget(content, calloutType, isFirst, isLast),
+            contentLine.from,
+            Decoration.widget({
+              widget: new CalloutContentWidget(content, calloutType, isLast),
+              block: true,
             })
+          );
+
+          // Add line decoration to hide the cm-line element
+          builder.add(
+            contentLine.from,
+            contentLine.from,
+            Decoration.line({ class: 'cm-callout-line-hidden' })
           );
         }
       }
@@ -187,177 +211,59 @@ function createCalloutDecorations(view: EditorView): DecorationSet {
 }
 
 /**
- * Callouts view plugin
+ * Callouts state field - required for block decorations
  */
-const calloutsPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = createCalloutDecorations(view);
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = createCalloutDecorations(update.view);
-      }
-    }
+const calloutsField = StateField.define<DecorationSet>({
+  create(state) {
+    return createCalloutDecorations(state.doc, state.selection.main);
   },
-  {
-    decorations: (v) => v.decorations,
-  }
-);
+  update(decorations, tr) {
+    if (tr.docChanged || tr.selection) {
+      return createCalloutDecorations(tr.state.doc, tr.state.selection.main);
+    }
+    return decorations;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 /**
- * Theme styles for callouts
+ * Theme styles for callouts - no border-left, uses background color only
  */
 const calloutsTheme = EditorView.theme({
+  // Hide the original cm-line elements for callout lines
+  '.cm-callout-line-hidden': {
+    display: 'none !important',
+  },
+
+  // Header styles
   '.cm-callout-header': {
     display: 'block',
     padding: '8px 12px',
     marginTop: '8px',
-    borderLeft: '4px solid var(--callout-color, #3b82f6)',
-    borderTopLeftRadius: '4px',
-    borderTopRightRadius: '4px',
+    borderRadius: '6px 6px 0 0',
+    background: 'var(--callout-bg)',
+    color: 'var(--callout-color)',
     fontWeight: 'var(--font-semibold)',
     fontSize: '0.95em',
   },
-  '.cm-callout-header--note': {
-    background: 'rgba(59, 130, 246, 0.1)',
-    borderColor: '#3b82f6',
-    color: '#1e40af',
+  '.cm-callout-header--only': {
+    borderRadius: '6px',
+    marginBottom: '8px',
   },
-  '.cm-callout-header--tip': {
-    background: 'rgba(16, 185, 129, 0.1)',
-    borderColor: '#10b981',
-    color: '#065f46',
-  },
-  '.cm-callout-header--warning': {
-    background: 'rgba(245, 158, 11, 0.1)',
-    borderColor: '#f59e0b',
-    color: '#92400e',
-  },
-  '.cm-callout-header--danger': {
-    background: 'rgba(239, 68, 68, 0.1)',
-    borderColor: '#ef4444',
-    color: '#991b1b',
-  },
-  '.cm-callout-header--info': {
-    background: 'rgba(59, 130, 246, 0.1)',
-    borderColor: '#3b82f6',
-    color: '#1e40af',
-  },
-  '.cm-callout-header--success': {
-    background: 'rgba(34, 197, 94, 0.1)',
-    borderColor: '#22c55e',
-    color: '#166534',
-  },
-  '.cm-callout-header--question': {
-    background: 'rgba(168, 85, 247, 0.1)',
-    borderColor: '#a855f7',
-    color: '#6b21a8',
-  },
-  '.cm-callout-header--quote': {
-    background: 'rgba(107, 114, 128, 0.1)',
-    borderColor: '#6b7280',
-    color: '#4b5563',
-  },
-  '.cm-callout-header--example': {
-    background: 'rgba(99, 102, 241, 0.1)',
-    borderColor: '#6366f1',
-    color: '#4338ca',
-  },
-  '.cm-callout-header--abstract': {
-    background: 'rgba(6, 182, 212, 0.1)',
-    borderColor: '#06b6d4',
-    color: '#0891b2',
-  },
-  '.cm-callout-header--todo': {
-    background: 'rgba(6, 182, 212, 0.1)',
-    borderColor: '#06b6d4',
-    color: '#0891b2',
-  },
-  '.cm-callout-header--bug': {
-    background: 'rgba(220, 38, 38, 0.1)',
-    borderColor: '#dc2626',
-    color: '#dc2626',
-  },
+
+  // Content styles
   '.cm-callout-content': {
     display: 'block',
     padding: '4px 12px',
-    borderLeft: '4px solid',
-    borderColor: 'inherit',
+    background: 'var(--callout-bg)',
+    color: 'var(--callout-color)',
     fontSize: '0.95em',
     lineHeight: '1.5',
-  },
-  '.cm-callout-content--first': {
-    paddingTop: '0',
   },
   '.cm-callout-content--last': {
     paddingBottom: '8px',
     marginBottom: '8px',
-    borderBottomLeftRadius: '4px',
-    borderBottomRightRadius: '4px',
-  },
-  '.cm-callout-content--note': {
-    background: 'rgba(59, 130, 246, 0.1)',
-    borderColor: '#3b82f6',
-    color: '#1e3a5f',
-  },
-  '.cm-callout-content--tip': {
-    background: 'rgba(16, 185, 129, 0.1)',
-    borderColor: '#10b981',
-    color: '#14532d',
-  },
-  '.cm-callout-content--warning': {
-    background: 'rgba(245, 158, 11, 0.1)',
-    borderColor: '#f59e0b',
-    color: '#78350f',
-  },
-  '.cm-callout-content--danger': {
-    background: 'rgba(239, 68, 68, 0.1)',
-    borderColor: '#ef4444',
-    color: '#7f1d1d',
-  },
-  '.cm-callout-content--info': {
-    background: 'rgba(59, 130, 246, 0.1)',
-    borderColor: '#3b82f6',
-    color: '#1e3a5f',
-  },
-  '.cm-callout-content--success': {
-    background: 'rgba(34, 197, 94, 0.1)',
-    borderColor: '#22c55e',
-    color: '#14532d',
-  },
-  '.cm-callout-content--question': {
-    background: 'rgba(168, 85, 247, 0.1)',
-    borderColor: '#a855f7',
-    color: '#581c87',
-  },
-  '.cm-callout-content--quote': {
-    background: 'rgba(107, 114, 128, 0.1)',
-    borderColor: '#6b7280',
-    color: '#374151',
-  },
-  '.cm-callout-content--example': {
-    background: 'rgba(99, 102, 241, 0.1)',
-    borderColor: '#6366f1',
-    color: '#3730a3',
-  },
-  '.cm-callout-content--abstract': {
-    background: 'rgba(6, 182, 212, 0.1)',
-    borderColor: '#06b6d4',
-    color: '#164e63',
-  },
-  '.cm-callout-content--todo': {
-    background: 'rgba(6, 182, 212, 0.1)',
-    borderColor: '#06b6d4',
-    color: '#164e63',
-  },
-  '.cm-callout-content--bug': {
-    background: 'rgba(220, 38, 38, 0.1)',
-    borderColor: '#dc2626',
-    color: '#991b1b',
+    borderRadius: '0 0 6px 6px',
   },
 });
 
@@ -365,5 +271,5 @@ const calloutsTheme = EditorView.theme({
  * Create the callouts extension
  */
 export function calloutsExtension(): Extension[] {
-  return [calloutsPlugin, calloutsTheme];
+  return [calloutsField, calloutsTheme];
 }
