@@ -186,6 +186,13 @@ export function CodeMirrorEditor({
         EditorView.lineWrapping,
         placeholder(placeholderText),
 
+        // iOS spell check and autocorrect
+        EditorView.contentAttributes.of({
+          spellcheck: 'true',
+          autocorrect: 'on',
+          autocapitalize: 'sentences',
+        }),
+
         // Listeners
         updateListener,
         blurHandler,

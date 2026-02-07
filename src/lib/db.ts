@@ -1,6 +1,6 @@
 import { createRxDatabase, addRxPlugin, RxCollection, RxDatabase } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
-import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
+import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { wrappedValidateZSchemaStorage } from 'rxdb/plugins/validate-z-schema';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 // Only in development
 if (process.env.NODE_ENV === 'development') {
   addRxPlugin(RxDBDevModePlugin);
+  disableWarnings();
 }
 
 const baseFields = {

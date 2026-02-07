@@ -431,6 +431,15 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
       // Parse inline markdown in content
       if (content) {
         parseInlineMarkdown(content, contentStart, decorations, isActive);
+
+        // Add strikethrough and fade for completed tasks
+        if ((checkboxState === 'x' || checkboxState === 'X') && !isActive) {
+          decorations.push({
+            from: contentStart,
+            to: contentStart + content.length,
+            decoration: Decoration.mark({ class: 'cm-ir-task-completed' }),
+          });
+        }
       }
       continue;
     }
@@ -680,6 +689,12 @@ const instantRenderTheme = EditorView.theme({
     content: '"—"',
     color: 'var(--color-ink-300)',
     opacity: '0.6',
+  },
+
+  // Completed task content
+  '.cm-ir-task-completed': {
+    textDecoration: 'line-through',
+    opacity: '0.4',
   },
 
   // Blockquotes
