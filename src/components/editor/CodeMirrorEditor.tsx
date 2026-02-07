@@ -10,6 +10,7 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from '@/lib/db';
 import { wikiLinkExtension } from './extensions/wikilink';
 import { instantRenderExtension } from './extensions/instantRender';
+import { calloutsExtension } from './extensions/callouts';
 import { typewriterExtension } from './extensions/typewriter';
 import { focusExtension, type FocusLevel } from './extensions/focus';
 import type { WritingMode } from './FocusSettings';
@@ -174,6 +175,9 @@ export function CodeMirrorEditor({
 
         // Instant render (hide markdown when not editing)
         ...instantRenderExtension(),
+
+        // Callouts (Obsidian-style)
+        ...calloutsExtension(),
 
         // Writing modes (typewriter, focus) - dynamically reconfigurable
         writingModeCompartmentRef.current.of([]),

@@ -1,6 +1,6 @@
 -- Note versions table for version history
 CREATE TABLE note_versions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   note_id UUID NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
   content TEXT,
   properties JSONB,
@@ -27,9 +27,3 @@ CREATE POLICY "Allow all operations on note_versions"
   FOR ALL
   USING (true)
   WITH CHECK (true);
-
--- Add updated_at trigger
-CREATE TRIGGER update_note_versions_updated_at
-  BEFORE UPDATE ON note_versions
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();

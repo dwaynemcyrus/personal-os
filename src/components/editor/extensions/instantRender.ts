@@ -118,6 +118,83 @@ class HorizontalRuleWidget extends WidgetType {
 }
 
 /**
+ * Widget for interactive checkboxes with custom states
+ */
+class CheckboxWidget extends WidgetType {
+  constructor(
+    readonly state: string,
+    readonly lineFrom: number
+  ) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const config = CHECKBOX_STATES[this.state] || CHECKBOX_STATES[' '];
+    const span = document.createElement('span');
+    span.className = `cm-ir-checkbox-widget ${config.className}`;
+    span.textContent = config.icon + ' ';
+    span.dataset.checkboxState = this.state;
+    span.dataset.lineFrom = String(this.lineFrom);
+    span.style.cursor = 'pointer';
+    span.setAttribute('role', 'checkbox');
+    span.setAttribute('aria-checked', this.state === 'x' || this.state === 'X' ? 'true' : 'false');
+    return span;
+  }
+
+  ignoreEvent(): boolean {
+    // Allow click events to pass through
+    return false;
+  }
+
+  eq(other: CheckboxWidget): boolean {
+    return this.state === other.state && this.lineFrom === other.lineFrom;
+  }
+}
+
+/**
+ * Widget for footnote references
+ */
+class FootnoteRefWidget extends WidgetType {
+  constructor(readonly id: string) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const sup = document.createElement('sup');
+    sup.className = 'cm-ir-footnote-ref';
+    sup.textContent = `[${this.id}]`;
+    sup.title = `Footnote ${this.id}`;
+    return sup;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+
+  eq(other: FootnoteRefWidget): boolean {
+    return this.id === other.id;
+  }
+}
+
+/**
+ * Custom checkbox states and their display
+ */
+const CHECKBOX_STATES: Record<string, { icon: string; className: string }> = {
+  ' ': { icon: '\u2610', className: 'cm-ir-checkbox' },           // ☐ Unchecked
+  'x': { icon: '\u2611', className: 'cm-ir-checkbox-checked' },   // ☑ Checked
+  'X': { icon: '\u2611', className: 'cm-ir-checkbox-checked' },   // ☑ Checked
+  '>': { icon: '\u27A1', className: 'cm-ir-checkbox-forwarded' }, // ➡ Forwarded
+  '<': { icon: '\u2716', className: 'cm-ir-checkbox-cancelled' }, // ✖ Cancelled
+  '!': { icon: '\u2757', className: 'cm-ir-checkbox-important' }, // ❗ Important
+  '?': { icon: '\u2753', className: 'cm-ir-checkbox-question' },  // ❓ Question
+  '/': { icon: '\u25D4', className: 'cm-ir-checkbox-progress' },  // ◔ In progress
+  '-': { icon: '\u2014', className: 'cm-ir-checkbox-irrelevant' }, // — Irrelevant
+};
+
+// Cycle order for clicking checkboxes
+const CHECKBOX_CYCLE = [' ', 'x', '>', '/', '!', '?', '-', '<'];
+
+/**
  * Patterns for inline markdown syntax
  */
 const INLINE_PATTERNS = {
@@ -127,12 +204,16 @@ const INLINE_PATTERNS = {
   italic: /(?<!\*|_)(\*|_)(?!\*|_)(?=\S)([^\*_]+?)(?<=\S)\1(?!\*|_)/g,
   // Strikethrough: ~~text~~
   strikethrough: /~~(?=\S)(.+?)(?<=\S)~~/g,
+  // Highlight: ==text==
+  highlight: /==(.+?)==/g,
   // Inline code: `code`
   inlineCode: /`([^`\n]+)`/g,
   // Links: [text](url)
   link: /\[([^\]]+)\]\(([^)]+)\)/g,
   // Images: ![alt](url)
   image: /!\[([^\]]*)\]\(([^)]+)\)/g,
+  // Footnote reference: [^id]
+  footnoteRef: /\[\^([^\]]+)\]/g,
 };
 
 /**
@@ -228,8 +309,8 @@ function parseInlineMarkdown(
     });
   }
 
-  // Links [text](url)
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  // Links [text](url) - but not footnotes
+  const linkRegex = /\[([^\]^][^\]]*)\]\(([^)]+)\)/g;
   while ((match = linkRegex.exec(lineText)) !== null) {
     const fullMatch = match[0];
     const text = match[1];
@@ -242,6 +323,52 @@ function parseInlineMarkdown(
       to,
       decoration: Decoration.replace({
         widget: new LinkWidget(text, url),
+      }),
+    });
+  }
+
+  // Highlight ==text==
+  const highlightRegex = /==(.+?)==/g;
+  while ((match = highlightRegex.exec(lineText)) !== null) {
+    const fullMatch = match[0];
+    const content = match[1];
+    const from = lineFrom + match.index;
+    const to = from + fullMatch.length;
+
+    // Check for overlaps
+    const overlaps = decorations.some(
+      (d) => (from >= d.from && from < d.to) || (to > d.from && to <= d.to)
+    );
+    if (overlaps) continue;
+
+    decorations.push({
+      from,
+      to,
+      decoration: Decoration.replace({
+        widget: new FormattedTextWidget(content, 'cm-ir-highlight'),
+      }),
+    });
+  }
+
+  // Footnote references [^id] - but not definitions
+  const footnoteRefRegex = /\[\^([^\]]+)\](?!:)/g;
+  while ((match = footnoteRefRegex.exec(lineText)) !== null) {
+    const fullMatch = match[0];
+    const id = match[1];
+    const from = lineFrom + match.index;
+    const to = from + fullMatch.length;
+
+    // Check for overlaps
+    const overlaps = decorations.some(
+      (d) => (from >= d.from && from < d.to) || (to > d.from && to <= d.to)
+    );
+    if (overlaps) continue;
+
+    decorations.push({
+      from,
+      to,
+      decoration: Decoration.replace({
+        widget: new FootnoteRefWidget(id),
       }),
     });
   }
@@ -319,24 +446,20 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
       continue;
     }
 
-    // Task list: - [ ] or - [x] (MUST be checked before unordered list)
-    const taskMatch = lineText.match(/^(\s*[-*+])\s+\[([ xX])\]\s+(.*)$/);
+    // Task list: - [ ] or - [x] or custom states (MUST be checked before unordered list)
+    const taskMatch = lineText.match(/^(\s*[-*+])\s+\[([ xX><!?/\-])\]\s+(.*)$/);
     if (taskMatch) {
       const prefix = taskMatch[1];
-      const checked = taskMatch[2].toLowerCase() === 'x';
+      const checkboxState = taskMatch[2];
       const content = taskMatch[3];
-      const checkboxStart = lineFrom + prefix.length + 1;
-      const checkboxEnd = checkboxStart + 3; // [ ] or [x]
+      const checkboxEnd = lineFrom + prefix.length + 1 + 3; // prefix + space + [x]
 
-      // Replace entire prefix and checkbox with styled checkbox
+      // Replace entire prefix and checkbox with interactive checkbox widget
       decorations.push({
         from: lineFrom,
         to: checkboxEnd + 1, // +1 for space after checkbox
         decoration: Decoration.replace({
-          widget: new FormattedTextWidget(
-            checked ? '\u2611 ' : '\u2610 ',
-            checked ? 'cm-ir-checkbox-checked' : 'cm-ir-checkbox'
-          ),
+          widget: new CheckboxWidget(checkboxState, lineFrom),
         }),
       });
 
@@ -525,12 +648,52 @@ const instantRenderTheme = EditorView.theme({
     fontVariantNumeric: 'tabular-nums',
   },
 
-  // Checkboxes
+  // Highlight
+  '.cm-ir-highlight': {
+    background: 'var(--color-highlight, rgba(255, 235, 59, 0.4))',
+    padding: '1px 2px',
+    borderRadius: '2px',
+  },
+
+  // Footnotes
+  '.cm-ir-footnote-ref': {
+    color: 'var(--color-link)',
+    cursor: 'pointer',
+    fontSize: '0.85em',
+    verticalAlign: 'super',
+  },
+
+  // Checkboxes - base widget
+  '.cm-ir-checkbox-widget': {
+    cursor: 'pointer',
+    userSelect: 'none',
+  },
   '.cm-ir-checkbox': {
     color: 'var(--color-ink-400)',
   },
   '.cm-ir-checkbox-checked': {
     color: 'var(--color-success)',
+  },
+  '.cm-ir-checkbox-forwarded': {
+    color: 'var(--color-info, #3b82f6)',
+  },
+  '.cm-ir-checkbox-cancelled': {
+    color: 'var(--color-danger, #ef4444)',
+    textDecoration: 'line-through',
+  },
+  '.cm-ir-checkbox-important': {
+    color: 'var(--color-warning, #f59e0b)',
+    fontWeight: 'bold',
+  },
+  '.cm-ir-checkbox-question': {
+    color: 'var(--color-info, #8b5cf6)',
+  },
+  '.cm-ir-checkbox-progress': {
+    color: 'var(--color-warning, #f59e0b)',
+  },
+  '.cm-ir-checkbox-irrelevant': {
+    color: 'var(--color-ink-300)',
+    opacity: '0.6',
   },
 
   // Blockquotes
@@ -550,8 +713,59 @@ const instantRenderTheme = EditorView.theme({
 });
 
 /**
+ * Click handler for interactive checkboxes
+ */
+const checkboxClickHandler = EditorView.domEventHandlers({
+  click: (event, view) => {
+    const target = event.target as HTMLElement;
+
+    // Check if click was on a checkbox widget
+    if (!target.classList.contains('cm-ir-checkbox-widget')) {
+      return false;
+    }
+
+    const lineFromStr = target.dataset.lineFrom;
+    const currentState = target.dataset.checkboxState;
+
+    if (!lineFromStr || currentState === undefined) {
+      return false;
+    }
+
+    const lineFrom = parseInt(lineFromStr, 10);
+    const line = view.state.doc.lineAt(lineFrom);
+    const lineText = line.text;
+
+    // Find the checkbox pattern in the line
+    const checkboxMatch = lineText.match(/^(\s*[-*+]\s+\[)([ xX><!?/\-])(\].*)$/);
+    if (!checkboxMatch) {
+      return false;
+    }
+
+    // Determine next state in cycle
+    const currentIndex = CHECKBOX_CYCLE.indexOf(currentState);
+    const nextIndex = (currentIndex + 1) % CHECKBOX_CYCLE.length;
+    const nextState = CHECKBOX_CYCLE[nextIndex];
+
+    // Build the new line with updated checkbox state
+    const newLine = checkboxMatch[1] + nextState + checkboxMatch[3];
+
+    // Apply the change
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.to,
+        insert: newLine,
+      },
+    });
+
+    event.preventDefault();
+    return true;
+  },
+});
+
+/**
  * Create the instant render extension
  */
 export function instantRenderExtension(): Extension[] {
-  return [instantRenderPlugin, instantRenderTheme];
+  return [instantRenderPlugin, instantRenderTheme, checkboxClickHandler];
 }
