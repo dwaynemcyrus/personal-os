@@ -570,31 +570,50 @@ const instantRenderTheme = EditorView.theme({
   '.cm-ir-header': {
     fontWeight: 'var(--font-semibold)',
     color: 'var(--color-ink-900)',
+    textDecoration: 'none',
+    display: 'inline-block',
   },
   '.cm-ir-header-1': {
     fontSize: '1.6em',
     lineHeight: '1.3',
+    paddingBottom: '12px',
+    textDecoration: 'none',
   },
   '.cm-ir-header-2': {
     fontSize: '1.4em',
     lineHeight: '1.35',
+    paddingTop: '24px',
+    paddingBottom: '12px',
+    textDecoration: 'none',
   },
   '.cm-ir-header-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
+    paddingTop: '24px',
+    paddingBottom: '12px',
+    textDecoration: 'none',
   },
   '.cm-ir-header-4': {
     fontSize: '1.125em',
     lineHeight: '1.45',
+    paddingTop: '24px',
+    paddingBottom: '12px',
+    textDecoration: 'none',
   },
   '.cm-ir-header-5': {
     fontSize: '1em',
     lineHeight: '1.5',
+    paddingTop: '24px',
+    paddingBottom: '12px',
+    textDecoration: 'none',
   },
   '.cm-ir-header-6': {
     fontSize: '0.95em',
     lineHeight: '1.5',
     color: 'var(--color-ink-700)',
+    paddingTop: '24px',
+    paddingBottom: '12px',
+    textDecoration: 'none',
   },
 
   // Inline styles
