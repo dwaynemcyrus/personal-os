@@ -16,6 +16,7 @@ Last updated: February 4, 2026
 - [x] Basic Next.js project structure
 - [x] TypeScript strict mode
 - [x] Agent files (architecture, frontend, execplans)
+- [x] Single-route architecture note (`docs/single-route-architecture.md`)
 
 ### 🚧 In Progress
 - [x] Verify sync works offline→online
