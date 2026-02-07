@@ -1,11 +1,13 @@
 .editor {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 0;
   height: 100%;
   padding: 0;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+  margin-left: 20px;
+  margin-right: 20px;
 }
 
 .header {

@@ -32,7 +32,6 @@ import type { NoteProperties } from '@/lib/db';
 import { syncNoteLinks } from '@/lib/noteLinks';
 import {
   extractNoteTitle,
-  formatNoteTitle,
   formatRelativeTime,
 } from '../noteUtils';
 import styles from './NoteEditor.module.css';
@@ -99,11 +98,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const derivedTitle = useMemo(
     () => extractNoteTitle(content, note?.title),
     [content, note?.title]
-  );
-
-  const displayTitle = useMemo(
-    () => formatNoteTitle(derivedTitle),
-    [derivedTitle]
   );
 
   const updatedLabel = useMemo(
@@ -338,7 +332,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   return (
     <section className={styles.editor}>
       <header className={styles.header}>
-        <div className={styles.title}>{displayTitle}</div>
         {onClose ? (
           <>
             <div className={`${styles.headerActions} ${styles.headerActionsLeft}`}>
