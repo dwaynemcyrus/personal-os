@@ -29,6 +29,13 @@
   user-select: text;
 }
 
+.editor :global(.cm-line:has(.cm-ir-checkbox-widget)),
+.editor :global(.cm-line:has(.cm-ir-bullet)),
+.editor :global(.cm-line:has(.cm-ir-list-number)) {
+  padding-left: 32px;
+  text-indent: -32px;
+}
+
 .editor :global(.\00037C7) {
   text-decoration: none;
 }

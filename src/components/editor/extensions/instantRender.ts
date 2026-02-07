@@ -673,10 +673,16 @@ const instantRenderTheme = EditorView.theme({
     position: 'relative',
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
+    verticalAlign: 'middle',
   },
   '.cm-ir-checkbox-widget::before': {
     fontSize: '20px',
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '20px',
+    maxWidth: '20px',
     marginRight: '6px',
   },
   '.cm-ir-checkbox::before': {
