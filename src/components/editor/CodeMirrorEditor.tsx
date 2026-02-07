@@ -9,6 +9,7 @@ import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from '@/lib/db';
 import { wikiLinkExtension } from './extensions/wikilink';
+import { instantRenderExtension } from './extensions/instantRender';
 import styles from './CodeMirrorEditor.module.css';
 
 type CodeMirrorEditorProps = {
@@ -87,6 +88,9 @@ export function CodeMirrorEditor({
             onWikiLinkClickRef.current?.(target, noteId);
           },
         }),
+
+        // Instant render (hide markdown when not editing)
+        ...instantRenderExtension(),
 
         // UI
         EditorView.lineWrapping,

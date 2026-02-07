@@ -113,6 +113,15 @@ export const noteLinkSchema = z.object({
   position: z.number().int().nonnegative(), // Character position in source content
 });
 
+export const templateSchema = z.object({
+  ...baseFields,
+  title: z.string(), // Template name
+  content: z.string(), // Template content with variables like {{date}}, {{title}}
+  description: z.string().nullable(), // Brief description of template purpose
+  category: z.string().nullable(), // Category for grouping (daily, meeting, etc.)
+  sort_order: z.number().int().nonnegative(), // For custom ordering
+});
+
 export const timeEntrySchema = z.object({
   ...baseFields,
   task_id: z.string().uuid().nullable(),
@@ -297,6 +306,28 @@ const noteLinksRxSchema = {
     'position',
   ],
   indexes: ['source_id'],
+};
+
+const templatesRxSchema = {
+  version: 1,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    title: { type: 'string' },
+    content: { type: 'string' },
+    description: { type: ['string', 'null'] },
+    category: { type: ['string', 'null'] },
+    sort_order: { type: 'number' },
+  },
+  required: [
+    ...baseRequired,
+    'title',
+    'content',
+    'description',
+    'category',
+    'sort_order',
+  ],
 };
 
 const timeEntriesRxSchema = {
@@ -522,6 +553,7 @@ export type HabitDocument = z.infer<typeof habitSchema>;
 export type HabitCompletionDocument = z.infer<typeof habitCompletionSchema>;
 export type TimeEntryDocument = z.infer<typeof timeEntrySchema>;
 export type NoteLinkDocument = z.infer<typeof noteLinkSchema>;
+export type TemplateDocument = z.infer<typeof templateSchema>;
 
 export type DatabaseCollections = {
   sync_test: RxCollection<SyncTestDocument>;
@@ -532,6 +564,7 @@ export type DatabaseCollections = {
   habit_completions: RxCollection<HabitCompletionDocument>;
   time_entries: RxCollection<TimeEntryDocument>;
   note_links: RxCollection<NoteLinkDocument>;
+  templates: RxCollection<TemplateDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -578,6 +611,10 @@ export async function getDatabase() {
       },
       note_links: {
         schema: noteLinksRxSchema,
+        migrationStrategies: softDeleteMigrationStrategies,
+      },
+      templates: {
+        schema: templatesRxSchema,
         migrationStrategies: softDeleteMigrationStrategies,
       },
     });

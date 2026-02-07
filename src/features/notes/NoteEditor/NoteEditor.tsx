@@ -17,6 +17,7 @@ import {
   PropertiesSheet,
   BacklinksPanel,
   UnlinkedMentions,
+  TemplatePicker,
 } from '@/components/editor';
 import type { NoteProperties } from '@/lib/db';
 import { syncNoteLinks } from '@/lib/noteLinks';
@@ -43,6 +44,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -221,6 +224,21 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     }
   }, []);
 
+  const handleTemplateSelect = useCallback((templateContent: string) => {
+    // If note is empty, replace content; otherwise prepend template
+    const currentContent = content.trim();
+    const newContent = currentContent
+      ? `${templateContent}\n\n${currentContent}`
+      : templateContent;
+
+    setContent(newContent);
+    setIsDirty(true);
+    scheduleSave(newContent);
+
+    // Force editor remount with new content
+    setEditorKey((k) => k + 1);
+  }, [content, scheduleSave]);
+
   if (!noteId) {
     return (
       <section className={styles.editor}>
@@ -268,6 +286,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
                 Properties
               </DropdownItem>
+              <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
+                Insert Template
+              </DropdownItem>
               <DropdownItem onSelect={handleTogglePinned}>
                 {note.is_pinned ? 'Unpin' : 'Pin'}
               </DropdownItem>
@@ -281,6 +302,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       </header>
 
       <CodeMirrorEditor
+        key={editorKey}
         initialContent={content}
         onChange={handleChange}
         onBlur={handleBlur}
@@ -312,6 +334,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         noteId={noteId}
         properties={note.properties ?? null}
         onSave={handleSaveProperties}
+      />
+
+      <TemplatePicker
+        open={isTemplatePickerOpen}
+        onOpenChange={setIsTemplatePickerOpen}
+        onSelect={handleTemplateSelect}
+        customTitle={derivedTitle !== 'Untitled' ? derivedTitle : undefined}
       />
     </section>
   );
