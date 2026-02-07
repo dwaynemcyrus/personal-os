@@ -23,7 +23,9 @@
       "Bash(git checkout:*)",
       "Bash(npm install:*)",
       "Bash(npm ls:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)"
     ]
   }
 }
