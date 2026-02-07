@@ -12,6 +12,7 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 import {
   CodeMirrorEditor,
   PropertiesSheet,
@@ -55,6 +56,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [isFocusSettingsOpen, setIsFocusSettingsOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isLinksSheetOpen, setIsLinksSheetOpen] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [writingModeSettings, setWritingModeSettings] = useState<WritingModeSettings>({
     mode: 'normal',
@@ -336,44 +338,51 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   return (
     <section className={styles.editor}>
       <header className={styles.header}>
-        <div>
-          <div className={styles.title}>{displayTitle}</div>
-          <div className={styles.meta}>Updated {updatedLabel}</div>
-        </div>
+        <div className={styles.title}>{displayTitle}</div>
         {onClose ? (
-          <Dropdown>
-            <DropdownTrigger asChild>
-              <button
-                type="button"
-                className={styles.more}
-                aria-label="Note actions"
-              >
-                <MoreIcon />
-              </button>
-            </DropdownTrigger>
-            <DropdownContent align="end" sideOffset={12}>
-              <DropdownItem onSelect={handleClose}>Close</DropdownItem>
-              <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
-                Properties
-              </DropdownItem>
-              <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
-                Insert Template
-              </DropdownItem>
-              <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
-                Writing Mode
-              </DropdownItem>
-              <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
-                Version History
-              </DropdownItem>
-              <DropdownItem onSelect={handleTogglePinned}>
-                {note.is_pinned ? 'Unpin' : 'Pin'}
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem data-variant="danger" onSelect={handleDelete}>
-                Trash
-              </DropdownItem>
-            </DropdownContent>
-          </Dropdown>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.actionButton}
+              aria-label="Note info"
+              onClick={() => setIsLinksSheetOpen(true)}
+            >
+              <InfoIcon />
+            </button>
+            <Dropdown>
+              <DropdownTrigger asChild>
+                <button
+                  type="button"
+                  className={styles.actionButton}
+                  aria-label="Note actions"
+                >
+                  <MoreIcon />
+                </button>
+              </DropdownTrigger>
+              <DropdownContent align="end" sideOffset={12}>
+                <DropdownItem onSelect={handleClose}>Close</DropdownItem>
+                <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
+                  Properties
+                </DropdownItem>
+                <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
+                  Insert Template
+                </DropdownItem>
+                <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
+                  Writing Mode
+                </DropdownItem>
+                <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
+                  Version History
+                </DropdownItem>
+                <DropdownItem onSelect={handleTogglePinned}>
+                  {note.is_pinned ? 'Unpin' : 'Pin'}
+                </DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem data-variant="danger" onSelect={handleDelete}>
+                  Trash
+                </DropdownItem>
+              </DropdownContent>
+            </Dropdown>
+          </div>
         ) : null}
       </header>
 
@@ -395,21 +404,42 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         onSaveVersion={handleSaveVersion}
       />
 
-      <BacklinksPanel
-        noteId={noteId}
-        db={db}
-        onNavigate={(targetNoteId) => {
-          pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
-        }}
-      />
-
-      <UnlinkedMentions
-        noteTitle={derivedTitle}
-        db={db}
-        onNavigate={(targetNoteId) => {
-          pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
-        }}
-      />
+      <Sheet open={isLinksSheetOpen} onOpenChange={setIsLinksSheetOpen}>
+        <SheetContent side="bottom">
+          <div className={styles.linksSheet}>
+            <div className={styles.linksSheetHeader}>
+              <SheetTitle className={styles.linksSheetTitle}>Info</SheetTitle>
+              <button
+                type="button"
+                className={styles.linksSheetClose}
+                onClick={() => setIsLinksSheetOpen(false)}
+                aria-label="Close"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className={styles.infoMeta}>Updated {updatedLabel}</div>
+            <div className={styles.linksContent}>
+              <BacklinksPanel
+                noteId={noteId}
+                db={db}
+                onNavigate={(targetNoteId) => {
+                  setIsLinksSheetOpen(false);
+                  pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
+                }}
+              />
+              <UnlinkedMentions
+                noteTitle={derivedTitle}
+                db={db}
+                onNavigate={(targetNoteId) => {
+                  setIsLinksSheetOpen(false);
+                  pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
+                }}
+              />
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <PropertiesSheet
         open={isPropertiesOpen}
@@ -444,6 +474,26 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   );
 }
 
+function InfoIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={styles.actionIcon}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
 function MoreIcon() {
   return (
     <svg
@@ -451,11 +501,30 @@ function MoreIcon() {
       aria-hidden="true"
       focusable="false"
       fill="currentColor"
-      className={styles.moreIcon}
+      className={styles.actionIcon}
     >
       <circle cx="12" cy="5" r="2" />
       <circle cx="12" cy="12" r="2" />
       <circle cx="12" cy="19" r="2" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={styles.actionIcon}
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
 }
