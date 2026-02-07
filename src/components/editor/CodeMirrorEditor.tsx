@@ -209,6 +209,7 @@ export function CodeMirrorEditor({
             fontFamily: 'var(--font-atten), ui-sans-serif, system-ui, sans-serif',
             fontSize: '16px',
             padding: '0',
+            paddingTop: '64px',
             lineHeight: 'normal',
             caretColor: 'var(--color-ink-900)',
           },
