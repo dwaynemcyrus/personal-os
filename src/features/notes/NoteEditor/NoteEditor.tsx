@@ -340,49 +340,61 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       <header className={styles.header}>
         <div className={styles.title}>{displayTitle}</div>
         {onClose ? (
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              className={styles.actionButton}
-              aria-label="Note info"
-              onClick={() => setIsLinksSheetOpen(true)}
-            >
-              <InfoIcon />
-            </button>
-            <Dropdown>
-              <DropdownTrigger asChild>
-                <button
-                  type="button"
-                  className={styles.actionButton}
-                  aria-label="Note actions"
-                >
-                  <MoreIcon />
-                </button>
-              </DropdownTrigger>
-              <DropdownContent align="end" sideOffset={12}>
-                <DropdownItem onSelect={handleClose}>Close</DropdownItem>
-                <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
-                  Properties
-                </DropdownItem>
-                <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
-                  Insert Template
-                </DropdownItem>
-                <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
-                  Writing Mode
-                </DropdownItem>
-                <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
-                  Version History
-                </DropdownItem>
-                <DropdownItem onSelect={handleTogglePinned}>
-                  {note.is_pinned ? 'Unpin' : 'Pin'}
-                </DropdownItem>
-                <DropdownSeparator />
-                <DropdownItem data-variant="danger" onSelect={handleDelete}>
-                  Trash
-                </DropdownItem>
-              </DropdownContent>
-            </Dropdown>
-          </div>
+          <>
+            <div className={`${styles.headerActions} ${styles.headerActionsLeft}`}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                aria-label="Go back"
+                onClick={handleClose}
+              >
+                <BackIcon />
+              </button>
+            </div>
+            <div className={`${styles.headerActions} ${styles.headerActionsRight}`}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                aria-label="Note info"
+                onClick={() => setIsLinksSheetOpen(true)}
+              >
+                <InfoIcon />
+              </button>
+              <Dropdown>
+                <DropdownTrigger asChild>
+                  <button
+                    type="button"
+                    className={styles.actionButton}
+                    aria-label="Note actions"
+                  >
+                    <MoreIcon />
+                  </button>
+                </DropdownTrigger>
+                <DropdownContent align="end" sideOffset={12}>
+                  <DropdownItem onSelect={handleClose}>Close</DropdownItem>
+                  <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
+                    Properties
+                  </DropdownItem>
+                  <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
+                    Insert Template
+                  </DropdownItem>
+                  <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
+                    Writing Mode
+                  </DropdownItem>
+                  <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
+                    Version History
+                  </DropdownItem>
+                  <DropdownItem onSelect={handleTogglePinned}>
+                    {note.is_pinned ? 'Unpin' : 'Pin'}
+                  </DropdownItem>
+                  <DropdownSeparator />
+                  <DropdownItem data-variant="danger" onSelect={handleDelete}>
+                    Trash
+                  </DropdownItem>
+                </DropdownContent>
+              </Dropdown>
+            </div>
+          </>
         ) : null}
       </header>
 
@@ -490,6 +502,24 @@ function InfoIcon() {
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="16" x2="12" y2="12" />
       <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={styles.actionIcon}
+    >
+      <path d="M15 18l-6-6 6-6" />
     </svg>
   );
 }

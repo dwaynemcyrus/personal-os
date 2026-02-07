@@ -29,10 +29,19 @@
   padding-right: 12px;
   position: fixed;
   top: 12px;
-  right: 0;
   z-index: var(--z-sticky);
+}
+
+.headerActionsRight {
+  right: 0;
   border-top-left-radius: 20px;
   border-bottom-left-radius: 20px;
+}
+
+.headerActionsLeft {
+  left: 0;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
 }
 
 .actionButton {
