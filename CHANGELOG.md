@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0 - 2026-02-07
+- Added version history system with note_versions table (Supabase migration + RxDB schema)
+- Added auto-save versions every 30 minutes during editing
+- Added manual version save with Cmd+S keyboard shortcut
+- Added version history UI with list, preview, and side-by-side compare views
+- Added version restore with automatic pre-restore backup
+- Added Obsidian-style callouts with 12 types (note, tip, warning, danger, info, success, question, quote, example, abstract, todo, bug)
+- Added custom checkbox states: unchecked, checked, forwarded, cancelled, important, question, in-progress, irrelevant
+- Added interactive checkboxes that cycle through states on click
+- Added highlight syntax (==text==) with yellow background rendering
+- Added footnote reference rendering ([^id] as superscript)
+
 ## 0.10.0 - 2026-02-07
 - Added templates system with RxDB collection, Supabase sync, and template picker UI
 - Added template variable replacement ({{date}}, {{time}}, {{title}}, {{year}}, {{month}}, {{day}}, {{weekday}})
