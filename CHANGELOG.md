@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 - 2026-02-07
+- Added templates system with RxDB collection, Supabase sync, and template picker UI
+- Added template variable replacement ({{date}}, {{time}}, {{title}}, {{year}}, {{month}}, {{day}}, {{weekday}})
+- Added instant markdown rendering extension (Bear-like editing experience)
+- Hides markdown syntax when cursor not on line, reveals on edit
+- Supports headers, bold, italic, strikethrough, inline code, links
+- Supports unordered lists, ordered lists, task lists with checkboxes
+- Supports blockquotes with left border styling and horizontal rules
+- Added typewriter mode (keeps cursor vertically centered while typing)
+- Added focus mode with line/sentence/paragraph dimming levels
+- Added focus intensity slider for controlling dim opacity
+- Added Writing Mode settings sheet with mode selection UI
+- Added keyboard shortcuts for focus modes (Cmd+Shift+T, Cmd+Shift+F)
+- Integrated writing modes into NoteEditor with dynamic extension reconfiguration
+
 ## 0.9.2 - 2026-02-06
 - Fixed TaskList filter buttons overflow on mobile by switching to flexbox with wrap
 - Fixed touch targets in InboxWizard (closeButton, extractButton) to meet 44px minimum

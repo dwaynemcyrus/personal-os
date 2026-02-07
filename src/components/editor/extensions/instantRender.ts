@@ -535,7 +535,7 @@ const instantRenderTheme = EditorView.theme({
 
   // Blockquotes
   '.cm-ir-blockquote-line': {
-    borderLeft: '3px solid var(--color-ink-200)',
+    borderLeft: '3px solid var(--color-ink-400)',
     paddingLeft: '12px',
     color: 'var(--color-ink-600)',
     fontStyle: 'italic',

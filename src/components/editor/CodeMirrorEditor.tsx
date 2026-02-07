@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { EditorState } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -10,6 +10,9 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from '@/lib/db';
 import { wikiLinkExtension } from './extensions/wikilink';
 import { instantRenderExtension } from './extensions/instantRender';
+import { typewriterExtension } from './extensions/typewriter';
+import { focusExtension, type FocusLevel } from './extensions/focus';
+import type { WritingMode } from './FocusSettings';
 import styles from './CodeMirrorEditor.module.css';
 
 type CodeMirrorEditorProps = {
@@ -20,6 +23,11 @@ type CodeMirrorEditorProps = {
   placeholderText?: string;
   autoFocus?: boolean;
   db?: RxDatabase<DatabaseCollections> | null;
+  writingMode?: WritingMode;
+  focusLevel?: FocusLevel;
+  focusIntensity?: number;
+  onToggleTypewriter?: () => void;
+  onToggleFocus?: () => void;
 };
 
 export function CodeMirrorEditor({
@@ -30,12 +38,20 @@ export function CodeMirrorEditor({
   placeholderText = 'Start writing...',
   autoFocus = true,
   db = null,
+  writingMode = 'normal',
+  focusLevel = 'sentence',
+  focusIntensity = 0.3,
+  onToggleTypewriter,
+  onToggleFocus,
 }: CodeMirrorEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const writingModeCompartmentRef = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onWikiLinkClickRef = useRef(onWikiLinkClick);
+  const onToggleTypewriterRef = useRef(onToggleTypewriter);
+  const onToggleFocusRef = useRef(onToggleFocus);
 
   // Keep refs updated without recreating editor
   useEffect(() => {
@@ -49,6 +65,39 @@ export function CodeMirrorEditor({
   useEffect(() => {
     onWikiLinkClickRef.current = onWikiLinkClick;
   }, [onWikiLinkClick]);
+
+  useEffect(() => {
+    onToggleTypewriterRef.current = onToggleTypewriter;
+  }, [onToggleTypewriter]);
+
+  useEffect(() => {
+    onToggleFocusRef.current = onToggleFocus;
+  }, [onToggleFocus]);
+
+  // Build writing mode extensions based on settings
+  const getWritingModeExtensions = useCallback(() => {
+    const extensions: ReturnType<typeof typewriterExtension> = [];
+
+    if (writingMode === 'typewriter' || writingMode === 'both') {
+      extensions.push(...typewriterExtension());
+    }
+
+    if (writingMode === 'focus' || writingMode === 'both') {
+      extensions.push(...focusExtension(focusLevel, focusIntensity));
+    }
+
+    return extensions;
+  }, [writingMode, focusLevel, focusIntensity]);
+
+  // Update writing mode extensions when settings change
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    view.dispatch({
+      effects: writingModeCompartmentRef.current.reconfigure(getWritingModeExtensions()),
+    });
+  }, [getWritingModeExtensions]);
 
   // Create editor once on mount
   useEffect(() => {
@@ -70,12 +119,31 @@ export function CodeMirrorEditor({
       },
     });
 
+    // Keyboard shortcuts for writing modes
+    const writingModeKeymap = keymap.of([
+      {
+        key: 'Mod-Shift-t',
+        run: () => {
+          onToggleTypewriterRef.current?.();
+          return true;
+        },
+      },
+      {
+        key: 'Mod-Shift-f',
+        run: () => {
+          onToggleFocusRef.current?.();
+          return true;
+        },
+      },
+    ]);
+
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
         // Core
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
+        writingModeKeymap,
 
         // Markdown
         markdown(),
@@ -91,6 +159,9 @@ export function CodeMirrorEditor({
 
         // Instant render (hide markdown when not editing)
         ...instantRenderExtension(),
+
+        // Writing modes (typewriter, focus) - dynamically reconfigurable
+        writingModeCompartmentRef.current.of([]),
 
         // UI
         EditorView.lineWrapping,

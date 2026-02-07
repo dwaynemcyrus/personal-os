@@ -18,6 +18,8 @@ import {
   BacklinksPanel,
   UnlinkedMentions,
   TemplatePicker,
+  FocusSettings,
+  type WritingModeSettings,
 } from '@/components/editor';
 import type { NoteProperties } from '@/lib/db';
 import { syncNoteLinks } from '@/lib/noteLinks';
@@ -45,7 +47,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
+  const [isFocusSettingsOpen, setIsFocusSettingsOpen] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  const [writingModeSettings, setWritingModeSettings] = useState<WritingModeSettings>({
+    mode: 'normal',
+    focusLevel: 'sentence',
+    focusIntensity: 0.3,
+  });
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -239,6 +247,26 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     setEditorKey((k) => k + 1);
   }, [content, scheduleSave]);
 
+  const handleToggleTypewriter = useCallback(() => {
+    setWritingModeSettings((prev) => {
+      if (prev.mode === 'normal') return { ...prev, mode: 'typewriter' };
+      if (prev.mode === 'typewriter') return { ...prev, mode: 'normal' };
+      if (prev.mode === 'focus') return { ...prev, mode: 'both' };
+      if (prev.mode === 'both') return { ...prev, mode: 'focus' };
+      return prev;
+    });
+  }, []);
+
+  const handleToggleFocus = useCallback(() => {
+    setWritingModeSettings((prev) => {
+      if (prev.mode === 'normal') return { ...prev, mode: 'focus' };
+      if (prev.mode === 'focus') return { ...prev, mode: 'normal' };
+      if (prev.mode === 'typewriter') return { ...prev, mode: 'both' };
+      if (prev.mode === 'both') return { ...prev, mode: 'typewriter' };
+      return prev;
+    });
+  }, []);
+
   if (!noteId) {
     return (
       <section className={styles.editor}>
@@ -289,6 +317,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
                 Insert Template
               </DropdownItem>
+              <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
+                Writing Mode
+              </DropdownItem>
               <DropdownItem onSelect={handleTogglePinned}>
                 {note.is_pinned ? 'Unpin' : 'Pin'}
               </DropdownItem>
@@ -310,6 +341,11 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         placeholderText="Start writing..."
         autoFocus
         db={db}
+        writingMode={writingModeSettings.mode}
+        focusLevel={writingModeSettings.focusLevel}
+        focusIntensity={writingModeSettings.focusIntensity}
+        onToggleTypewriter={handleToggleTypewriter}
+        onToggleFocus={handleToggleFocus}
       />
 
       <BacklinksPanel
@@ -341,6 +377,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         onOpenChange={setIsTemplatePickerOpen}
         onSelect={handleTemplateSelect}
         customTitle={derivedTitle !== 'Untitled' ? derivedTitle : undefined}
+      />
+
+      <FocusSettings
+        open={isFocusSettingsOpen}
+        onOpenChange={setIsFocusSettingsOpen}
+        settings={writingModeSettings}
+        onSettingsChange={setWritingModeSettings}
       />
     </section>
   );
