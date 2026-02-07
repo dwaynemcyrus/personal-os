@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2 - 2026-02-07
+- Added strikethrough and 40% opacity styling for completed task content
+- Added info button to note editor with sheet showing backlinks, unlinked mentions, and update timestamp
+- Fixed editor not updating on remote sync by adding reactive content prop to CodeMirrorEditor
+- Fixed slow initial load (~10s → ~1s) by parallelizing sync pull operations across all collections
+- Disabled RxDB dev-mode console warnings
+- Moved "Updated" timestamp from header to info sheet
+
 ## 0.11.1 - 2026-02-07
 - Fixed iOS trackpad cursor navigation by switching instant render from replacement widgets to mark decorations
 - Fixed checkbox rendering to show icons via CSS ::before while preserving cursor stability
