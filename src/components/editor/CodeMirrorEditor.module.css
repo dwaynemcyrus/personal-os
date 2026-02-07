@@ -29,6 +29,10 @@
   user-select: text;
 }
 
+.editor :global(.\00037C7) {
+  text-decoration: none;
+}
+
 /* Markdown syntax highlighting */
 .editor :global(.cm-header) {
   font-weight: var(--font-bold);
