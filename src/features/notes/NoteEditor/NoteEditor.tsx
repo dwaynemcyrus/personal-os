@@ -380,6 +380,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       <CodeMirrorEditor
         key={editorKey}
         initialContent={content}
+        content={isDirty ? undefined : content}
         onChange={handleChange}
         onBlur={handleBlur}
         onWikiLinkClick={handleWikiLinkClick}

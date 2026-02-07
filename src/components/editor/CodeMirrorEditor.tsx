@@ -18,6 +18,8 @@ import styles from './CodeMirrorEditor.module.css';
 
 type CodeMirrorEditorProps = {
   initialContent: string;
+  /** External content for sync updates - when this changes, editor updates if not dirty */
+  content?: string;
   onChange: (content: string) => void;
   onBlur?: () => void;
   onWikiLinkClick?: (target: string, noteId: string | null) => void;
@@ -34,6 +36,7 @@ type CodeMirrorEditorProps = {
 
 export function CodeMirrorEditor({
   initialContent,
+  content,
   onChange,
   onBlur,
   onWikiLinkClick,
@@ -282,6 +285,12 @@ export function CodeMirrorEditor({
     // @ts-expect-error - attaching to ref for imperative access
     if (containerRef.current) containerRef.current.setContent = setContent;
   }, [setContent]);
+
+  // Sync external content changes (e.g., from remote sync)
+  useEffect(() => {
+    if (content === undefined) return;
+    setContent(content);
+  }, [content, setContent]);
 
   return (
     <div ref={containerRef} className={styles.editor} />

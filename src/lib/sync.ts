@@ -268,11 +268,20 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
   if (setupPromise) return setupPromise;
 
   setupPromise = (async () => {
+    // Pull from all collections in parallel for faster initial load
+    await Promise.all(
+      collectionNames.map(async (name) => {
+        const collection = asSyncCollection(db[name]);
+        await pullFromSupabase(collection, name);
+      })
+    );
+
+    // Setup subscriptions and background tasks (non-blocking)
     for (const name of collectionNames) {
       const collection = asSyncCollection(db[name]);
-      await pullFromSupabase(collection, name);
-      await cleanupInvalidUUIDs(collection);
-      await pushAllToSupabase(collection, name);
+
+      // Cleanup and push in background
+      cleanupInvalidUUIDs(collection).then(() => pushAllToSupabase(collection, name));
 
       collection.$.subscribe(async (changeEvent: RxChangeEvent<SyncDocument>) => {
         const docId = changeEvent.documentData?.id as string | undefined;
@@ -331,9 +340,9 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
 }
 
 async function pullAll(db: RxDatabase<DatabaseCollections>) {
-  for (const name of collectionNames) {
-    await pullFromSupabase(asSyncCollection(db[name]), name);
-  }
+  await Promise.all(
+    collectionNames.map((name) => pullFromSupabase(asSyncCollection(db[name]), name))
+  );
 }
 
 async function pushAll(db: RxDatabase<DatabaseCollections>) {
