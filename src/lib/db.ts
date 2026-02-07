@@ -122,6 +122,18 @@ export const templateSchema = z.object({
   sort_order: z.number().int().nonnegative(), // For custom ordering
 });
 
+const versionCreatedByTypes = ['auto', 'manual'] as const;
+
+export const noteVersionSchema = z.object({
+  ...baseFields,
+  note_id: z.string().uuid(),
+  content: z.string().nullable(),
+  properties: z.record(z.string(), z.unknown()).nullable(),
+  version_number: z.number().int().positive(),
+  created_by: z.enum(versionCreatedByTypes),
+  change_summary: z.string().nullable(),
+});
+
 export const timeEntrySchema = z.object({
   ...baseFields,
   task_id: z.string().uuid().nullable(),
@@ -328,6 +340,31 @@ const templatesRxSchema = {
     'category',
     'sort_order',
   ],
+};
+
+const noteVersionsRxSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    note_id: { type: 'string', maxLength: 36 },
+    content: { type: ['string', 'null'] },
+    properties: { type: ['object', 'null'] },
+    version_number: { type: 'number' },
+    created_by: { type: 'string', enum: versionCreatedByTypes },
+    change_summary: { type: ['string', 'null'] },
+  },
+  required: [
+    ...baseRequired,
+    'note_id',
+    'content',
+    'properties',
+    'version_number',
+    'created_by',
+    'change_summary',
+  ],
+  indexes: ['note_id'],
 };
 
 const timeEntriesRxSchema = {
@@ -554,6 +591,7 @@ export type HabitCompletionDocument = z.infer<typeof habitCompletionSchema>;
 export type TimeEntryDocument = z.infer<typeof timeEntrySchema>;
 export type NoteLinkDocument = z.infer<typeof noteLinkSchema>;
 export type TemplateDocument = z.infer<typeof templateSchema>;
+export type NoteVersionDocument = z.infer<typeof noteVersionSchema>;
 
 export type DatabaseCollections = {
   sync_test: RxCollection<SyncTestDocument>;
@@ -565,6 +603,7 @@ export type DatabaseCollections = {
   time_entries: RxCollection<TimeEntryDocument>;
   note_links: RxCollection<NoteLinkDocument>;
   templates: RxCollection<TemplateDocument>;
+  note_versions: RxCollection<NoteVersionDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -616,6 +655,9 @@ export async function getDatabase() {
       templates: {
         schema: templatesRxSchema,
         migrationStrategies: softDeleteMigrationStrategies,
+      },
+      note_versions: {
+        schema: noteVersionsRxSchema,
       },
     });
 

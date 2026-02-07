@@ -28,6 +28,7 @@ type CodeMirrorEditorProps = {
   focusIntensity?: number;
   onToggleTypewriter?: () => void;
   onToggleFocus?: () => void;
+  onSaveVersion?: () => void;
 };
 
 export function CodeMirrorEditor({
@@ -43,6 +44,7 @@ export function CodeMirrorEditor({
   focusIntensity = 0.3,
   onToggleTypewriter,
   onToggleFocus,
+  onSaveVersion,
 }: CodeMirrorEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -52,6 +54,7 @@ export function CodeMirrorEditor({
   const onWikiLinkClickRef = useRef(onWikiLinkClick);
   const onToggleTypewriterRef = useRef(onToggleTypewriter);
   const onToggleFocusRef = useRef(onToggleFocus);
+  const onSaveVersionRef = useRef(onSaveVersion);
 
   // Keep refs updated without recreating editor
   useEffect(() => {
@@ -73,6 +76,10 @@ export function CodeMirrorEditor({
   useEffect(() => {
     onToggleFocusRef.current = onToggleFocus;
   }, [onToggleFocus]);
+
+  useEffect(() => {
+    onSaveVersionRef.current = onSaveVersion;
+  }, [onSaveVersion]);
 
   // Build writing mode extensions based on settings
   const getWritingModeExtensions = useCallback(() => {
@@ -119,8 +126,8 @@ export function CodeMirrorEditor({
       },
     });
 
-    // Keyboard shortcuts for writing modes
-    const writingModeKeymap = keymap.of([
+    // Keyboard shortcuts for writing modes and version saving
+    const customKeymap = keymap.of([
       {
         key: 'Mod-Shift-t',
         run: () => {
@@ -135,6 +142,14 @@ export function CodeMirrorEditor({
           return true;
         },
       },
+      {
+        key: 'Mod-s',
+        run: () => {
+          onSaveVersionRef.current?.();
+          return true;
+        },
+        preventDefault: true,
+      },
     ]);
 
     const state = EditorState.create({
@@ -143,7 +158,7 @@ export function CodeMirrorEditor({
         // Core
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        writingModeKeymap,
+        customKeymap,
 
         // Markdown
         markdown(),

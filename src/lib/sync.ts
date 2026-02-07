@@ -140,6 +140,22 @@ const collectionConfig = {
       'trashed_at',
     ],
   },
+  note_versions: {
+    table: 'note_versions',
+    fields: [
+      'id',
+      'note_id',
+      'content',
+      'properties',
+      'version_number',
+      'created_by',
+      'change_summary',
+      'created_at',
+      'updated_at',
+      'is_trashed',
+      'trashed_at',
+    ],
+  },
 } as const satisfies Record<
   CollectionName,
   { table: string; fields: readonly string[] }

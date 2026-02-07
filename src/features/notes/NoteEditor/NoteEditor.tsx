@@ -19,8 +19,14 @@ import {
   UnlinkedMentions,
   TemplatePicker,
   FocusSettings,
+  VersionHistory,
   type WritingModeSettings,
 } from '@/components/editor';
+import {
+  saveVersion,
+  shouldAutoSaveVersion,
+  markVersionSaved,
+} from '@/lib/versions';
 import type { NoteProperties } from '@/lib/db';
 import { syncNoteLinks } from '@/lib/noteLinks';
 import {
@@ -48,6 +54,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [isFocusSettingsOpen, setIsFocusSettingsOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [writingModeSettings, setWritingModeSettings] = useState<WritingModeSettings>({
     mode: 'normal',
@@ -201,6 +208,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     syncNoteLinks(db, noteId, nextContent).catch(() => {
       // Ignore errors - link sync is non-critical
     });
+
+    // Check if we should auto-save a version (30 min interval)
+    if (shouldAutoSaveVersion(noteId)) {
+      saveVersion(db, noteId, nextContent, note?.properties ?? null, 'auto', 'Auto-save').catch(() => {
+        // Ignore errors - version save is non-critical
+      });
+    }
   };
 
   const scheduleSave = useCallback((nextContent: string) => {
@@ -267,6 +281,34 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     });
   }, []);
 
+  // Manual version save (Cmd+S)
+  const handleSaveVersion = useCallback(async () => {
+    if (!db || !noteId || !note) return;
+
+    // First save any pending content changes
+    if (isDirtyRef.current) {
+      await saveContentRef.current?.(content);
+    }
+
+    // Then save a version snapshot
+    await saveVersion(
+      db,
+      noteId,
+      note.content,
+      note.properties,
+      'manual',
+      'Manual save'
+    );
+  }, [db, noteId, note, content]);
+
+  // Called when a version is restored
+  const handleVersionRestore = useCallback(() => {
+    // Force editor to reload with restored content
+    setEditorKey((k) => k + 1);
+    // Mark version saved to reset auto-save timer
+    markVersionSaved(noteId);
+  }, [noteId]);
+
   if (!noteId) {
     return (
       <section className={styles.editor}>
@@ -320,6 +362,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
                 Writing Mode
               </DropdownItem>
+              <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
+                Version History
+              </DropdownItem>
               <DropdownItem onSelect={handleTogglePinned}>
                 {note.is_pinned ? 'Unpin' : 'Pin'}
               </DropdownItem>
@@ -346,6 +391,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         focusIntensity={writingModeSettings.focusIntensity}
         onToggleTypewriter={handleToggleTypewriter}
         onToggleFocus={handleToggleFocus}
+        onSaveVersion={handleSaveVersion}
       />
 
       <BacklinksPanel
@@ -384,6 +430,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         onOpenChange={setIsFocusSettingsOpen}
         settings={writingModeSettings}
         onSettingsChange={setWritingModeSettings}
+      />
+
+      <VersionHistory
+        open={isVersionHistoryOpen}
+        onOpenChange={setIsVersionHistoryOpen}
+        noteId={noteId}
+        db={db}
+        onRestore={handleVersionRestore}
       />
     </section>
   );
