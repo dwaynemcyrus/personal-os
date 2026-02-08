@@ -33,6 +33,9 @@ const CHECKBOX_STATES: Record<string, { className: string }> = {
 
 // Cycle order for clicking checkboxes
 const CHECKBOX_CYCLE = [' ', 'x', '>', '/', '!', '?', '-', '<'];
+const LIST_GUTTER_PX = 32;
+const LIST_GUTTER = `${LIST_GUTTER_PX}px`;
+const LIST_GUTTER_NEG = `-${LIST_GUTTER_PX}px`;
 
 /**
  * Widget for rendering horizontal rules (the only widget we keep)
@@ -387,12 +390,15 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
     const taskMatch = lineText.match(/^(\s*)([-*+])\s+(\[([ xX><!?/\-])\])\s*(.*)$/);
     if (taskMatch) {
       const indent = taskMatch[1];
+      const bullet = taskMatch[2];
       const checkbox = taskMatch[3];
       const checkboxState = taskMatch[4];
       const content = taskMatch[5];
 
       const bulletStart = lineFrom + indent.length;
-      const checkboxEnd = bulletStart + taskMatch[2].length + 1 + checkbox.length; // bullet + space + checkbox
+      const bulletEnd = bulletStart + bullet.length + 1; // bullet + space
+      const checkboxStart = bulletEnd;
+      const checkboxEnd = checkboxStart + checkbox.length;
       const contentStart = content
         ? lineFrom + lineText.length - content.length
         : lineFrom + lineText.length;
@@ -410,12 +416,19 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
           decoration: Decoration.mark({ class: 'cm-ir-syntax-active' }),
         });
       } else {
-        // Single decoration for the entire gutter: bullet + checkbox + trailing space
+        // Hide bullet and space
+        decorations.push({
+          from: bulletStart,
+          to: bulletEnd,
+          decoration: Decoration.mark({ class: 'cm-ir-syntax-hidden' }),
+        });
+
+        // Style checkbox with interactive class and icon
         const stateClass =
           CHECKBOX_STATES[checkboxState]?.className || 'cm-ir-checkbox';
         decorations.push({
-          from: bulletStart,
-          to: contentStart,
+          from: checkboxStart,
+          to: checkboxEnd,
           decoration: Decoration.mark({
             class: `cm-ir-checkbox-widget ${stateClass}`,
             attributes: {
@@ -638,21 +651,21 @@ const instantRenderTheme = EditorView.theme({
 
   // Lists
   '.cm-ir-list-line': {
-    paddingLeft: '32px',
-    textIndent: '-32px',
+    paddingLeft: LIST_GUTTER,
+    textIndent: LIST_GUTTER_NEG,
     paddingBottom: '0.7em',
   },
   '.cm-ir-bullet': {
     color: 'var(--color-ink-500)',
     display: 'inline-block',
-    width: '32px',
+    width: LIST_GUTTER,
     textAlign: 'center',
   },
   '.cm-ir-list-number': {
     color: 'var(--color-ink-500)',
     fontVariantNumeric: 'tabular-nums',
     display: 'inline-block',
-    width: '32px',
+    width: LIST_GUTTER,
     textAlign: 'center',
   },
 
@@ -676,22 +689,17 @@ const instantRenderTheme = EditorView.theme({
     userSelect: 'none',
     fontSize: '0',
     position: 'relative',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '32px',
-    minWidth: '32px',
-    maxWidth: '32px',
+    display: 'inline-block',
+    width: LIST_GUTTER,
+    textAlign: 'center',
     verticalAlign: 'middle',
   },
   '.cm-ir-checkbox-widget::before': {
     fontSize: '20px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '32px',
-    minWidth: '32px',
-    maxWidth: '32px',
+    display: 'inline-block',
+    width: '100%',
+    textAlign: 'center',
+    verticalAlign: 'middle',
     marginRight: '0',
   },
   '.cm-ir-checkbox::before': {
@@ -755,30 +763,42 @@ const instantRenderTheme = EditorView.theme({
  */
 const checkboxClickHandler = EditorView.domEventHandlers({
   click: (event, view) => {
-    const target = event.target as HTMLElement;
-
-    // Check if click was on a checkbox widget (now a mark, not a widget)
-    if (!target.classList.contains('cm-ir-checkbox-widget')) {
+    const mouseEvent = event as MouseEvent;
+    const pos = view.posAtCoords({ x: mouseEvent.clientX, y: mouseEvent.clientY });
+    if (pos === null) {
       return false;
     }
 
-    // Get data from the mark's attributes
-    const lineFromStr = target.getAttribute('data-line-from');
-    const currentState = target.getAttribute('data-checkbox-state');
-
-    if (!lineFromStr || currentState === null) {
+    const line = view.state.doc.lineAt(pos);
+    const activeLine = view.state.doc.lineAt(view.state.selection.main.head);
+    if (line.number === activeLine.number) {
       return false;
     }
 
-    const lineFrom = parseInt(lineFromStr, 10);
-    const line = view.state.doc.lineAt(lineFrom);
-    const lineText = line.text;
+    const taskMatch = line.text.match(/^(\s*)([-*+])\s+(\[([ xX><!?/\-])\])\s*(.*)$/);
+    if (!taskMatch) {
+      return false;
+    }
 
-    // Find the checkbox pattern in the line
-    const checkboxMatch = lineText.match(/^(\s*[-*+]\s+\[)([ xX><!?/\-])(\].*)$/);
+    const bulletStart = line.from + taskMatch[1].length;
+    const checkboxStart = bulletStart + taskMatch[2].length + 1;
+    const checkboxCoords = view.coordsAtPos(checkboxStart);
+    if (!checkboxCoords) {
+      return false;
+    }
+
+    const gutterLeft = checkboxCoords.left;
+    const gutterRight = gutterLeft + LIST_GUTTER_PX;
+    if (mouseEvent.clientX < gutterLeft || mouseEvent.clientX > gutterRight) {
+      return false;
+    }
+
+    const checkboxMatch = line.text.match(/^(\s*[-*+]\s+\[)([ xX><!?/\-])(\].*)$/);
     if (!checkboxMatch) {
       return false;
     }
+
+    const currentState = checkboxMatch[2];
 
     // Determine next state in cycle
     const currentIndex = CHECKBOX_CYCLE.indexOf(currentState);
