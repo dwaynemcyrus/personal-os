@@ -17,6 +17,16 @@
   gap: var(--space-3);
 }
 
+.editorPane,
+.readerPane {
+  flex: 1;
+  min-height: 0;
+}
+
+.editorPane {
+  overflow: hidden;
+}
+
 .title {
   font-size: var(--font-2xl);
   font-weight: var(--font-semibold);
@@ -113,6 +123,15 @@
   gap: var(--space-6);
   overflow-y: auto;
   flex: 1;
+}
+
+.paneHidden {
+  display: none;
+}
+
+.paneVisible {
+  display: flex;
+  flex-direction: column;
 }
 
 .textarea {

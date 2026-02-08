@@ -436,11 +436,23 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         ) : null}
       </header>
 
-      <div ref={readerContainerRef} hidden={!readerMode} aria-hidden={!readerMode} className={styles.linksContent}>
+      <div
+        ref={readerContainerRef}
+        aria-hidden={!readerMode}
+        className={`${styles.readerPane} ${styles.linksContent} ${
+          readerMode ? styles.paneVisible : styles.paneHidden
+        }`}
+      >
         <p className={styles.empty}>Reader mode is coming soon.</p>
       </div>
 
-      <div ref={editorContainerRef} hidden={readerMode} aria-hidden={readerMode}>
+      <div
+        ref={editorContainerRef}
+        aria-hidden={readerMode}
+        className={`${styles.editorPane} ${
+          readerMode ? styles.paneHidden : styles.paneVisible
+        }`}
+      >
         <CodeMirrorEditor
           key={editorKey}
           initialContent={content}
