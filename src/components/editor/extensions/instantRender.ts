@@ -435,13 +435,6 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
           }),
         });
 
-        if (contentStart > checkboxEnd) {
-          decorations.push({
-            from: checkboxEnd,
-            to: contentStart,
-            decoration: Decoration.mark({ class: 'cm-ir-syntax-hidden' }),
-          });
-        }
       }
 
       // Parse inline markdown in content
@@ -674,7 +667,7 @@ const instantRenderTheme = EditorView.theme({
   '.cm-ir-list-line': {
     paddingLeft: '32px',
     textIndent: '-32px',
-    marginBottom: '0.7em',
+    paddingBottom: '0.7em',
   },
   '.cm-ir-bullet': {
     color: 'var(--color-ink-500)',

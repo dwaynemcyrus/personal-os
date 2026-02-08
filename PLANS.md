@@ -173,7 +173,7 @@ Last updated: February 4, 2026
 - [x] Delete note (trash)
 - [x] Add to thoughts context
 - [x] Fullscreen note editor sheet (right swipe to exit, 30% threshold, 48px edge exclusion)
-- [x] Fix note editor list/task rendering
+- [x] Fix note editor list/task rendering + cursor movement
 - [x] Note editor actions menu (close + trash)
 - [x] Thoughts menu + notes list sheets (stacked navigation)
 - [x] Pin/unpin notes with pinned-first sorting
