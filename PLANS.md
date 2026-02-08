@@ -179,6 +179,7 @@ Last updated: February 4, 2026
 - [x] Thoughts menu + notes list sheets (stacked navigation)
 - [x] Pin/unpin notes with pinned-first sorting
 - [x] Coming soon toast for placeholder thoughts views
+- [ ] Markdown-first editor rollout (phase 1: reader scaffold)
 
 **Completion criteria:**
 - Can create notes offline

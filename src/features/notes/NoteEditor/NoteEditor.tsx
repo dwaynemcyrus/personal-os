@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
-import { useNavigationActions } from '@/components/providers';
+import { useNavigationActions, useReaderMode } from '@/components/providers';
 import type { NoteDocument } from '@/lib/db';
 import {
   Dropdown,
@@ -47,6 +47,7 @@ type NoteEditorProps = {
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
+  const { readerMode, setReaderMode } = useReaderMode();
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
@@ -65,6 +66,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const readerContainerRef = useRef<HTMLDivElement>(null);
+  const editorScrollRatioRef = useRef(0);
+  const readerScrollRatioRef = useRef(0);
 
   useEffect(() => {
     isDirtyRef.current = isDirty;
@@ -108,6 +113,35 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const handleClose = () => {
     onClose?.();
   };
+
+  const getEditorScroller = useCallback(() => {
+    if (!editorContainerRef.current) return null;
+    return editorContainerRef.current.querySelector('.cm-scroller') as HTMLElement | null;
+  }, []);
+
+  const getScrollRatio = useCallback((element: HTMLElement | null) => {
+    if (!element) return 0;
+    const maxScroll = element.scrollHeight - element.clientHeight;
+    if (maxScroll <= 0) return 0;
+    return element.scrollTop / maxScroll;
+  }, []);
+
+  const applyScrollRatio = useCallback((element: HTMLElement | null, ratio: number) => {
+    if (!element) return;
+    const maxScroll = element.scrollHeight - element.clientHeight;
+    if (maxScroll <= 0) return;
+    element.scrollTop = maxScroll * ratio;
+  }, []);
+
+  const handleToggleReaderMode = useCallback(() => {
+    if (readerMode) {
+      readerScrollRatioRef.current = getScrollRatio(readerContainerRef.current);
+      setReaderMode(false);
+      return;
+    }
+    editorScrollRatioRef.current = getScrollRatio(getEditorScroller());
+    setReaderMode(true);
+  }, [getEditorScroller, getScrollRatio, readerMode, setReaderMode]);
 
   const handleDelete = async () => {
     if (!db || !note) return;
@@ -305,6 +339,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     markVersionSaved(noteId);
   }, [noteId]);
 
+  useEffect(() => {
+    const target = readerMode ? readerContainerRef.current : getEditorScroller();
+    const ratio = readerMode ? editorScrollRatioRef.current : readerScrollRatioRef.current;
+    requestAnimationFrame(() => {
+      applyScrollRatio(target, ratio);
+    });
+  }, [applyScrollRatio, getEditorScroller, readerMode]);
+
   if (!noteId) {
     return (
       <section className={styles.editor}>
@@ -365,6 +407,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 </DropdownTrigger>
                 <DropdownContent align="end" sideOffset={12}>
                   <DropdownItem onSelect={handleClose}>Close</DropdownItem>
+                  <DropdownItem onSelect={handleToggleReaderMode}>
+                    {readerMode ? 'Edit mode' : 'Reader mode'}
+                  </DropdownItem>
                   <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
                     Properties
                   </DropdownItem>
@@ -391,23 +436,29 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         ) : null}
       </header>
 
-      <CodeMirrorEditor
-        key={editorKey}
-        initialContent={content}
-        content={isDirty ? undefined : content}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onWikiLinkClick={handleWikiLinkClick}
-        placeholderText="Start writing..."
-        autoFocus
-        db={db}
-        writingMode={writingModeSettings.mode}
-        focusLevel={writingModeSettings.focusLevel}
-        focusIntensity={writingModeSettings.focusIntensity}
-        onToggleTypewriter={handleToggleTypewriter}
-        onToggleFocus={handleToggleFocus}
-        onSaveVersion={handleSaveVersion}
-      />
+      <div ref={readerContainerRef} hidden={!readerMode} aria-hidden={!readerMode} className={styles.linksContent}>
+        <p className={styles.empty}>Reader mode is coming soon.</p>
+      </div>
+
+      <div ref={editorContainerRef} hidden={readerMode} aria-hidden={readerMode}>
+        <CodeMirrorEditor
+          key={editorKey}
+          initialContent={content}
+          content={isDirty ? undefined : content}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onWikiLinkClick={handleWikiLinkClick}
+          placeholderText="Start writing..."
+          autoFocus
+          db={db}
+          writingMode={writingModeSettings.mode}
+          focusLevel={writingModeSettings.focusLevel}
+          focusIntensity={writingModeSettings.focusIntensity}
+          onToggleTypewriter={handleToggleTypewriter}
+          onToggleFocus={handleToggleFocus}
+          onSaveVersion={handleSaveVersion}
+        />
+      </div>
 
       <Sheet open={isLinksSheetOpen} onOpenChange={setIsLinksSheetOpen}>
         <SheetContent side="bottom">

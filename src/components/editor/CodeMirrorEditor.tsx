@@ -9,7 +9,6 @@ import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from '@/lib/db';
 import { wikiLinkExtension } from './extensions/wikilink';
-import { instantRenderExtension } from './extensions/instantRender';
 import { calloutsExtension } from './extensions/callouts';
 import { typewriterExtension } from './extensions/typewriter';
 import { focusExtension, type FocusLevel } from './extensions/focus';
@@ -175,9 +174,6 @@ export function CodeMirrorEditor({
             onWikiLinkClickRef.current?.(target, noteId);
           },
         }),
-
-        // Instant render (hide markdown when not editing)
-        ...instantRenderExtension(),
 
         // Callouts (Obsidian-style)
         ...calloutsExtension(),
