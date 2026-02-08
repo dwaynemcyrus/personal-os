@@ -26,6 +26,7 @@ Last updated: February 4, 2026
 ### ⏳ Next Up
 - [x] Expand to full schema (projects, tasks, notes, habits, time_entries)
 - [ ] Test sync for all tables
+- [ ] Review markdown-first editor build spec (`docs/build-specs/md-first-editor.md`)
 
 ---
 
