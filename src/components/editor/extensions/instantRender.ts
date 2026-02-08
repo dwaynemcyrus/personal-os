@@ -6,7 +6,7 @@
  * This fixes iOS trackpad cursor navigation issues.
  */
 
-import { Extension, RangeSetBuilder } from '@codemirror/state';
+import { Extension } from '@codemirror/state';
 import {
   Decoration,
   DecorationSet,
@@ -387,15 +387,12 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
     const taskMatch = lineText.match(/^(\s*)([-*+])\s+(\[([ xX><!?/\-])\])\s*(.*)$/);
     if (taskMatch) {
       const indent = taskMatch[1];
-      const bullet = taskMatch[2];
       const checkbox = taskMatch[3];
       const checkboxState = taskMatch[4];
       const content = taskMatch[5];
 
       const bulletStart = lineFrom + indent.length;
-      const bulletEnd = bulletStart + bullet.length + 1; // bullet + space
-      const checkboxStart = bulletEnd;
-      const checkboxEnd = checkboxStart + checkbox.length;
+      const checkboxEnd = bulletStart + taskMatch[2].length + 1 + checkbox.length; // bullet + space + checkbox
       const contentStart = content
         ? lineFrom + lineText.length - content.length
         : lineFrom + lineText.length;
@@ -413,19 +410,12 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
           decoration: Decoration.mark({ class: 'cm-ir-syntax-active' }),
         });
       } else {
-        // Hide bullet
-        decorations.push({
-          from: bulletStart,
-          to: bulletEnd,
-          decoration: Decoration.mark({ class: 'cm-ir-syntax-hidden' }),
-        });
-
-        // Style checkbox with interactive class and icon
+        // Single decoration for the entire gutter: bullet + checkbox + trailing space
         const stateClass =
           CHECKBOX_STATES[checkboxState]?.className || 'cm-ir-checkbox';
         decorations.push({
-          from: checkboxStart,
-          to: checkboxEnd,
+          from: bulletStart,
+          to: contentStart,
           decoration: Decoration.mark({
             class: `cm-ir-checkbox-widget ${stateClass}`,
             attributes: {
@@ -434,7 +424,6 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
             },
           }),
         });
-
       }
 
       // Parse inline markdown in content
@@ -517,34 +506,18 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
     parseInlineMarkdown(lineText, lineFrom, decorations, isActive);
   }
 
-  // Combine and sort decorations
-  const allDecorations = [
-    ...decorations,
-    ...lineDecorations.map((ld) => ({ from: ld.from, to: ld.from, decoration: ld.decoration })),
+  // Build decoration set — let CodeMirror handle sort order (startSide, etc.)
+  const docLength = doc.length;
+  const allRanges = [
+    ...decorations
+      .filter((d) => d.from >= 0 && d.to <= docLength && d.from <= d.to)
+      .map((d) => d.decoration.range(d.from, d.to)),
+    ...lineDecorations
+      .filter((ld) => ld.from >= 0 && ld.from <= docLength)
+      .map((ld) => ld.decoration.range(ld.from, ld.from)),
   ];
 
-  allDecorations.sort((a, b) => {
-    if (a.from !== b.from) return a.from - b.from;
-    return a.to - b.to;
-  });
-
-  // Build decoration set, handling overlaps
-  const builder = new RangeSetBuilder<Decoration>();
-  let lastTo = 0;
-
-  for (const dec of allDecorations) {
-    // Line decorations (point decorations) don't conflict
-    if (dec.from === dec.to) {
-      builder.add(dec.from, dec.to, dec.decoration);
-      continue;
-    }
-    // Skip overlapping range decorations
-    if (dec.from < lastTo) continue;
-    builder.add(dec.from, dec.to, dec.decoration);
-    lastTo = dec.to;
-  }
-
-  return builder.finish();
+  return Decoration.set(allRanges, true);
 }
 
 /**
@@ -706,6 +679,9 @@ const instantRenderTheme = EditorView.theme({
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    width: '32px',
+    minWidth: '32px',
+    maxWidth: '32px',
     verticalAlign: 'middle',
   },
   '.cm-ir-checkbox-widget::before': {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Sheet, SheetContent } from '@/components/ui/Sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 import { NoteList } from '../NoteList/NoteList';
 import styles from './ThoughtsListSheet.module.css';
 
@@ -41,6 +41,7 @@ export function ThoughtsListSheet({ open, onOpenChange }: ThoughtsListSheetProps
         onDismiss={() => onOpenChange(false)}
         aria-label="Notes list"
       >
+        <SheetTitle className="sr-only">Notes list</SheetTitle>
         <div className={styles.content}>
           <NoteList />
         </div>
