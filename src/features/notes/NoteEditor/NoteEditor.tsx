@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import MarkdownIt from 'markdown-it';
+import type { Highlighter } from 'shiki';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useNavigationActions, useReaderMode } from '@/components/providers';
@@ -25,6 +26,11 @@ import {
   VersionHistory,
   type WritingModeSettings,
 } from '@/components/editor';
+import {
+  getShikiHighlighter,
+  resolveShikiLanguage,
+  SHIKI_THEME_NAME,
+} from '@/components/editor/markdown/shiki';
 import {
   saveVersion,
   shouldAutoSaveVersion,
@@ -59,6 +65,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isFocusSettingsOpen, setIsFocusSettingsOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isLinksSheetOpen, setIsLinksSheetOpen] = useState(false);
+  const [shikiHighlighter, setShikiHighlighter] = useState<Highlighter | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [writingModeSettings, setWritingModeSettings] = useState<WritingModeSettings>({
     mode: 'normal',
@@ -102,6 +109,25 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!readerMode || shikiHighlighter) return;
+    let cancelled = false;
+
+    getShikiHighlighter()
+      .then((highlighter) => {
+        if (!cancelled) {
+          setShikiHighlighter(highlighter);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load Shiki highlighter', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [readerMode, shikiHighlighter]);
+
   const derivedTitle = useMemo(
     () => extractNoteTitle(content, note?.title),
     [content, note?.title]
@@ -112,20 +138,54 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     [note?.updated_at]
   );
 
-  const markdownRenderer = useMemo(
-    () =>
-      new MarkdownIt({
-        html: true,
-        linkify: true,
-        breaks: false,
-      }),
-    []
-  );
+  const markdownRenderer = useMemo(() => {
+    const markdown = new MarkdownIt({
+      html: true,
+      linkify: true,
+      breaks: false,
+    });
+
+    if (!shikiHighlighter) {
+      return markdown;
+    }
+
+    const defaultFence = markdown.renderer.rules.fence;
+    markdown.renderer.rules.fence = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      const info = token.info ? token.info.trim().split(/\s+/)[0] : '';
+      const language = resolveShikiLanguage(info);
+
+      if (!language) {
+        if (defaultFence) {
+          return defaultFence(tokens, idx, options, env, self);
+        }
+        return self.renderToken(tokens, idx, options);
+      }
+
+      try {
+        return shikiHighlighter.codeToHtml(token.content, {
+          lang: language,
+          theme: SHIKI_THEME_NAME,
+        });
+      } catch (error) {
+        console.error('Shiki highlight failed, falling back', error);
+        if (defaultFence) {
+          return defaultFence(tokens, idx, options, env, self);
+        }
+        return self.renderToken(tokens, idx, options);
+      }
+    };
+
+    return markdown;
+  }, [shikiHighlighter]);
 
   const readerHtml = useMemo(() => {
     if (!readerMode) return '';
     const rawHtml = markdownRenderer.render(content ?? '');
-    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+    return DOMPurify.sanitize(rawHtml, {
+      USE_PROFILES: { html: true },
+      ADD_ATTR: ['style'],
+    });
   }, [content, markdownRenderer, readerMode]);
 
   const handleClose = () => {
@@ -457,7 +517,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       <div
         ref={readerContainerRef}
         aria-hidden={!readerMode}
-        className={`${styles.readerPane} ${styles.linksContent} ${
+        className={`${styles.readerPane} ${styles.readerContent} ${
           readerMode ? styles.paneVisible : styles.paneHidden
         }`}
       >

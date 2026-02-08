@@ -125,6 +125,26 @@
   flex: 1;
 }
 
+.readerContent {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.readerContent :global(pre) {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-10);
+  overflow-x: auto;
+}
+
+.readerContent :global(pre code) {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
 .paneHidden {
   display: none;
 }

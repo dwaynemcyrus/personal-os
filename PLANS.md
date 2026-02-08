@@ -180,7 +180,8 @@ Last updated: February 4, 2026
 - [x] Pin/unpin notes with pinned-first sorting
 - [x] Coming soon toast for placeholder thoughts views
 - [x] Markdown-first editor rollout (phase 1: reader scaffold)
-- [ ] Markdown-first editor rollout (phase 2: markdown-it reader render)
+- [x] Markdown-first editor rollout (phase 2: markdown-it reader render)
+- [ ] Markdown-first editor rollout (phase 3: shiki reader highlighting)
 
 **Completion criteria:**
 - Can create notes offline
