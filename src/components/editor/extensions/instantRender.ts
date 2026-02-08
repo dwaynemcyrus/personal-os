@@ -396,7 +396,14 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
       const bulletEnd = bulletStart + bullet.length + 1; // bullet + space
       const checkboxStart = bulletEnd;
       const checkboxEnd = checkboxStart + checkbox.length;
-      const contentStart = checkboxEnd + (content ? 1 : 0); // +1 for space if there's content
+      const contentStart = content
+        ? lineFrom + lineText.length - content.length
+        : lineFrom + lineText.length;
+
+      lineDecorations.push({
+        from: lineFrom,
+        decoration: Decoration.line({ class: 'cm-ir-list-line' }),
+      });
 
       if (isActive) {
         // Show raw markdown on active line, just dim the syntax
@@ -414,7 +421,8 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
         });
 
         // Style checkbox with interactive class and icon
-        const stateClass = CHECKBOX_STATES[checkboxState]?.className || 'cm-ir-checkbox';
+        const stateClass =
+          CHECKBOX_STATES[checkboxState]?.className || 'cm-ir-checkbox';
         decorations.push({
           from: checkboxStart,
           to: checkboxEnd,
@@ -426,6 +434,14 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
             },
           }),
         });
+
+        if (contentStart > checkboxEnd) {
+          decorations.push({
+            from: checkboxEnd,
+            to: contentStart,
+            decoration: Decoration.mark({ class: 'cm-ir-syntax-hidden' }),
+          });
+        }
       }
 
       // Parse inline markdown in content
@@ -448,11 +464,17 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
     const ulMatch = lineText.match(/^(\s*)([-*+])\s+(.*)$/);
     if (ulMatch) {
       const indent = ulMatch[1];
-      const bullet = ulMatch[2];
       const content = ulMatch[3];
       const bulletFrom = lineFrom + indent.length;
-      const bulletTo = bulletFrom + bullet.length;
-      const contentStart = bulletTo + 1; // +1 for space
+      const contentStart = content
+        ? lineFrom + lineText.length - content.length
+        : lineFrom + lineText.length;
+      const bulletTo = contentStart;
+
+      lineDecorations.push({
+        from: lineFrom,
+        decoration: Decoration.line({ class: 'cm-ir-list-line' }),
+      });
 
       // Style bullet
       decorations.push({
@@ -472,11 +494,17 @@ function createInstantRenderDecorations(view: EditorView): DecorationSet {
     const olMatch = lineText.match(/^(\s*)(\d+)\.\s+(.*)$/);
     if (olMatch) {
       const indent = olMatch[1];
-      const number = olMatch[2];
       const content = olMatch[3];
       const numFrom = lineFrom + indent.length;
-      const numTo = numFrom + number.length + 1; // number + "."
-      const contentStart = numTo + 1; // +1 for space
+      const contentStart = content
+        ? lineFrom + lineText.length - content.length
+        : lineFrom + lineText.length;
+      const numTo = contentStart;
+
+      lineDecorations.push({
+        from: lineFrom,
+        decoration: Decoration.line({ class: 'cm-ir-list-line' }),
+      });
 
       // Style number
       decorations.push({
@@ -643,12 +671,23 @@ const instantRenderTheme = EditorView.theme({
   },
 
   // Lists
+  '.cm-ir-list-line': {
+    paddingLeft: '32px',
+    textIndent: '-32px',
+    marginBottom: '0.7em',
+  },
   '.cm-ir-bullet': {
     color: 'var(--color-ink-500)',
+    display: 'inline-block',
+    width: '32px',
+    textAlign: 'center',
   },
   '.cm-ir-list-number': {
     color: 'var(--color-ink-500)',
     fontVariantNumeric: 'tabular-nums',
+    display: 'inline-block',
+    width: '32px',
+    textAlign: 'center',
   },
 
   // Highlight
@@ -681,9 +720,10 @@ const instantRenderTheme = EditorView.theme({
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '20px',
-    maxWidth: '20px',
-    marginRight: '6px',
+    width: '32px',
+    minWidth: '32px',
+    maxWidth: '32px',
+    marginRight: '0',
   },
   '.cm-ir-checkbox::before': {
     content: '"☐"',
