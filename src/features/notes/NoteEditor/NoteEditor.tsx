@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import DOMPurify from 'dompurify';
+import MarkdownIt from 'markdown-it';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useNavigationActions, useReaderMode } from '@/components/providers';
@@ -109,6 +111,22 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     () => formatRelativeTime(note?.updated_at),
     [note?.updated_at]
   );
+
+  const markdownRenderer = useMemo(
+    () =>
+      new MarkdownIt({
+        html: true,
+        linkify: true,
+        breaks: false,
+      }),
+    []
+  );
+
+  const readerHtml = useMemo(() => {
+    if (!readerMode) return '';
+    const rawHtml = markdownRenderer.render(content ?? '');
+    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+  }, [content, markdownRenderer, readerMode]);
 
   const handleClose = () => {
     onClose?.();
@@ -443,7 +461,11 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           readerMode ? styles.paneVisible : styles.paneHidden
         }`}
       >
-        <p className={styles.empty}>Reader mode is coming soon.</p>
+        {readerHtml ? (
+          <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
+        ) : (
+          <p className={styles.empty}>Nothing to preview yet.</p>
+        )}
       </div>
 
       <div
