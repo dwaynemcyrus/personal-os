@@ -16,6 +16,7 @@ import {
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
+import { showToast } from '@/components/ui/Toast';
 import {
   CodeMirrorEditor,
   PropertiesSheet,
@@ -37,6 +38,10 @@ import {
   markVersionSaved,
 } from '@/lib/versions';
 import type { NoteProperties } from '@/lib/db';
+import {
+  parseFrontmatter,
+  replaceFrontmatterBlock,
+} from '@/lib/markdown/frontmatter';
 import { syncNoteLinks } from '@/lib/noteLinks';
 import {
   extractNoteTitle,
@@ -303,23 +308,46 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     const doc = await db.notes.findOne(noteId).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    const title = extractNoteTitle(nextContent, note?.title);
+    let title = extractNoteTitle(nextContent, note?.title);
+    let contentToSave = nextContent;
+    let propertiesToSave = note?.properties ?? null;
+
+    const frontmatterResult = parseFrontmatter(nextContent);
+    if (frontmatterResult.errors.length > 0) {
+      showToast('Frontmatter is invalid. Fix YAML to sync properties.');
+      console.error('Frontmatter parse error', frontmatterResult.errors);
+    } else {
+      const parsedProperties = frontmatterResult.properties ?? null;
+      const hasProperties =
+        parsedProperties && Object.keys(parsedProperties).length > 0;
+      propertiesToSave = hasProperties ? (parsedProperties as NoteProperties) : null;
+
+      if (!hasProperties && frontmatterResult.hasFrontmatter) {
+        contentToSave = replaceFrontmatterBlock(nextContent, null);
+        title = extractNoteTitle(contentToSave, note?.title);
+      }
+    }
+
     await doc.patch({
       title,
-      content: nextContent,
+      content: contentToSave,
+      properties: propertiesToSave,
       updated_at: timestamp,
     });
-    lastSavedContentRef.current = nextContent;
+    lastSavedContentRef.current = contentToSave;
+    if (contentToSave !== nextContent) {
+      setContent(contentToSave);
+    }
     setIsDirty(false);
 
     // Sync wiki-links in background (don't await)
-    syncNoteLinks(db, noteId, nextContent).catch(() => {
+    syncNoteLinks(db, noteId, contentToSave).catch(() => {
       // Ignore errors - link sync is non-critical
     });
 
     // Check if we should auto-save a version (30 min interval)
     if (shouldAutoSaveVersion(noteId)) {
-      saveVersion(db, noteId, nextContent, note?.properties ?? null, 'auto', 'Auto-save').catch(() => {
+      saveVersion(db, noteId, contentToSave, propertiesToSave, 'auto', 'Auto-save').catch(() => {
         // Ignore errors - version save is non-critical
       });
     }
