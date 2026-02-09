@@ -1,10 +1,29 @@
 const TITLE_FALLBACK = 'Untitled';
 const TITLE_MAX_LENGTH = 80;
+const FRONTMATTER_DELIMITER = /^---\s*$/;
+const FRONTMATTER_END = /^(---|\.\.\.)\s*$/;
 
 const getTrimmedLines = (content: string | null | undefined) => {
   if (!content) return [];
-  return content
-    .split(/\r?\n/)
+  const lines = content.split(/\r?\n/);
+  let startIndex = 0;
+
+  if (lines.length > 0 && FRONTMATTER_DELIMITER.test(lines[0] ?? '')) {
+    let endIndex = -1;
+    for (let i = 1; i < lines.length; i += 1) {
+      if (FRONTMATTER_END.test(lines[i] ?? '')) {
+        endIndex = i;
+        break;
+      }
+    }
+    if (endIndex === -1) {
+      return [];
+    }
+    startIndex = endIndex + 1;
+  }
+
+  return lines
+    .slice(startIndex)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 };
