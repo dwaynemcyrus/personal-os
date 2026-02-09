@@ -20,6 +20,7 @@ import { showToast } from '@/components/ui/Toast';
 import {
   CodeMirrorEditor,
   PropertiesSheet,
+  FrontmatterSheet,
   BacklinksPanel,
   UnlinkedMentions,
   TemplatePicker,
@@ -40,7 +41,10 @@ import {
 import type { NoteProperties } from '@/lib/db';
 import {
   parseFrontmatter,
+  extractFrontmatterDraft,
   replaceFrontmatterBlock,
+  replaceFrontmatterRaw,
+  validateFrontmatterBody,
 } from '@/lib/markdown/frontmatter';
 import { syncNoteLinks } from '@/lib/noteLinks';
 import {
@@ -70,6 +74,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isFocusSettingsOpen, setIsFocusSettingsOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isLinksSheetOpen, setIsLinksSheetOpen] = useState(false);
+  const [isFrontmatterOpen, setIsFrontmatterOpen] = useState(false);
+  const [frontmatterDraft, setFrontmatterDraft] = useState('');
+  const [frontmatterError, setFrontmatterError] = useState<string | null>(null);
   const [shikiHighlighter, setShikiHighlighter] = useState<Highlighter | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [writingModeSettings, setWritingModeSettings] = useState<WritingModeSettings>({
@@ -225,6 +232,65 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     editorScrollRatioRef.current = getScrollRatio(getEditorScroller());
     setReaderMode(true);
   }, [getEditorScroller, getScrollRatio, readerMode, setReaderMode]);
+
+  const handleOpenFrontmatter = useCallback(() => {
+    const draft = extractFrontmatterDraft(content);
+    setFrontmatterDraft(draft.raw);
+    setFrontmatterError(null);
+    setIsFrontmatterOpen(true);
+  }, [content]);
+
+  const handleFrontmatterChange = useCallback((nextValue: string) => {
+    setFrontmatterDraft(nextValue);
+    setFrontmatterError(null);
+  }, []);
+
+  const commitFrontmatterDraft = useCallback(
+    (options: { close: boolean; showToast: boolean }) => {
+      const validation = validateFrontmatterBody(frontmatterDraft);
+      if (validation.errors.length > 0) {
+        setFrontmatterError(validation.errors[0]);
+        if (options.showToast) {
+          showToast('Frontmatter is invalid. Fix YAML before closing.');
+        }
+        return false;
+      }
+
+      setFrontmatterError(null);
+      const nextContent = replaceFrontmatterRaw(content, frontmatterDraft);
+      if (nextContent !== content) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        setContent(nextContent);
+        setIsDirty(true);
+        saveContentRef.current?.(nextContent);
+      }
+
+      if (options.close) {
+        setIsFrontmatterOpen(false);
+      }
+
+      return true;
+    },
+    [content, frontmatterDraft]
+  );
+
+  const handleFrontmatterBlur = useCallback(() => {
+    commitFrontmatterDraft({ close: false, showToast: false });
+  }, [commitFrontmatterDraft]);
+
+  const handleFrontmatterOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        setIsFrontmatterOpen(true);
+        return;
+      }
+      commitFrontmatterDraft({ close: true, showToast: true });
+    },
+    [commitFrontmatterDraft]
+  );
 
   const handleDelete = async () => {
     if (!db || !note) return;
@@ -516,6 +582,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                   <DropdownItem onSelect={handleToggleReaderMode}>
                     {readerMode ? 'Edit mode' : 'Reader mode'}
                   </DropdownItem>
+                  <DropdownItem onSelect={handleOpenFrontmatter}>
+                    Frontmatter
+                  </DropdownItem>
                   <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
                     Properties
                   </DropdownItem>
@@ -625,6 +694,15 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         noteId={noteId}
         properties={note.properties ?? null}
         onSave={handleSaveProperties}
+      />
+
+      <FrontmatterSheet
+        open={isFrontmatterOpen}
+        onOpenChange={handleFrontmatterOpenChange}
+        value={frontmatterDraft}
+        onChange={handleFrontmatterChange}
+        onBlur={handleFrontmatterBlur}
+        error={frontmatterError}
       />
 
       <TemplatePicker

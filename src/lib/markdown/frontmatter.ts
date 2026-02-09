@@ -27,7 +27,21 @@ type FrontmatterSplitResult = {
   errors: string[];
 };
 
+export type FrontmatterDraftResult = {
+  raw: string;
+  lineEnding: string;
+  hasFrontmatter: boolean;
+  errors: string[];
+};
+
+export type FrontmatterValidationResult = {
+  errors: string[];
+  warnings: string[];
+};
+
 const detectLineEnding = (content: string) => (content.includes('\r\n') ? '\r\n' : '\n');
+const normalizeLineEndings = (value: string, lineEnding: string) =>
+  value.replace(/\r?\n/g, lineEnding);
 
 const splitFrontmatter = (content: string): FrontmatterSplitResult => {
   const lineEnding = detectLineEnding(content);
@@ -68,6 +82,60 @@ const splitFrontmatter = (content: string): FrontmatterSplitResult => {
     hasFrontmatter: true,
     errors: [],
   };
+};
+
+export const extractFrontmatterDraft = (content: string): FrontmatterDraftResult => {
+  const lineEnding = detectLineEnding(content);
+  const lines = content.split(/\r?\n/);
+
+  if (lines.length === 0 || !FRONTMATTER_DELIMITER.test(lines[0] ?? '')) {
+    return {
+      raw: '',
+      lineEnding,
+      hasFrontmatter: false,
+      errors: [],
+    };
+  }
+
+  let endIndex = -1;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (FRONTMATTER_END.test(lines[i] ?? '')) {
+      endIndex = i;
+      break;
+    }
+  }
+
+  if (endIndex === -1) {
+    return {
+      raw: lines.slice(1).join(lineEnding),
+      lineEnding,
+      hasFrontmatter: true,
+      errors: ['Missing closing frontmatter delimiter.'],
+    };
+  }
+
+  return {
+    raw: lines.slice(1, endIndex).join(lineEnding),
+    lineEnding,
+    hasFrontmatter: true,
+    errors: [],
+  };
+};
+
+export const validateFrontmatterBody = (raw: string): FrontmatterValidationResult => {
+  if (raw.trim().length === 0) {
+    return { errors: [], warnings: [] };
+  }
+
+  const document = parseDocument(raw, { keepSourceTokens: true });
+  const errors = document.errors.map((error) => error.message);
+  const warnings = document.warnings.map((warning) => warning.message);
+
+  if (document.contents && !isMap(document.contents)) {
+    errors.push('Frontmatter must be a key/value mapping.');
+  }
+
+  return { errors, warnings };
 };
 
 const coerceProperties = (value: unknown) => {
@@ -183,6 +251,44 @@ export const replaceFrontmatterBlock = (
   const block = serializeFrontmatter(document, lineEnding);
   if (split.hasFrontmatter) {
     return `${block}${split.body}`;
+  }
+
+  return `${block}${content}`;
+};
+
+export const replaceFrontmatterRaw = (content: string, raw: string): string => {
+  const lineEnding = detectLineEnding(content);
+  const lines = content.split(/\r?\n/);
+  const hasFrontmatter = lines.length > 0 && FRONTMATTER_DELIMITER.test(lines[0] ?? '');
+  let body = content;
+
+  if (hasFrontmatter) {
+    let endIndex = -1;
+    for (let i = 1; i < lines.length; i += 1) {
+      if (FRONTMATTER_END.test(lines[i] ?? '')) {
+        endIndex = i;
+        break;
+      }
+    }
+    body = endIndex === -1 ? '' : lines.slice(endIndex + 1).join(lineEnding);
+  }
+
+  const trimmedRaw = raw.trim();
+  if (trimmedRaw.length === 0) {
+    if (!hasFrontmatter) {
+      return content;
+    }
+    return body;
+  }
+
+  const normalizedRaw = normalizeLineEndings(raw, lineEnding);
+  const rawWithEnding = normalizedRaw.endsWith(lineEnding)
+    ? normalizedRaw
+    : `${normalizedRaw}${lineEnding}`;
+  const block = `---${lineEnding}${rawWithEnding}---${lineEnding}`;
+
+  if (hasFrontmatter) {
+    return `${block}${body}`;
   }
 
   return `${block}${content}`;
