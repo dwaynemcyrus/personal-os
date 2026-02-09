@@ -44,6 +44,7 @@ import {
   extractFrontmatterDraft,
   replaceFrontmatterBlock,
   replaceFrontmatterRaw,
+  stripFrontmatterForReader,
   validateFrontmatterBody,
 } from '@/lib/markdown/frontmatter';
 import { syncNoteLinks } from '@/lib/noteLinks';
@@ -193,7 +194,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   const readerHtml = useMemo(() => {
     if (!readerMode) return '';
-    const rawHtml = markdownRenderer.render(content ?? '');
+    const readerSource = stripFrontmatterForReader(content ?? '');
+    const rawHtml = markdownRenderer.render(readerSource);
     return DOMPurify.sanitize(rawHtml, {
       USE_PROFILES: { html: true },
       ADD_ATTR: ['style'],

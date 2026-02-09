@@ -184,6 +184,7 @@ Last updated: February 4, 2026
 - [ ] Markdown-first editor rollout (phase 3: shiki reader highlighting)
 - [x] Markdown-first editor rollout (phase 4a: frontmatter parse on save)
 - [x] Markdown-first editor rollout (phase 4b: frontmatter sheet)
+- [x] Markdown-first editor rollout (phase 4c: hide frontmatter in editor/reader)
 
 **Completion criteria:**
 - Can create notes offline

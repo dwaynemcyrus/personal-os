@@ -293,3 +293,19 @@ export const replaceFrontmatterRaw = (content: string, raw: string): string => {
 
   return `${block}${content}`;
 };
+
+export const stripFrontmatterForReader = (content: string): string => {
+  const lines = content.split(/\r?\n/);
+  if (lines.length === 0 || !FRONTMATTER_DELIMITER.test(lines[0] ?? '')) {
+    return content;
+  }
+
+  const lineEnding = detectLineEnding(content);
+  for (let i = 1; i < lines.length; i += 1) {
+    if (FRONTMATTER_END.test(lines[i] ?? '')) {
+      return lines.slice(i + 1).join(lineEnding);
+    }
+  }
+
+  return '';
+};

@@ -12,6 +12,7 @@ import { wikiLinkExtension } from './extensions/wikilink';
 import { calloutsExtension } from './extensions/callouts';
 import { typewriterExtension } from './extensions/typewriter';
 import { focusExtension, type FocusLevel } from './extensions/focus';
+import { frontmatterExtension } from './extensions/frontmatter';
 import type { WritingMode } from './FocusSettings';
 import styles from './CodeMirrorEditor.module.css';
 
@@ -174,6 +175,9 @@ export function CodeMirrorEditor({
             onWikiLinkClickRef.current?.(target, noteId);
           },
         }),
+
+        // Hide frontmatter block (if closed)
+        ...frontmatterExtension(),
 
         // Callouts (Obsidian-style)
         ...calloutsExtension(),
