@@ -299,3 +299,4 @@ After each phase:
 Instant render is **not part of the core rollout**.  
 It is explicitly a **later opt-in** feature after markdown-first + reader mode stabilize.
 
+codex resume 019c3a16-5b2e-74b2-b086-74f9b747e3b6
