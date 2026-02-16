@@ -13,6 +13,7 @@ import {
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
 import { showToast } from '@/components/ui/Toast';
+import type { BacklinkEntry } from 'codemirror-for-writers';
 import {
   CodeMirrorEditor,
   TemplatePicker,
@@ -28,7 +29,7 @@ import {
   parseFrontmatter,
   replaceFrontmatterBlock,
 } from '@/lib/markdown/frontmatter';
-import { syncNoteLinks } from '@/lib/noteLinks';
+import { syncNoteLinks, getBacklinks } from '@/lib/noteLinks';
 import { extractNoteTitle } from '../noteUtils';
 import styles from './NoteEditor.module.css';
 
@@ -263,6 +264,35 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     markVersionSaved(noteId);
   }, [noteId]);
 
+  const handleBacklinksRequested = useCallback(
+    async (title: string): Promise<BacklinkEntry[]> => {
+      if (!db || !noteId) return [];
+      try {
+        const links = await getBacklinks(db, noteId);
+        return links.map((link) => ({ title: link.title }));
+      } catch {
+        return [];
+      }
+    },
+    [db, noteId]
+  );
+
+  const handleBacklinkClick = useCallback(
+    (backlink: BacklinkEntry) => {
+      if (!db) return;
+      db.notes
+        .find({ selector: { title: backlink.title, is_trashed: false } })
+        .exec()
+        .then((docs) => {
+          if (docs.length > 0) {
+            pushLayer({ view: 'thoughts-note', noteId: docs[0].id });
+          }
+        })
+        .catch(() => {});
+    },
+    [db, pushLayer]
+  );
+
   if (!noteId) {
     return (
       <section className={styles.editor}>
@@ -343,6 +373,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           onChange={handleChange}
           onBlur={handleBlur}
           onWikiLinkClick={handleWikiLinkClick}
+          onBacklinksRequested={handleBacklinksRequested}
+          onBacklinkClick={handleBacklinkClick}
+          noteTitle={derivedTitle !== 'Untitled' ? derivedTitle : undefined}
           placeholderText="Start writing..."
           autoFocus
           db={db}

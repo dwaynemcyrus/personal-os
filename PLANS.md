@@ -6,6 +6,27 @@ Last updated: February 4, 2026
 
 ---
 
+## Active Chunk: CodeMirror Hybrid Integration
+
+**Goal:** Incrementally layer `codemirror-for-writers` into the notes editor while preserving frontmatter workflow and local package usage.
+
+### Plan
+- [ ] Update `CodeMirrorEditor` to use `hybridMarkdown(...)` as the primary editor extension stack.
+- [ ] Keep frontmatter hidden/edit workflow intact (`frontmatterExtension` + frontmatter sheet behavior).
+- [ ] Keep wiki-link autocomplete but remove conflicting in-editor replacement/click layers.
+- [ ] Switch focus/typewriter behavior to package-native focus/typewriter mode.
+- [ ] Verify with `npm run lint` and `npm run type-check`.
+
+### Risks
+- Hybrid preview decorations can conflict with existing custom wiki-link/callout replacement widgets if both run simultaneously.
+- Local package points to `../codemirror-for-writers`; if `dist/` artifacts are missing, imports can fail until library build artifacts exist.
+
+### Verification
+- `npm run lint`
+- `npm run type-check`
+
+---
+
 ## Phase 1: Foundation (CURRENT)
 
 **Goal:** Get sync working reliably

@@ -3,24 +3,30 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { autocompletion } from '@codemirror/autocomplete';
 import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections } from '@/lib/db';
-import { wikiLinkExtension } from './extensions/wikilink';
-import { frontmatterExtension } from './extensions/frontmatter';
-import { hybridMarkdown } from 'codemirror-for-writers';
+import type { DatabaseCollections, NoteDocument } from '@/lib/db';
+import {
+  hybridMarkdown,
+  createNoteIndex,
+  wikiLinkAutocomplete,
+  type BacklinkEntry,
+} from 'codemirror-for-writers';
 import 'katex/dist/katex.min.css';
 import styles from './CodeMirrorEditor.module.css';
 
 type CodeMirrorEditorProps = {
   initialContent: string;
-  /** External content for sync updates - when this changes, editor updates if not dirty */
   content?: string;
   onChange: (content: string) => void;
   onBlur?: () => void;
   onWikiLinkClick?: (target: string, noteId: string | null) => void;
+  onBacklinkClick?: (backlink: BacklinkEntry) => void;
+  onBacklinksRequested?: (title: string) => Promise<BacklinkEntry[]>;
   placeholderText?: string;
   autoFocus?: boolean;
   db?: RxDatabase<DatabaseCollections> | null;
+  noteTitle?: string;
   onSaveVersion?: () => void;
 };
 
@@ -30,9 +36,12 @@ export function CodeMirrorEditor({
   onChange,
   onBlur,
   onWikiLinkClick,
+  onBacklinkClick,
+  onBacklinksRequested,
   placeholderText = 'Start writing...',
   autoFocus = true,
   db = null,
+  noteTitle,
   onSaveVersion,
 }: CodeMirrorEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,14 +50,32 @@ export function CodeMirrorEditor({
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onWikiLinkClickRef = useRef(onWikiLinkClick);
+  const onBacklinkClickRef = useRef(onBacklinkClick);
+  const onBacklinksRequestedRef = useRef(onBacklinksRequested);
   const onSaveVersionRef = useRef(onSaveVersion);
+  const noteIndexRef = useRef(createNoteIndex([]));
 
-  // Keep refs updated without recreating editor
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
   useEffect(() => { onWikiLinkClickRef.current = onWikiLinkClick; }, [onWikiLinkClick]);
+  useEffect(() => { onBacklinkClickRef.current = onBacklinkClick; }, [onBacklinkClick]);
+  useEffect(() => { onBacklinksRequestedRef.current = onBacklinksRequested; }, [onBacklinksRequested]);
   useEffect(() => { onSaveVersionRef.current = onSaveVersion; }, [onSaveVersion]);
   useEffect(() => { dbRef.current = db; }, [db]);
+
+  // Keep note index in sync with DB
+  useEffect(() => {
+    if (!db) return;
+
+    const subscription = db.notes
+      .find({ selector: { is_trashed: false } })
+      .$.subscribe((docs) => {
+        const notes = docs.map((doc) => ({ title: (doc.toJSON() as NoteDocument).title }));
+        noteIndexRef.current = createNoteIndex(notes);
+      });
+
+    return () => subscription.unsubscribe();
+  }, [db]);
 
   // Create editor once on mount
   useEffect(() => {
@@ -56,8 +83,7 @@ export function CodeMirrorEditor({
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        const content = update.state.doc.toString();
-        onChangeRef.current(content);
+        onChangeRef.current(update.state.doc.toString());
       }
     });
 
@@ -109,19 +135,26 @@ export function CodeMirrorEditor({
               onWikiLinkClickRef.current?.(link.title, null);
             }
           },
+          enableTags: true,
           enableCustomTasks: true,
+          wordCount: true,
+          backlinks: true,
+          docTitle: noteTitle,
+          onBacklinksRequested: async (title: string) => {
+            return onBacklinksRequestedRef.current?.(title) ?? [];
+          },
+          onBacklinkClick: (backlink: BacklinkEntry) => {
+            onBacklinkClickRef.current?.(backlink);
+          },
+          frontmatterKeys: ['tags', 'status', 'project_id', 'due_date', 'priority'],
         }),
 
-        // Wiki-link autocomplete (app-specific, not in package)
-        ...wikiLinkExtension({
-          db,
-          enableDecorations: false,
-          enableClickHandler: false,
-          enableTheme: false,
+        // Wiki-link autocomplete from package (uses note index)
+        autocompletion({
+          override: [
+            wikiLinkAutocomplete({ noteIndex: noteIndexRef.current }),
+          ],
         }),
-
-        // Hide frontmatter block
-        ...frontmatterExtension(),
 
         placeholder(placeholderText),
 
@@ -193,7 +226,6 @@ export function CodeMirrorEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle external content updates (e.g., from sync)
   const setContent = useCallback((newContent: string) => {
     const view = viewRef.current;
     if (!view) return;
@@ -210,13 +242,11 @@ export function CodeMirrorEditor({
     });
   }, []);
 
-  // Expose setContent for parent component
   useEffect(() => {
     // @ts-expect-error - attaching to ref for imperative access
     if (containerRef.current) containerRef.current.setContent = setContent;
   }, [setContent]);
 
-  // Sync external content changes
   useEffect(() => {
     if (content === undefined) return;
     setContent(content);
