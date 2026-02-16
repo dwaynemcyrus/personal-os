@@ -28,6 +28,10 @@ import { parseWikiLinks } from '@/lib/markdown/wikilinks';
 type WikiLinkConfig = {
   db: RxDatabase<DatabaseCollections> | null;
   onLinkClick?: (target: string, noteId: string | null) => void;
+  enableAutocomplete?: boolean;
+  enableDecorations?: boolean;
+  enableClickHandler?: boolean;
+  enableTheme?: boolean;
 };
 
 /**
@@ -272,7 +276,7 @@ function wikiLinkDecorations(config: WikiLinkConfig): Extension {
  */
 function wikiLinkClickHandler(config: WikiLinkConfig): Extension {
   return EditorView.domEventHandlers({
-    click: (event, view) => {
+    click: (event) => {
       const target = event.target as HTMLElement;
 
       if (target.classList.contains('cm-wikilink')) {
@@ -320,10 +324,27 @@ const wikiLinkTheme = EditorView.theme({
  * Create the complete wiki-link extension
  */
 export function wikiLinkExtension(config: WikiLinkConfig): Extension[] {
-  return [
-    wikiLinkAutocomplete(config),
-    wikiLinkDecorations(config),
-    wikiLinkClickHandler(config),
-    wikiLinkTheme,
-  ];
+  const {
+    enableAutocomplete = true,
+    enableDecorations = true,
+    enableClickHandler = true,
+    enableTheme = true,
+  } = config;
+
+  const extensions: Extension[] = [];
+
+  if (enableAutocomplete) {
+    extensions.push(wikiLinkAutocomplete(config));
+  }
+  if (enableDecorations) {
+    extensions.push(wikiLinkDecorations(config));
+  }
+  if (enableClickHandler) {
+    extensions.push(wikiLinkClickHandler(config));
+  }
+  if (enableTheme) {
+    extensions.push(wikiLinkTheme);
+  }
+
+  return extensions;
 }

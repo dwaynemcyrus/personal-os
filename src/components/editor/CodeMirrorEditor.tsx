@@ -1,19 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { Compartment, EditorState } from '@codemirror/state';
+import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from '@/lib/db';
 import { wikiLinkExtension } from './extensions/wikilink';
-import { calloutsExtension } from './extensions/callouts';
-import { typewriterExtension } from './extensions/typewriter';
-import { focusExtension, type FocusLevel } from './extensions/focus';
 import { frontmatterExtension } from './extensions/frontmatter';
-import type { WritingMode } from './FocusSettings';
+import { hybridMarkdown } from 'codemirror-for-writers';
+import 'katex/dist/katex.min.css';
 import styles from './CodeMirrorEditor.module.css';
 
 type CodeMirrorEditorProps = {
@@ -26,11 +21,6 @@ type CodeMirrorEditorProps = {
   placeholderText?: string;
   autoFocus?: boolean;
   db?: RxDatabase<DatabaseCollections> | null;
-  writingMode?: WritingMode;
-  focusLevel?: FocusLevel;
-  focusIntensity?: number;
-  onToggleTypewriter?: () => void;
-  onToggleFocus?: () => void;
   onSaveVersion?: () => void;
 };
 
@@ -43,78 +33,27 @@ export function CodeMirrorEditor({
   placeholderText = 'Start writing...',
   autoFocus = true,
   db = null,
-  writingMode = 'normal',
-  focusLevel = 'sentence',
-  focusIntensity = 0.3,
-  onToggleTypewriter,
-  onToggleFocus,
   onSaveVersion,
 }: CodeMirrorEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const writingModeCompartmentRef = useRef(new Compartment());
+  const dbRef = useRef(db);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onWikiLinkClickRef = useRef(onWikiLinkClick);
-  const onToggleTypewriterRef = useRef(onToggleTypewriter);
-  const onToggleFocusRef = useRef(onToggleFocus);
   const onSaveVersionRef = useRef(onSaveVersion);
 
   // Keep refs updated without recreating editor
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  useEffect(() => {
-    onBlurRef.current = onBlur;
-  }, [onBlur]);
-
-  useEffect(() => {
-    onWikiLinkClickRef.current = onWikiLinkClick;
-  }, [onWikiLinkClick]);
-
-  useEffect(() => {
-    onToggleTypewriterRef.current = onToggleTypewriter;
-  }, [onToggleTypewriter]);
-
-  useEffect(() => {
-    onToggleFocusRef.current = onToggleFocus;
-  }, [onToggleFocus]);
-
-  useEffect(() => {
-    onSaveVersionRef.current = onSaveVersion;
-  }, [onSaveVersion]);
-
-  // Build writing mode extensions based on settings
-  const getWritingModeExtensions = useCallback(() => {
-    const extensions: ReturnType<typeof typewriterExtension> = [];
-
-    if (writingMode === 'typewriter' || writingMode === 'both') {
-      extensions.push(...typewriterExtension());
-    }
-
-    if (writingMode === 'focus' || writingMode === 'both') {
-      extensions.push(...focusExtension(focusLevel, focusIntensity));
-    }
-
-    return extensions;
-  }, [writingMode, focusLevel, focusIntensity]);
-
-  // Update writing mode extensions when settings change
-  useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-
-    view.dispatch({
-      effects: writingModeCompartmentRef.current.reconfigure(getWritingModeExtensions()),
-    });
-  }, [getWritingModeExtensions]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
+  useEffect(() => { onWikiLinkClickRef.current = onWikiLinkClick; }, [onWikiLinkClick]);
+  useEffect(() => { onSaveVersionRef.current = onSaveVersion; }, [onSaveVersion]);
+  useEffect(() => { dbRef.current = db; }, [db]);
 
   // Create editor once on mount
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Extension to listen for document changes
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         const content = update.state.doc.toString();
@@ -122,7 +61,6 @@ export function CodeMirrorEditor({
       }
     });
 
-    // Extension to listen for blur events
     const blurHandler = EditorView.domEventHandlers({
       blur: () => {
         onBlurRef.current?.();
@@ -130,22 +68,7 @@ export function CodeMirrorEditor({
       },
     });
 
-    // Keyboard shortcuts for writing modes and version saving
     const customKeymap = keymap.of([
-      {
-        key: 'Mod-Shift-t',
-        run: () => {
-          onToggleTypewriterRef.current?.();
-          return true;
-        },
-      },
-      {
-        key: 'Mod-Shift-f',
-        run: () => {
-          onToggleFocusRef.current?.();
-          return true;
-        },
-      },
       {
         key: 'Mod-s',
         run: () => {
@@ -159,48 +82,58 @@ export function CodeMirrorEditor({
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
-        // Core
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
         customKeymap,
 
-        // Markdown
-        markdown(),
-        syntaxHighlighting(defaultHighlightStyle),
+        ...hybridMarkdown({
+          theme: 'light',
+          enableWikiLinks: true,
+          renderWikiLinks: true,
+          onWikiLinkClick: async (link: { title: string }) => {
+            const currentDb = dbRef.current;
+            if (!currentDb) {
+              onWikiLinkClickRef.current?.(link.title, null);
+              return;
+            }
 
-        // Wiki-links
-        ...wikiLinkExtension({
-          db,
-          onLinkClick: (target, noteId) => {
-            onWikiLinkClickRef.current?.(target, noteId);
+            try {
+              const docs = await currentDb.notes.find({
+                selector: { is_trashed: false },
+              }).exec();
+
+              const existing = docs.find(
+                (doc) => doc.title.toLowerCase() === link.title.toLowerCase()
+              );
+
+              onWikiLinkClickRef.current?.(link.title, existing?.id ?? null);
+            } catch {
+              onWikiLinkClickRef.current?.(link.title, null);
+            }
           },
+          enableCustomTasks: true,
         }),
 
-        // Hide frontmatter block (if closed)
+        // Wiki-link autocomplete (app-specific, not in package)
+        ...wikiLinkExtension({
+          db,
+          enableDecorations: false,
+          enableClickHandler: false,
+          enableTheme: false,
+        }),
+
+        // Hide frontmatter block
         ...frontmatterExtension(),
 
-        // Callouts (Obsidian-style)
-        ...calloutsExtension(),
-
-        // Writing modes (typewriter, focus) - dynamically reconfigurable
-        writingModeCompartmentRef.current.of([]),
-
-        // UI
-        EditorView.lineWrapping,
         placeholder(placeholderText),
 
-        // iOS spell check and autocorrect
         EditorView.contentAttributes.of({
           spellcheck: 'true',
           autocorrect: 'on',
           autocapitalize: 'sentences',
         }),
 
-        // Listeners
         updateListener,
         blurHandler,
 
-        // Theme
         EditorView.theme({
           '&': {
             height: '100%',
@@ -247,9 +180,7 @@ export function CodeMirrorEditor({
 
     viewRef.current = view;
 
-    // Auto-focus on mount
     if (autoFocus) {
-      // Small delay to ensure DOM is ready
       requestAnimationFrame(() => {
         view.focus();
       });
@@ -259,7 +190,6 @@ export function CodeMirrorEditor({
       view.destroy();
       viewRef.current = null;
     };
-    // Only run on mount - content updates handled via transactions
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -271,7 +201,6 @@ export function CodeMirrorEditor({
     const currentContent = view.state.doc.toString();
     if (currentContent === newContent) return;
 
-    // Use transaction to update content without losing cursor position
     view.dispatch({
       changes: {
         from: 0,
@@ -281,13 +210,13 @@ export function CodeMirrorEditor({
     });
   }, []);
 
-  // Expose setContent for parent component if needed
+  // Expose setContent for parent component
   useEffect(() => {
     // @ts-expect-error - attaching to ref for imperative access
     if (containerRef.current) containerRef.current.setContent = setContent;
   }, [setContent]);
 
-  // Sync external content changes (e.g., from remote sync)
+  // Sync external content changes
   useEffect(() => {
     if (content === undefined) return;
     setContent(content);

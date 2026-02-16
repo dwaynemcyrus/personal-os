@@ -1,12 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DOMPurify from 'dompurify';
-import MarkdownIt from 'markdown-it';
-import type { Highlighter } from 'shiki';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
-import { useNavigationActions, useReaderMode } from '@/components/providers';
+import { useNavigationActions } from '@/components/providers';
 import type { NoteDocument } from '@/lib/db';
 import {
   Dropdown,
@@ -15,24 +12,12 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 import { showToast } from '@/components/ui/Toast';
 import {
   CodeMirrorEditor,
-  PropertiesSheet,
-  FrontmatterSheet,
-  BacklinksPanel,
-  UnlinkedMentions,
   TemplatePicker,
-  FocusSettings,
   VersionHistory,
-  type WritingModeSettings,
 } from '@/components/editor';
-import {
-  getShikiHighlighter,
-  resolveShikiLanguage,
-  SHIKI_THEME_NAME,
-} from '@/components/editor/markdown/shiki';
 import {
   saveVersion,
   shouldAutoSaveVersion,
@@ -41,17 +26,10 @@ import {
 import type { NoteProperties } from '@/lib/db';
 import {
   parseFrontmatter,
-  extractFrontmatterDraft,
   replaceFrontmatterBlock,
-  replaceFrontmatterRaw,
-  stripFrontmatterForReader,
-  validateFrontmatterBody,
 } from '@/lib/markdown/frontmatter';
 import { syncNoteLinks } from '@/lib/noteLinks';
-import {
-  extractNoteTitle,
-  formatRelativeTime,
-} from '../noteUtils';
+import { extractNoteTitle } from '../noteUtils';
 import styles from './NoteEditor.module.css';
 
 const nowIso = () => new Date().toISOString();
@@ -65,33 +43,16 @@ type NoteEditorProps = {
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
-  const { readerMode, setReaderMode } = useReaderMode();
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
-  const [isFocusSettingsOpen, setIsFocusSettingsOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
-  const [isLinksSheetOpen, setIsLinksSheetOpen] = useState(false);
-  const [isFrontmatterOpen, setIsFrontmatterOpen] = useState(false);
-  const [frontmatterDraft, setFrontmatterDraft] = useState('');
-  const [frontmatterError, setFrontmatterError] = useState<string | null>(null);
-  const [shikiHighlighter, setShikiHighlighter] = useState<Highlighter | null>(null);
   const [editorKey, setEditorKey] = useState(0);
-  const [writingModeSettings, setWritingModeSettings] = useState<WritingModeSettings>({
-    mode: 'normal',
-    focusLevel: 'sentence',
-    focusIntensity: 0.3,
-  });
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-  const readerContainerRef = useRef<HTMLDivElement>(null);
-  const editorScrollRatioRef = useRef(0);
-  const readerScrollRatioRef = useRef(0);
 
   useEffect(() => {
     isDirtyRef.current = isDirty;
@@ -122,177 +83,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!readerMode || shikiHighlighter) return;
-    let cancelled = false;
-
-    getShikiHighlighter()
-      .then((highlighter) => {
-        if (!cancelled) {
-          setShikiHighlighter(highlighter);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to load Shiki highlighter', error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [readerMode, shikiHighlighter]);
-
   const derivedTitle = useMemo(
     () => extractNoteTitle(content, note?.title),
     [content, note?.title]
   );
 
-  const updatedLabel = useMemo(
-    () => formatRelativeTime(note?.updated_at),
-    [note?.updated_at]
-  );
-
-  const markdownRenderer = useMemo(() => {
-    const markdown = new MarkdownIt({
-      html: true,
-      linkify: true,
-      breaks: false,
-    });
-
-    if (!shikiHighlighter) {
-      return markdown;
-    }
-
-    const defaultFence = markdown.renderer.rules.fence;
-    markdown.renderer.rules.fence = (tokens, idx, options, env, self) => {
-      const token = tokens[idx];
-      const info = token.info ? token.info.trim().split(/\s+/)[0] : '';
-      const language = resolveShikiLanguage(info);
-
-      if (!language) {
-        if (defaultFence) {
-          return defaultFence(tokens, idx, options, env, self);
-        }
-        return self.renderToken(tokens, idx, options);
-      }
-
-      try {
-        return shikiHighlighter.codeToHtml(token.content, {
-          lang: language,
-          theme: SHIKI_THEME_NAME,
-        });
-      } catch (error) {
-        console.error('Shiki highlight failed, falling back', error);
-        if (defaultFence) {
-          return defaultFence(tokens, idx, options, env, self);
-        }
-        return self.renderToken(tokens, idx, options);
-      }
-    };
-
-    return markdown;
-  }, [shikiHighlighter]);
-
-  const readerHtml = useMemo(() => {
-    if (!readerMode) return '';
-    const readerSource = stripFrontmatterForReader(content ?? '');
-    const rawHtml = markdownRenderer.render(readerSource);
-    return DOMPurify.sanitize(rawHtml, {
-      USE_PROFILES: { html: true },
-      ADD_ATTR: ['style'],
-    });
-  }, [content, markdownRenderer, readerMode]);
-
   const handleClose = () => {
     onClose?.();
   };
-
-  const getEditorScroller = useCallback(() => {
-    if (!editorContainerRef.current) return null;
-    return editorContainerRef.current.querySelector('.cm-scroller') as HTMLElement | null;
-  }, []);
-
-  const getScrollRatio = useCallback((element: HTMLElement | null) => {
-    if (!element) return 0;
-    const maxScroll = element.scrollHeight - element.clientHeight;
-    if (maxScroll <= 0) return 0;
-    return element.scrollTop / maxScroll;
-  }, []);
-
-  const applyScrollRatio = useCallback((element: HTMLElement | null, ratio: number) => {
-    if (!element) return;
-    const maxScroll = element.scrollHeight - element.clientHeight;
-    if (maxScroll <= 0) return;
-    element.scrollTop = maxScroll * ratio;
-  }, []);
-
-  const handleToggleReaderMode = useCallback(() => {
-    if (readerMode) {
-      readerScrollRatioRef.current = getScrollRatio(readerContainerRef.current);
-      setReaderMode(false);
-      return;
-    }
-    editorScrollRatioRef.current = getScrollRatio(getEditorScroller());
-    setReaderMode(true);
-  }, [getEditorScroller, getScrollRatio, readerMode, setReaderMode]);
-
-  const handleOpenFrontmatter = useCallback(() => {
-    const draft = extractFrontmatterDraft(content);
-    setFrontmatterDraft(draft.raw);
-    setFrontmatterError(null);
-    setIsFrontmatterOpen(true);
-  }, [content]);
-
-  const handleFrontmatterChange = useCallback((nextValue: string) => {
-    setFrontmatterDraft(nextValue);
-    setFrontmatterError(null);
-  }, []);
-
-  const commitFrontmatterDraft = useCallback(
-    (options: { close: boolean; showToast: boolean }) => {
-      const validation = validateFrontmatterBody(frontmatterDraft);
-      if (validation.errors.length > 0) {
-        setFrontmatterError(validation.errors[0]);
-        if (options.showToast) {
-          showToast('Frontmatter is invalid. Fix YAML before closing.');
-        }
-        return false;
-      }
-
-      setFrontmatterError(null);
-      const nextContent = replaceFrontmatterRaw(content, frontmatterDraft);
-      if (nextContent !== content) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = null;
-        }
-        setContent(nextContent);
-        setIsDirty(true);
-        saveContentRef.current?.(nextContent);
-      }
-
-      if (options.close) {
-        setIsFrontmatterOpen(false);
-      }
-
-      return true;
-    },
-    [content, frontmatterDraft]
-  );
-
-  const handleFrontmatterBlur = useCallback(() => {
-    commitFrontmatterDraft({ close: false, showToast: false });
-  }, [commitFrontmatterDraft]);
-
-  const handleFrontmatterOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (nextOpen) {
-        setIsFrontmatterOpen(true);
-        return;
-      }
-      commitFrontmatterDraft({ close: true, showToast: true });
-    },
-    [commitFrontmatterDraft]
-  );
 
   const handleDelete = async () => {
     if (!db || !note) return;
@@ -318,26 +116,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     });
   };
 
-  const handleSaveProperties = async (properties: NoteProperties) => {
-    if (!db || !note) return;
-    const doc = await db.notes.findOne(note.id).exec();
-    if (!doc) return;
-    const timestamp = nowIso();
-    await doc.patch({
-      properties,
-      updated_at: timestamp,
-    });
-  };
-
   const handleWikiLinkClick = useCallback(
     async (target: string, existingNoteId: string | null) => {
       if (!db) return;
 
       if (existingNoteId) {
-        // Note exists, navigate to it
         pushLayer({ view: 'thoughts-note', noteId: existingNoteId });
       } else {
-        // Note doesn't exist, ask user to confirm creation
         const shouldCreate = window.confirm(
           `Create new note "${target}"?`
         );
@@ -408,16 +193,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     }
     setIsDirty(false);
 
-    // Sync wiki-links in background (don't await)
-    syncNoteLinks(db, noteId, contentToSave).catch(() => {
-      // Ignore errors - link sync is non-critical
-    });
+    syncNoteLinks(db, noteId, contentToSave).catch(() => {});
 
-    // Check if we should auto-save a version (30 min interval)
     if (shouldAutoSaveVersion(noteId)) {
-      saveVersion(db, noteId, contentToSave, propertiesToSave, 'auto', 'Auto-save').catch(() => {
-        // Ignore errors - version save is non-critical
-      });
+      saveVersion(db, noteId, contentToSave, propertiesToSave, 'auto', 'Auto-save').catch(() => {});
     }
   };
 
@@ -442,7 +221,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       saveTimeoutRef.current = null;
     }
     if (isDirtyRef.current) {
-      // Get latest content from state
       setContent((currentContent) => {
         saveContentRef.current?.(currentContent);
         return currentContent;
@@ -451,7 +229,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   }, []);
 
   const handleTemplateSelect = useCallback((templateContent: string) => {
-    // If note is empty, replace content; otherwise prepend template
     const currentContent = content.trim();
     const newContent = currentContent
       ? `${templateContent}\n\n${currentContent}`
@@ -461,40 +238,16 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     setIsDirty(true);
     scheduleSave(newContent);
 
-    // Force editor remount with new content
     setEditorKey((k) => k + 1);
   }, [content, scheduleSave]);
 
-  const handleToggleTypewriter = useCallback(() => {
-    setWritingModeSettings((prev) => {
-      if (prev.mode === 'normal') return { ...prev, mode: 'typewriter' };
-      if (prev.mode === 'typewriter') return { ...prev, mode: 'normal' };
-      if (prev.mode === 'focus') return { ...prev, mode: 'both' };
-      if (prev.mode === 'both') return { ...prev, mode: 'focus' };
-      return prev;
-    });
-  }, []);
-
-  const handleToggleFocus = useCallback(() => {
-    setWritingModeSettings((prev) => {
-      if (prev.mode === 'normal') return { ...prev, mode: 'focus' };
-      if (prev.mode === 'focus') return { ...prev, mode: 'normal' };
-      if (prev.mode === 'typewriter') return { ...prev, mode: 'both' };
-      if (prev.mode === 'both') return { ...prev, mode: 'typewriter' };
-      return prev;
-    });
-  }, []);
-
-  // Manual version save (Cmd+S)
   const handleSaveVersion = useCallback(async () => {
     if (!db || !noteId || !note) return;
 
-    // First save any pending content changes
     if (isDirtyRef.current) {
       await saveContentRef.current?.(content);
     }
 
-    // Then save a version snapshot
     await saveVersion(
       db,
       noteId,
@@ -505,21 +258,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     );
   }, [db, noteId, note, content]);
 
-  // Called when a version is restored
   const handleVersionRestore = useCallback(() => {
-    // Force editor to reload with restored content
     setEditorKey((k) => k + 1);
-    // Mark version saved to reset auto-save timer
     markVersionSaved(noteId);
   }, [noteId]);
-
-  useEffect(() => {
-    const target = readerMode ? readerContainerRef.current : getEditorScroller();
-    const ratio = readerMode ? editorScrollRatioRef.current : readerScrollRatioRef.current;
-    requestAnimationFrame(() => {
-      applyScrollRatio(target, ratio);
-    });
-  }, [applyScrollRatio, getEditorScroller, readerMode]);
 
   if (!noteId) {
     return (
@@ -561,14 +303,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               </button>
             </div>
             <div className={`${styles.headerActions} ${styles.headerActionsRight}`}>
-              <button
-                type="button"
-                className={styles.actionButton}
-                aria-label="Note info"
-                onClick={() => setIsLinksSheetOpen(true)}
-              >
-                <InfoIcon />
-              </button>
               <Dropdown>
                 <DropdownTrigger asChild>
                   <button
@@ -581,20 +315,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 </DropdownTrigger>
                 <DropdownContent align="end" sideOffset={12}>
                   <DropdownItem onSelect={handleClose}>Close</DropdownItem>
-                  <DropdownItem onSelect={handleToggleReaderMode}>
-                    {readerMode ? 'Edit mode' : 'Reader mode'}
-                  </DropdownItem>
-                  <DropdownItem onSelect={handleOpenFrontmatter}>
-                    Frontmatter
-                  </DropdownItem>
-                  <DropdownItem onSelect={() => setIsPropertiesOpen(true)}>
-                    Properties
-                  </DropdownItem>
                   <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
                     Insert Template
-                  </DropdownItem>
-                  <DropdownItem onSelect={() => setIsFocusSettingsOpen(true)}>
-                    Writing Mode
                   </DropdownItem>
                   <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
                     Version History
@@ -613,27 +335,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         ) : null}
       </header>
 
-      <div
-        ref={readerContainerRef}
-        aria-hidden={!readerMode}
-        className={`${styles.readerPane} ${styles.readerContent} ${
-          readerMode ? styles.paneVisible : styles.paneHidden
-        }`}
-      >
-        {readerHtml ? (
-          <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
-        ) : (
-          <p className={styles.empty}>Nothing to preview yet.</p>
-        )}
-      </div>
-
-      <div
-        ref={editorContainerRef}
-        aria-hidden={readerMode}
-        className={`${styles.editorPane} ${
-          readerMode ? styles.paneHidden : styles.paneVisible
-        }`}
-      >
+      <div className={styles.editorPane}>
         <CodeMirrorEditor
           key={editorKey}
           initialContent={content}
@@ -644,81 +346,15 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           placeholderText="Start writing..."
           autoFocus
           db={db}
-          writingMode={writingModeSettings.mode}
-          focusLevel={writingModeSettings.focusLevel}
-          focusIntensity={writingModeSettings.focusIntensity}
-          onToggleTypewriter={handleToggleTypewriter}
-          onToggleFocus={handleToggleFocus}
           onSaveVersion={handleSaveVersion}
         />
       </div>
-
-      <Sheet open={isLinksSheetOpen} onOpenChange={setIsLinksSheetOpen}>
-        <SheetContent side="bottom">
-          <div className={styles.linksSheet}>
-            <div className={styles.linksSheetHeader}>
-              <SheetTitle className={styles.linksSheetTitle}>Info</SheetTitle>
-              <button
-                type="button"
-                className={styles.linksSheetClose}
-                onClick={() => setIsLinksSheetOpen(false)}
-                aria-label="Close"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <div className={styles.infoMeta}>Updated {updatedLabel}</div>
-            <div className={styles.linksContent}>
-              <BacklinksPanel
-                noteId={noteId}
-                db={db}
-                onNavigate={(targetNoteId) => {
-                  setIsLinksSheetOpen(false);
-                  pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
-                }}
-              />
-              <UnlinkedMentions
-                noteTitle={derivedTitle}
-                db={db}
-                onNavigate={(targetNoteId) => {
-                  setIsLinksSheetOpen(false);
-                  pushLayer({ view: 'thoughts-note', noteId: targetNoteId });
-                }}
-              />
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <PropertiesSheet
-        open={isPropertiesOpen}
-        onOpenChange={setIsPropertiesOpen}
-        noteId={noteId}
-        properties={note.properties ?? null}
-        onSave={handleSaveProperties}
-      />
-
-      <FrontmatterSheet
-        open={isFrontmatterOpen}
-        onOpenChange={handleFrontmatterOpenChange}
-        value={frontmatterDraft}
-        onChange={handleFrontmatterChange}
-        onBlur={handleFrontmatterBlur}
-        error={frontmatterError}
-      />
 
       <TemplatePicker
         open={isTemplatePickerOpen}
         onOpenChange={setIsTemplatePickerOpen}
         onSelect={handleTemplateSelect}
         customTitle={derivedTitle !== 'Untitled' ? derivedTitle : undefined}
-      />
-
-      <FocusSettings
-        open={isFocusSettingsOpen}
-        onOpenChange={setIsFocusSettingsOpen}
-        settings={writingModeSettings}
-        onSettingsChange={setWritingModeSettings}
       />
 
       <VersionHistory
@@ -729,26 +365,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         onRestore={handleVersionRestore}
       />
     </section>
-  );
-}
-
-function InfoIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={styles.actionIcon}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
   );
 }
 
@@ -782,25 +398,6 @@ function MoreIcon() {
       <circle cx="12" cy="5" r="2" />
       <circle cx="12" cy="12" r="2" />
       <circle cx="12" cy="19" r="2" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={styles.actionIcon}
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
 }
