@@ -8,8 +8,25 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections, NoteDocument } from '@/lib/db';
 import {
   hybridMarkdown,
+  moreMenu,
+  actions,
   createNoteIndex,
   wikiLinkAutocomplete,
+  toggleTheme,
+  getTheme,
+  toggleHybridMode,
+  getMode,
+  toggleReadOnly,
+  isReadOnly,
+  toggleWritingModeSheet,
+  isTypewriter,
+  isFocusMode,
+  toggleToolbar,
+  isToolbar,
+  toggleWordCount,
+  isWordCount,
+  toggleFrontmatterSheet,
+  isFrontmatterSheet,
   type BacklinkEntry,
 } from 'codemirror-for-writers';
 import 'katex/dist/katex.min.css';
@@ -137,6 +154,7 @@ export function CodeMirrorEditor({
           },
           enableTags: true,
           enableCustomTasks: true,
+          toolbar: false,
           wordCount: true,
           backlinks: true,
           docTitle: noteTitle,
@@ -149,7 +167,22 @@ export function CodeMirrorEditor({
           frontmatterKeys: ['tags', 'status', 'project_id', 'due_date', 'priority'],
         }),
 
-        // Wiki-link autocomplete from package (uses note index)
+        ...moreMenu({
+          items: [
+            { label: 'Dark mode', handler: (v) => toggleTheme(v), getState: (v) => getTheme(v) === 'dark' },
+            { label: 'Raw mode', handler: (v) => toggleHybridMode(v), getState: (v) => getMode(v) === 'raw' },
+            { label: 'Read-only', handler: (v) => toggleReadOnly(v), getState: (v) => isReadOnly(v) },
+            { type: 'separator' },
+            { label: 'Writing Mode', handler: (v) => toggleWritingModeSheet(v), getState: (v) => isTypewriter(v) || isFocusMode(v) },
+            { label: 'Toolbar', handler: (v) => toggleToolbar(v), getState: (v) => isToolbar(v) },
+            { label: 'Word count', handler: (v) => toggleWordCount(v), getState: (v) => isWordCount(v) },
+            { label: 'Properties', handler: (v) => toggleFrontmatterSheet(v), getState: (v) => isFrontmatterSheet(v) },
+            { type: 'separator' },
+            { type: 'action', label: 'Find & Replace', handler: (v) => actions.replace(v) },
+          ],
+        }),
+
+        // Wiki-link autocomplete
         autocompletion({
           override: [
             wikiLinkAutocomplete({ noteIndex: noteIndexRef.current }),
