@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.12.0 - 2026-02-19
+- Replaced SPA sheet-based notes navigation with URL-based routing via Next.js App Router (`/notes`, `/notes/[group]`, `/notes/[group]/[noteId]`)
+- Added 3-pane desktop layout (overview 220px + list 300px + editor flex) and Framer Motion slide animations on mobile
+- Added swipe-back gesture (80px threshold from left edge) on mobile note views
+- Added `NotesOverview`, `NotesList`, `NoteDetailPage` full-page components replacing ThoughtsMenuSheet, ThoughtsListSheet, NoteDetailSheet
+- Added `useGroupedNotes` and `useNoteGroupCounts` hooks with client-side filtering for all, todo, today, pinned, locked, and trash groups
+- Rebuilt CodeMirror editor as full-page scrollable view using absolute positioning (fixes vertical scroll on iOS and macOS)
+- Fixed wiki-link autocomplete stale closure by proxying through a ref at call time
+- Fixed tag autocomplete not wired; now subscribes to live DB tags and inline `#tag` usage
+- Merged CM editor `moreMenu` into the NoteEditor `⋮` dropdown with divider-separated sections
+- Added checkbox toggle items for dark mode, raw markdown, read-only, writing mode, toolbar, word count, scroll past end, and frontmatter
+- Added Find & Replace action to unified dropdown menu
+- Changed word count to off by default
+- Tightened dropdown item spacing (32px height, reduced gap and separator margins)
+- Added `/notes` to PWA offline manifest entries
+- Deleted ThoughtsMenuSheet, ThoughtsListSheet, NoteDetailSheet, ThoughtsView
+
 ## 0.11.2 - 2026-02-07
 - Added strikethrough and 40% opacity styling for completed task content
 - Added info button to note editor with sheet showing backlinks, unlinked mentions, and update timestamp
