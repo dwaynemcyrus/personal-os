@@ -9,10 +9,7 @@ export type NavigationContext = 'today' | 'execution' | 'thoughts' | 'strategy';
 export type NavigationLayer =
   | { view: 'execution-tasks' }
   | { view: 'execution-projects' }
-  | { view: 'thoughts-menu' }
-  | { view: 'thoughts-list' }
   | { view: 'task-detail'; taskId: string }
-  | { view: 'thoughts-note'; noteId: string }
   | { view: 'project-detail'; projectId: string }
   | { view: 'context-picker' }
   | { view: 'command-center' }

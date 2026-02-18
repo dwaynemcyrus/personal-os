@@ -9,7 +9,8 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useNavigationState, useNavigationActions } from '@/components/providers';
+import { useRouter } from 'next/navigation';
+import { useNavigationState } from '@/components/providers';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
 import styles from '../page.module.css';
@@ -18,16 +19,13 @@ import styles from '../page.module.css';
 const ExecutionView = lazy(() =>
   import('./ExecutionView').then((mod) => ({ default: mod.ExecutionView }))
 );
-const ThoughtsView = lazy(() =>
-  import('./ThoughtsView').then((mod) => ({ default: mod.ThoughtsView }))
-);
 const StrategyView = lazy(() =>
   import('./StrategyView').then((mod) => ({ default: mod.StrategyView }))
 );
 
 function TodayView() {
   const { db, isReady } = useDatabase();
-  const { pushLayer } = useNavigationActions();
+  const router = useRouter();
 
   const handleOpenInbox = () => {
     window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
@@ -62,7 +60,7 @@ function TodayView() {
   const handleTodayNote = async () => {
     if (!db) return;
     if (todayNote) {
-      pushLayer({ view: 'thoughts-note', noteId: todayNote.id });
+      router.push(`/notes/all/${todayNote.id}`);
     } else {
       const noteId = uuidv4();
       const timestamp = new Date().toISOString();
@@ -79,7 +77,7 @@ function TodayView() {
         is_trashed: false,
         trashed_at: null,
       });
-      pushLayer({ view: 'thoughts-note', noteId });
+      router.push(`/notes/all/${noteId}`);
     }
   };
 
@@ -181,12 +179,6 @@ export function RootView() {
       return (
         <Suspense fallback={<LoadingFallback />}>
           <ExecutionView />
-        </Suspense>
-      );
-    case 'thoughts':
-      return (
-        <Suspense fallback={<LoadingFallback />}>
-          <ThoughtsView />
         </Suspense>
       );
     case 'strategy':

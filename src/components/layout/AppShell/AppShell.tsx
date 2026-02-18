@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { usePathname, useRouter } from 'next/navigation';
 import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
@@ -32,7 +33,7 @@ type DragTarget = {
 
 const DRAG_TARGETS: DragTarget[] = [
   { id: 'execution', context: 'execution', label: 'Execution', offset: [-96, 0] },
-  { id: 'thoughts', context: 'thoughts', label: 'Thoughts', offset: [96, 0] },
+  { id: 'thoughts', context: 'thoughts', label: 'Notes', offset: [96, 0] },
   { id: 'strategy', context: 'strategy', label: 'Strategy', offset: [0, -96] },
   { id: 'today', context: 'today', label: 'Home', offset: [0, 96] },
 ];
@@ -66,6 +67,9 @@ const useHydrated = () =>
 export function AppShell({ children }: AppShellProps) {
   const { context, stack } = useNavigationState();
   const { switchContext, goBack, pushLayer } = useNavigationActions();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isNotesRoute = pathname?.startsWith('/notes') ?? false;
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
@@ -109,13 +113,13 @@ export function AppShell({ children }: AppShellProps) {
 
   const openContext = useCallback(
     (nextContext: NavigationContext) => {
-      switchContext(nextContext);
       if (nextContext === 'thoughts') {
-        pushLayer({ view: 'thoughts-menu' });
-        pushLayer({ view: 'thoughts-list' });
+        router.push('/notes');
+        return;
       }
+      switchContext(nextContext);
     },
-    [pushLayer, switchContext]
+    [router, switchContext]
   );
 
 
@@ -353,7 +357,7 @@ export function AppShell({ children }: AppShellProps) {
     <>
       <ToastHost />
       <div className={styles['app-shell']}>
-        <header className={styles['app-shell__topbar']}>
+        <header className={`${styles['app-shell__topbar']} ${isNotesRoute ? styles['app-shell__topbar--hidden'] : ''}`}>
           <div className={styles['app-shell__topbar-left']}>
             {!isRoot && (
               <button
@@ -386,9 +390,9 @@ export function AppShell({ children }: AppShellProps) {
             ) : null}
           </div>
         </header>
-        <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
+        {!isNotesRoute && <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />}
 
-        <main className={styles['app-shell__content']}>{children}</main>
+        <main className={`${styles['app-shell__content']} ${isNotesRoute ? styles['app-shell__content--notes'] : ''}`}>{children}</main>
 
         <SheetManager />
 

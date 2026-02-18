@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
-import { useNavigationActions } from '@/components/providers';
 import type { NoteDocument } from '@/lib/db';
 import {
   Dropdown,
@@ -41,9 +41,17 @@ type NoteEditorProps = {
   onClose?: () => void;
 };
 
+function useCurrentGroup(): string {
+  const pathname = usePathname();
+  // pathname like /notes/all/noteId → group is "all"
+  const parts = pathname?.replace(/^\/notes\/?/, '').split('/').filter(Boolean) ?? [];
+  return parts[0] ?? 'all';
+}
+
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
-  const { pushLayer } = useNavigationActions();
+  const router = useRouter();
+  const currentGroup = useCurrentGroup();
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
@@ -122,7 +130,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       if (!db) return;
 
       if (existingNoteId) {
-        pushLayer({ view: 'thoughts-note', noteId: existingNoteId });
+        router.push(`/notes/${currentGroup}/${existingNoteId}`);
       } else {
         const shouldCreate = window.confirm(
           `Create new note "${target}"?`
@@ -144,10 +152,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           is_trashed: false,
           trashed_at: null,
         });
-        pushLayer({ view: 'thoughts-note', noteId: newNoteId });
+        router.push(`/notes/${currentGroup}/${newNoteId}`);
       }
     },
-    [db, pushLayer]
+    [db, router, currentGroup]
   );
 
   // Use ref to always have latest save function available
@@ -285,12 +293,12 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         .exec()
         .then((docs) => {
           if (docs.length > 0) {
-            pushLayer({ view: 'thoughts-note', noteId: docs[0].id });
+            router.push(`/notes/${currentGroup}/${docs[0].id}`);
           }
         })
         .catch(() => {});
     },
-    [db, pushLayer]
+    [db, router, currentGroup]
   );
 
   if (!noteId) {

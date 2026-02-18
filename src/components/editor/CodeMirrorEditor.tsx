@@ -167,6 +167,7 @@ export function CodeMirrorEditor({
             onBacklinkClickRef.current?.(backlink);
           },
           frontmatterKeys: ['tags', 'status', 'project_id', 'due_date', 'priority'],
+          scrollPastEnd: true,
         }),
 
         ...moreMenu({
@@ -248,6 +249,11 @@ export function CodeMirrorEditor({
     });
 
     viewRef.current = view;
+
+    // Allow react-remove-scroll (used by Radix Dialog) to permit
+    // scrolling inside the CodeMirror scroller.
+    const scroller = view.scrollDOM;
+    scroller.setAttribute('data-scroll-lock-scrollable', '');
 
     if (autoFocus) {
       requestAnimationFrame(() => {

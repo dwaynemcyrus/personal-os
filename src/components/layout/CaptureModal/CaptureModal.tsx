@@ -9,8 +9,8 @@ import {
   useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useRouter } from 'next/navigation';
 import { useDatabase } from '@/hooks/useDatabase';
-import { useNavigationActions } from '@/components/providers';
 import { searchNotes, type SearchResult } from '@/lib/search';
 import type { NoteDocument } from '@/lib/db';
 import {
@@ -33,7 +33,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { db, isReady } = useDatabase();
-  const { pushLayer } = useNavigationActions();
+  const router = useRouter();
 
   // Subscribe to recent notes
   const [allNotes, setAllNotes] = useState<NoteDocument[]>([]);
@@ -136,9 +136,9 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const handleOpenNote = useCallback(
     (noteId: string) => {
       onOpenChange(false);
-      pushLayer({ view: 'thoughts-note', noteId });
+      router.push(`/notes/all/${noteId}`);
     },
-    [onOpenChange, pushLayer]
+    [onOpenChange, router]
   );
 
   // Keyboard navigation

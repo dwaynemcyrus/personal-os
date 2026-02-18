@@ -8,14 +8,10 @@
 'use client';
 
 import { useNavigationState, useNavigationActions } from '@/components/providers';
-import { NoteDetailSheet } from '@/features/notes/NoteDetailSheet/NoteDetailSheet';
-import { ThoughtsListSheet } from '@/features/notes/ThoughtsListSheet/ThoughtsListSheet';
-import { ThoughtsMenuSheet } from '@/features/notes/ThoughtsMenuSheet/ThoughtsMenuSheet';
 
 export function SheetManager() {
   const { stack } = useNavigationState();
-  const { popLayer, pushLayer } = useNavigationActions();
-  const hasThoughtsList = stack.some((layer) => layer.view === 'thoughts-list');
+  const { popLayer } = useNavigationActions();
 
   return (
     <>
@@ -29,49 +25,9 @@ export function SheetManager() {
             // TODO: Implement ProjectListSheet
             return null;
 
-          case 'thoughts-menu':
-            return (
-              <ThoughtsMenuSheet
-                key={`thoughts-menu-${index}`}
-                open
-                isNotesActive={hasThoughtsList}
-                onOpenChange={(open) => {
-                  if (!open) popLayer();
-                }}
-                onOpenNotes={() => {
-                  if (!hasThoughtsList) {
-                    pushLayer({ view: 'thoughts-list' });
-                  }
-                }}
-              />
-            );
-
-          case 'thoughts-list':
-            return (
-              <ThoughtsListSheet
-                key={`thoughts-list-${index}`}
-                open
-                onOpenChange={(open) => {
-                  if (!open) popLayer();
-                }}
-              />
-            );
-
           case 'task-detail':
             // TODO: Implement TaskDetailSheet
             return null;
-
-          case 'thoughts-note':
-            return (
-              <NoteDetailSheet
-                key={`thoughts-note-${layer.noteId}-${index}`}
-                noteId={layer.noteId}
-                open
-                onOpenChange={(open) => {
-                  if (!open) popLayer();
-                }}
-              />
-            );
 
           case 'project-detail':
             // TODO: Implement ProjectDetailSheet
