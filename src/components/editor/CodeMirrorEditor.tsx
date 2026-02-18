@@ -1,128 +1,138 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
-import { Compartment, EditorState } from '@codemirror/state';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { autocompletion } from '@codemirror/autocomplete';
 import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections } from '@/lib/db';
-import { wikiLinkExtension } from './extensions/wikilink';
-import { instantRenderExtension } from './extensions/instantRender';
-import { calloutsExtension } from './extensions/callouts';
-import { typewriterExtension } from './extensions/typewriter';
-import { focusExtension, type FocusLevel } from './extensions/focus';
-import type { WritingMode } from './FocusSettings';
+import type { DatabaseCollections, NoteDocument } from '@/lib/db';
+import {
+  hybridMarkdown,
+  actions,
+  createNoteIndex,
+  wikiLinkAutocomplete,
+  tagAutocomplete,
+  toggleTheme,
+  getTheme,
+  toggleHybridMode,
+  getMode,
+  toggleReadOnly,
+  isReadOnly,
+  toggleWritingModeSheet,
+  isTypewriter,
+  isFocusMode,
+  toggleToolbar,
+  isToolbar,
+  toggleWordCount,
+  isWordCount,
+  toggleScrollPastEnd,
+  isScrollPastEnd,
+  toggleFrontmatterSheet,
+  isFrontmatterSheet,
+  type BacklinkEntry,
+} from 'codemirror-for-writers';
+import 'katex/dist/katex.min.css';
 import styles from './CodeMirrorEditor.module.css';
 
 type CodeMirrorEditorProps = {
   initialContent: string;
-  /** External content for sync updates - when this changes, editor updates if not dirty */
   content?: string;
   onChange: (content: string) => void;
   onBlur?: () => void;
   onWikiLinkClick?: (target: string, noteId: string | null) => void;
+  onBacklinkClick?: (backlink: BacklinkEntry) => void;
+  onBacklinksRequested?: (title: string) => Promise<BacklinkEntry[]>;
   placeholderText?: string;
   autoFocus?: boolean;
   db?: RxDatabase<DatabaseCollections> | null;
-  writingMode?: WritingMode;
-  focusLevel?: FocusLevel;
-  focusIntensity?: number;
-  onToggleTypewriter?: () => void;
-  onToggleFocus?: () => void;
+  noteTitle?: string;
   onSaveVersion?: () => void;
 };
 
-export function CodeMirrorEditor({
+export type CodeMirrorEditorHandle = {
+  view: EditorView | null;
+};
+
+export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(
+function CodeMirrorEditor({
   initialContent,
   content,
   onChange,
   onBlur,
   onWikiLinkClick,
+  onBacklinkClick,
+  onBacklinksRequested,
   placeholderText = 'Start writing...',
   autoFocus = true,
   db = null,
-  writingMode = 'normal',
-  focusLevel = 'sentence',
-  focusIntensity = 0.3,
-  onToggleTypewriter,
-  onToggleFocus,
+  noteTitle,
   onSaveVersion,
-}: CodeMirrorEditorProps) {
+}: CodeMirrorEditorProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const writingModeCompartmentRef = useRef(new Compartment());
+
+  useImperativeHandle(ref, () => ({
+    get view() { return viewRef.current; },
+  }), []);
+  const dbRef = useRef(db);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onWikiLinkClickRef = useRef(onWikiLinkClick);
-  const onToggleTypewriterRef = useRef(onToggleTypewriter);
-  const onToggleFocusRef = useRef(onToggleFocus);
+  const onBacklinkClickRef = useRef(onBacklinkClick);
+  const onBacklinksRequestedRef = useRef(onBacklinksRequested);
   const onSaveVersionRef = useRef(onSaveVersion);
+  const noteIndexRef = useRef(createNoteIndex([]));
+  // Stable proxy so wikiLinkAutocomplete always reads the latest index
+  const noteIndexProxyRef = useRef({
+    search: (q: string) => noteIndexRef.current.search(q),
+    resolve: (q: string) => noteIndexRef.current.resolve(q),
+  });
+  // Mutable array so tagAutocomplete always reads the latest tags
+  const tagsArrayRef = useRef<string[]>([]);
 
-  // Keep refs updated without recreating editor
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
+  useEffect(() => { onWikiLinkClickRef.current = onWikiLinkClick; }, [onWikiLinkClick]);
+  useEffect(() => { onBacklinkClickRef.current = onBacklinkClick; }, [onBacklinkClick]);
+  useEffect(() => { onBacklinksRequestedRef.current = onBacklinksRequested; }, [onBacklinksRequested]);
+  useEffect(() => { onSaveVersionRef.current = onSaveVersion; }, [onSaveVersion]);
+  useEffect(() => { dbRef.current = db; }, [db]);
+
+  // Keep note index in sync with DB
   useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
+    if (!db) return;
 
-  useEffect(() => {
-    onBlurRef.current = onBlur;
-  }, [onBlur]);
+    const subscription = db.notes
+      .find({ selector: { is_trashed: false } })
+      .$.subscribe((docs) => {
+        const notes = docs.map((doc) => doc.toJSON() as NoteDocument);
+        noteIndexRef.current = createNoteIndex(notes.map((n) => ({ title: n.title })));
 
-  useEffect(() => {
-    onWikiLinkClickRef.current = onWikiLinkClick;
-  }, [onWikiLinkClick]);
+        // Collect tags from properties and inline #tag usage — mutate in-place
+        // so the tagAutocomplete closure always sees the current array contents
+        const tagSet = new Set<string>();
+        for (const note of notes) {
+          for (const tag of note.properties?.tags ?? []) tagSet.add(tag);
+          const matches = (note.content ?? '').matchAll(/#([\w/-]+)/g);
+          for (const match of matches) tagSet.add(match[1]);
+        }
+        const next = Array.from(tagSet).sort();
+        tagsArrayRef.current.splice(0, tagsArrayRef.current.length, ...next);
+      });
 
-  useEffect(() => {
-    onToggleTypewriterRef.current = onToggleTypewriter;
-  }, [onToggleTypewriter]);
-
-  useEffect(() => {
-    onToggleFocusRef.current = onToggleFocus;
-  }, [onToggleFocus]);
-
-  useEffect(() => {
-    onSaveVersionRef.current = onSaveVersion;
-  }, [onSaveVersion]);
-
-  // Build writing mode extensions based on settings
-  const getWritingModeExtensions = useCallback(() => {
-    const extensions: ReturnType<typeof typewriterExtension> = [];
-
-    if (writingMode === 'typewriter' || writingMode === 'both') {
-      extensions.push(...typewriterExtension());
-    }
-
-    if (writingMode === 'focus' || writingMode === 'both') {
-      extensions.push(...focusExtension(focusLevel, focusIntensity));
-    }
-
-    return extensions;
-  }, [writingMode, focusLevel, focusIntensity]);
-
-  // Update writing mode extensions when settings change
-  useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-
-    view.dispatch({
-      effects: writingModeCompartmentRef.current.reconfigure(getWritingModeExtensions()),
-    });
-  }, [getWritingModeExtensions]);
+    return () => subscription.unsubscribe();
+  }, [db]);
 
   // Create editor once on mount
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Extension to listen for document changes
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        const content = update.state.doc.toString();
-        onChangeRef.current(content);
+        onChangeRef.current(update.state.doc.toString());
       }
     });
 
-    // Extension to listen for blur events
     const blurHandler = EditorView.domEventHandlers({
       blur: () => {
         onBlurRef.current?.();
@@ -130,22 +140,7 @@ export function CodeMirrorEditor({
       },
     });
 
-    // Keyboard shortcuts for writing modes and version saving
     const customKeymap = keymap.of([
-      {
-        key: 'Mod-Shift-t',
-        run: () => {
-          onToggleTypewriterRef.current?.();
-          return true;
-        },
-      },
-      {
-        key: 'Mod-Shift-f',
-        run: () => {
-          onToggleFocusRef.current?.();
-          return true;
-        },
-      },
       {
         key: 'Mod-s',
         run: () => {
@@ -159,48 +154,67 @@ export function CodeMirrorEditor({
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
-        // Core
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
         customKeymap,
 
-        // Markdown
-        markdown(),
-        syntaxHighlighting(defaultHighlightStyle),
+        ...hybridMarkdown({
+          theme: 'light',
+          enableWikiLinks: true,
+          renderWikiLinks: true,
+          onWikiLinkClick: async (link: { title: string }) => {
+            const currentDb = dbRef.current;
+            if (!currentDb) {
+              onWikiLinkClickRef.current?.(link.title, null);
+              return;
+            }
 
-        // Wiki-links
-        ...wikiLinkExtension({
-          db,
-          onLinkClick: (target, noteId) => {
-            onWikiLinkClickRef.current?.(target, noteId);
+            try {
+              const docs = await currentDb.notes.find({
+                selector: { is_trashed: false },
+              }).exec();
+
+              const existing = docs.find(
+                (doc) => doc.title.toLowerCase() === link.title.toLowerCase()
+              );
+
+              onWikiLinkClickRef.current?.(link.title, existing?.id ?? null);
+            } catch {
+              onWikiLinkClickRef.current?.(link.title, null);
+            }
           },
+          enableTags: true,
+          enableCustomTasks: true,
+          toolbar: false,
+          wordCount: false,
+          backlinks: true,
+          docTitle: noteTitle,
+          onBacklinksRequested: async (title: string) => {
+            return onBacklinksRequestedRef.current?.(title) ?? [];
+          },
+          onBacklinkClick: (backlink: BacklinkEntry) => {
+            onBacklinkClickRef.current?.(backlink);
+          },
+          frontmatterKeys: ['tags', 'status', 'project_id', 'due_date', 'priority'],
+          scrollPastEnd: true,
         }),
 
-        // Instant render (hide markdown when not editing)
-        ...instantRenderExtension(),
+        autocompletion({
+          override: [
+            wikiLinkAutocomplete({ noteIndex: noteIndexProxyRef.current }),
+            tagAutocomplete({ tags: tagsArrayRef.current }),
+          ],
+        }),
 
-        // Callouts (Obsidian-style)
-        ...calloutsExtension(),
-
-        // Writing modes (typewriter, focus) - dynamically reconfigurable
-        writingModeCompartmentRef.current.of([]),
-
-        // UI
-        EditorView.lineWrapping,
         placeholder(placeholderText),
 
-        // iOS spell check and autocorrect
         EditorView.contentAttributes.of({
           spellcheck: 'true',
           autocorrect: 'on',
           autocapitalize: 'sentences',
         }),
 
-        // Listeners
         updateListener,
         blurHandler,
 
-        // Theme
         EditorView.theme({
           '&': {
             height: '100%',
@@ -208,8 +222,9 @@ export function CodeMirrorEditor({
           '.cm-content': {
             fontFamily: 'var(--font-atten), ui-sans-serif, system-ui, sans-serif',
             fontSize: '16px',
-            padding: '0',
-            paddingTop: '64px',
+            padding: '0 20px',
+            paddingTop: 'calc(64px + env(safe-area-inset-top))',
+            paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
             lineHeight: 'normal',
             caretColor: 'var(--color-ink-900)',
           },
@@ -247,9 +262,12 @@ export function CodeMirrorEditor({
 
     viewRef.current = view;
 
-    // Auto-focus on mount
+    // Allow react-remove-scroll (used by Radix Dialog) to permit
+    // scrolling inside the CodeMirror scroller.
+    const scroller = view.scrollDOM;
+    scroller.setAttribute('data-scroll-lock-scrollable', '');
+
     if (autoFocus) {
-      // Small delay to ensure DOM is ready
       requestAnimationFrame(() => {
         view.focus();
       });
@@ -259,11 +277,9 @@ export function CodeMirrorEditor({
       view.destroy();
       viewRef.current = null;
     };
-    // Only run on mount - content updates handled via transactions
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle external content updates (e.g., from sync)
   const setContent = useCallback((newContent: string) => {
     const view = viewRef.current;
     if (!view) return;
@@ -271,7 +287,6 @@ export function CodeMirrorEditor({
     const currentContent = view.state.doc.toString();
     if (currentContent === newContent) return;
 
-    // Use transaction to update content without losing cursor position
     view.dispatch({
       changes: {
         from: 0,
@@ -281,13 +296,11 @@ export function CodeMirrorEditor({
     });
   }, []);
 
-  // Expose setContent for parent component if needed
   useEffect(() => {
     // @ts-expect-error - attaching to ref for imperative access
     if (containerRef.current) containerRef.current.setContent = setContent;
   }, [setContent]);
 
-  // Sync external content changes (e.g., from remote sync)
   useEffect(() => {
     if (content === undefined) return;
     setContent(content);
@@ -296,4 +309,4 @@ export function CodeMirrorEditor({
   return (
     <div ref={containerRef} className={styles.editor} />
   );
-}
+});

@@ -1,8 +1,3 @@
-export { CodeMirrorEditor } from './CodeMirrorEditor';
-export { PropertiesSheet } from './PropertiesSheet';
-export { BacklinksPanel } from './BacklinksPanel';
-export { UnlinkedMentions } from './UnlinkedMentions';
+export { CodeMirrorEditor, type CodeMirrorEditorHandle } from './CodeMirrorEditor';
 export { TemplatePicker } from './TemplatePicker';
-export { FocusSettings } from './FocusSettings';
 export { VersionHistory } from './VersionHistory';
-export type { WritingMode, WritingModeSettings } from './FocusSettings';

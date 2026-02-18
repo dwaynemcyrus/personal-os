@@ -6,6 +6,27 @@ Last updated: February 4, 2026
 
 ---
 
+## Active Chunk: CodeMirror Hybrid Integration
+
+**Goal:** Incrementally layer `codemirror-for-writers` into the notes editor while preserving frontmatter workflow and local package usage.
+
+### Plan
+- [ ] Update `CodeMirrorEditor` to use `hybridMarkdown(...)` as the primary editor extension stack.
+- [ ] Keep frontmatter hidden/edit workflow intact (`frontmatterExtension` + frontmatter sheet behavior).
+- [ ] Keep wiki-link autocomplete but remove conflicting in-editor replacement/click layers.
+- [ ] Switch focus/typewriter behavior to package-native focus/typewriter mode.
+- [ ] Verify with `npm run lint` and `npm run type-check`.
+
+### Risks
+- Hybrid preview decorations can conflict with existing custom wiki-link/callout replacement widgets if both run simultaneously.
+- Local package points to `../codemirror-for-writers`; if `dist/` artifacts are missing, imports can fail until library build artifacts exist.
+
+### Verification
+- `npm run lint`
+- `npm run type-check`
+
+---
+
 ## Phase 1: Foundation (CURRENT)
 
 **Goal:** Get sync working reliably
@@ -26,6 +47,7 @@ Last updated: February 4, 2026
 ### ⏳ Next Up
 - [x] Expand to full schema (projects, tasks, notes, habits, time_entries)
 - [ ] Test sync for all tables
+- [ ] Review markdown-first editor build spec (`docs/build-specs/md-first-editor.md`)
 
 ---
 
@@ -178,6 +200,12 @@ Last updated: February 4, 2026
 - [x] Thoughts menu + notes list sheets (stacked navigation)
 - [x] Pin/unpin notes with pinned-first sorting
 - [x] Coming soon toast for placeholder thoughts views
+- [x] Markdown-first editor rollout (phase 1: reader scaffold)
+- [x] Markdown-first editor rollout (phase 2: markdown-it reader render)
+- [ ] Markdown-first editor rollout (phase 3: shiki reader highlighting)
+- [x] Markdown-first editor rollout (phase 4a: frontmatter parse on save)
+- [x] Markdown-first editor rollout (phase 4b: frontmatter sheet)
+- [x] Markdown-first editor rollout (phase 4c: hide frontmatter in editor/reader)
 
 **Completion criteria:**
 - Can create notes offline

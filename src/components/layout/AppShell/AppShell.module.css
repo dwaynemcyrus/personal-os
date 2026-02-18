@@ -28,6 +28,10 @@
   border-bottom: 1px solid var(--color-border-200);
 }
 
+.app-shell__topbar--hidden {
+  display: none;
+}
+
 .app-shell__topbar-left,
 .app-shell__topbar-right {
   display: flex;
@@ -119,6 +123,12 @@
   padding-bottom: calc(var(--space-32) + 48px + var(--safe-area-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.app-shell__content--notes {
+  padding: 0;
+  overflow: hidden;
 }
 
 .app-shell__fab {

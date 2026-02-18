@@ -31,6 +31,7 @@ export default withPWA({
   ],
   additionalManifestEntries: [
     { url: '/', revision: null },
+    { url: '/notes', revision: null },
     { url: '/strategy', revision: null },
     { url: '/knowledge', revision: null },
     { url: '/execution', revision: null },

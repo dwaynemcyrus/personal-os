@@ -26,7 +26,16 @@
       "Bash(npm uninstall:*)",
       "Bash(npx tsc:*)",
       "Bash(curl:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(xargs:*)",
+      "Bash(npm info:*)",
+      "Bash(ls:*)",
+      "Bash(gh api:*)",
+      "Bash(npm run build:lib:*)",
+      "Bash(npx next dev:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(git reset:*)",
+      "Bash(grep:*)"
     ]
   }
 }

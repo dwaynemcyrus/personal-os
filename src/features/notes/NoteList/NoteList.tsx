@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useRouter } from 'next/navigation';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
-import { useNavigationActions } from '@/components/providers';
 import {
   extractNoteSnippet,
   extractNoteTitle,
@@ -18,8 +18,7 @@ const nowIso = () => new Date().toISOString();
 export function NoteList() {
   const { db, isReady } = useDatabase();
   const [notes, setNotes] = useState<NoteDocument[]>([]);
-
-  const { pushLayer } = useNavigationActions();
+  const router = useRouter();
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -72,11 +71,11 @@ export function NoteList() {
       is_trashed: false,
       trashed_at: null,
     });
-    pushLayer({ view: 'thoughts-note', noteId });
+    router.push(`/notes/all/${noteId}`);
   };
 
   const handleOpenNote = (noteId: string) => {
-    pushLayer({ view: 'thoughts-note', noteId });
+    router.push(`/notes/all/${noteId}`);
   };
 
   return (
