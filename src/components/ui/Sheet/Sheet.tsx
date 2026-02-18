@@ -1,6 +1,7 @@
 'use client';
 
 import * as Dialog from '@radix-ui/react-dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import type React from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -19,6 +20,7 @@ type SheetContentProps = React.ComponentPropsWithoutRef<typeof Dialog.Content> &
   gestureEdgeExclusion?: number;
   onDragProgress?: (value: number, width: number) => void;
   onDismiss?: () => void;
+  ariaLabel?: string;
 };
 
 const Sheet = Dialog.Root;
@@ -85,6 +87,7 @@ const SheetContent = forwardRef<
       gestureEdgeExclusion = 0,
       onDragProgress,
       onDismiss,
+      ariaLabel = 'Sheet',
       onPointerDownOutside,
       ...props
     },
@@ -334,6 +337,9 @@ const SheetContent = forwardRef<
         onPointerCancel={shouldEnableRightSwipe ? handlePointerCancel : undefined}
         {...props}
       >
+        <VisuallyHidden asChild>
+          <Dialog.Title>{ariaLabel}</Dialog.Title>
+        </VisuallyHidden>
         {shouldEnableRightSwipe ? children : content}
       </Dialog.Content>
     </SheetPortal>
