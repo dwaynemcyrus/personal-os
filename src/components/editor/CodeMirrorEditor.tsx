@@ -12,6 +12,7 @@ import {
   actions,
   createNoteIndex,
   wikiLinkAutocomplete,
+  tagAutocomplete,
   toggleTheme,
   getTheme,
   toggleHybridMode,
@@ -73,6 +74,13 @@ export function CodeMirrorEditor({
   const onBacklinksRequestedRef = useRef(onBacklinksRequested);
   const onSaveVersionRef = useRef(onSaveVersion);
   const noteIndexRef = useRef(createNoteIndex([]));
+  // Stable proxy so wikiLinkAutocomplete always reads the latest index
+  const noteIndexProxyRef = useRef({
+    search: (q: string) => noteIndexRef.current.search(q),
+    resolve: (q: string) => noteIndexRef.current.resolve(q),
+  });
+  // Mutable array so tagAutocomplete always reads the latest tags
+  const tagsArrayRef = useRef<string[]>([]);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
@@ -89,8 +97,19 @@ export function CodeMirrorEditor({
     const subscription = db.notes
       .find({ selector: { is_trashed: false } })
       .$.subscribe((docs) => {
-        const notes = docs.map((doc) => ({ title: (doc.toJSON() as NoteDocument).title }));
-        noteIndexRef.current = createNoteIndex(notes);
+        const notes = docs.map((doc) => doc.toJSON() as NoteDocument);
+        noteIndexRef.current = createNoteIndex(notes.map((n) => ({ title: n.title })));
+
+        // Collect tags from properties and inline #tag usage — mutate in-place
+        // so the tagAutocomplete closure always sees the current array contents
+        const tagSet = new Set<string>();
+        for (const note of notes) {
+          for (const tag of note.properties?.tags ?? []) tagSet.add(tag);
+          const matches = (note.content ?? '').matchAll(/#([\w/-]+)/g);
+          for (const match of matches) tagSet.add(match[1]);
+        }
+        const next = Array.from(tagSet).sort();
+        tagsArrayRef.current.splice(0, tagsArrayRef.current.length, ...next);
       });
 
     return () => subscription.unsubscribe();
@@ -186,10 +205,10 @@ export function CodeMirrorEditor({
           ],
         }),
 
-        // Wiki-link autocomplete
         autocompletion({
           override: [
-            wikiLinkAutocomplete({ noteIndex: noteIndexRef.current }),
+            wikiLinkAutocomplete({ noteIndex: noteIndexProxyRef.current }),
+            tagAutocomplete({ tags: tagsArrayRef.current }),
           ],
         }),
 
