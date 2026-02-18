@@ -79,7 +79,7 @@ const DEFAULT_TOGGLES: EditorToggles = {
   isReadOnlyMode: false,
   isWritingMode: false,
   isToolbarOn: false,
-  isWordCountOn: true,
+  isWordCountOn: false,
   isScrollPastEndOn: true,
   isFrontmatterOn: false,
 };

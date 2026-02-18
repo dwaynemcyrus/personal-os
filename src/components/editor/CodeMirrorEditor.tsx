@@ -184,7 +184,7 @@ function CodeMirrorEditor({
           enableTags: true,
           enableCustomTasks: true,
           toolbar: false,
-          wordCount: true,
+          wordCount: false,
           backlinks: true,
           docTitle: noteTitle,
           onBacklinksRequested: async (title: string) => {
