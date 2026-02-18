@@ -88,6 +88,7 @@ const SheetContent = forwardRef<
       onDragProgress,
       onDismiss,
       ariaLabel = 'Sheet',
+      asChild,
       onPointerDownOutside,
       ...props
     },
@@ -335,11 +336,14 @@ const SheetContent = forwardRef<
         onPointerMove={shouldEnableRightSwipe ? handlePointerMove : undefined}
         onPointerUp={shouldEnableRightSwipe ? handlePointerUp : undefined}
         onPointerCancel={shouldEnableRightSwipe ? handlePointerCancel : undefined}
+        asChild={asChild}
         {...props}
       >
-        <VisuallyHidden asChild>
-          <Dialog.Title>{ariaLabel}</Dialog.Title>
-        </VisuallyHidden>
+        {!asChild && (
+          <VisuallyHidden>
+            <Dialog.Title>{ariaLabel}</Dialog.Title>
+          </VisuallyHidden>
+        )}
         {shouldEnableRightSwipe ? children : content}
       </Dialog.Content>
     </SheetPortal>

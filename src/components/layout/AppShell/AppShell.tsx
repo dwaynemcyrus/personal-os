@@ -9,12 +9,6 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from '@/components/ui/Sheet';
 import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
@@ -29,36 +23,12 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
-type NavItem = {
-  context: NavigationContext;
-  label: string;
-  description: string;
-};
-
 type DragTarget = {
   id: string;
   context: NavigationContext;
   label: string;
   offset: [number, number];
 };
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    context: 'strategy',
-    label: 'Strategy',
-    description: 'Projects, goals, and planning',
-  },
-  {
-    context: 'thoughts',
-    label: 'Thoughts',
-    description: 'Notes, ideas, and references',
-  },
-  {
-    context: 'execution',
-    label: 'Execution',
-    description: 'Tasks, habits, and focus',
-  },
-];
 
 const DRAG_TARGETS: DragTarget[] = [
   { id: 'execution', context: 'execution', label: 'Execution', offset: [-96, 0] },
@@ -96,7 +66,6 @@ const useHydrated = () =>
 export function AppShell({ children }: AppShellProps) {
   const { context, stack } = useNavigationState();
   const { switchContext, goBack, pushLayer } = useNavigationActions();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
@@ -149,10 +118,6 @@ export function AppShell({ children }: AppShellProps) {
     [pushLayer, switchContext]
   );
 
-  const handleOpenMenu = () => {
-    triggerHaptic();
-    setIsMenuOpen(true);
-  };
 
   // --- Drag-to-navigate helpers ---
 
@@ -390,16 +355,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className={styles['app-shell']}>
         <header className={styles['app-shell__topbar']}>
           <div className={styles['app-shell__topbar-left']}>
-            {isRoot ? (
-              <button
-                type="button"
-                className={styles['app-shell__icon-button']}
-                onClick={handleOpenMenu}
-                aria-label="Open menu"
-              >
-                <MenuIcon />
-              </button>
-            ) : (
+            {!isRoot && (
               <button
                 type="button"
                 className={styles['app-shell__icon-button']}
@@ -435,47 +391,6 @@ export function AppShell({ children }: AppShellProps) {
         <main className={styles['app-shell__content']}>{children}</main>
 
         <SheetManager />
-
-        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <SheetContent side="left" className={styles['app-shell__menu']} asChild>
-            <motion.div
-              drag="x"
-              dragConstraints={{ left: -140, right: 0 }}
-              dragElastic={0.2}
-              onDragEnd={(_, info) => {
-                if (info.offset.x < -80 || info.velocity.x < -500) {
-                  setIsMenuOpen(false);
-                }
-              }}
-            >
-              <SheetTitle className={styles['app-shell__menu-title']}>
-                Navigate
-              </SheetTitle>
-              <nav className={styles['app-shell__menu-nav']}>
-                {NAV_ITEMS.map((item) => (
-                  <button
-                    key={item.context}
-                    type="button"
-                    className={styles['app-shell__menu-link']}
-                    data-active={context === item.context}
-                    onClick={() => {
-                      triggerHaptic();
-                      openContext(item.context);
-                      setIsMenuOpen(false);
-                    }}
-                  >
-                    <span className={styles['app-shell__menu-label']}>
-                      {item.label}
-                    </span>
-                    <span className={styles['app-shell__menu-description']}>
-                      {item.description}
-                    </span>
-                  </button>
-                ))}
-              </nav>
-            </motion.div>
-          </SheetContent>
-        </Sheet>
 
         <FocusSheet
           key={isFocusOpen ? 'focus-open' : 'focus-closed'}
@@ -566,23 +481,6 @@ export function AppShell({ children }: AppShellProps) {
   );
 }
 
-function MenuIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={styles['app-shell__icon']}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M4 7h16" />
-      <path d="M4 12h16" />
-      <path d="M4 17h12" />
-    </svg>
-  );
-}
 
 function BackIcon() {
   return (
