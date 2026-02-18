@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import type { EditorView } from '@codemirror/view';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
 import {
   Dropdown,
+  DropdownCheckboxItem,
   DropdownContent,
   DropdownItem,
   DropdownSeparator,
@@ -15,7 +17,19 @@ import {
 import { showToast } from '@/components/ui/Toast';
 import type { BacklinkEntry } from 'codemirror-for-writers';
 import {
+  toggleTheme, getTheme,
+  toggleHybridMode, getMode,
+  toggleReadOnly, isReadOnly,
+  toggleWritingModeSheet, isTypewriter, isFocusMode,
+  toggleToolbar, isToolbar,
+  toggleWordCount, isWordCount,
+  toggleScrollPastEnd, isScrollPastEnd,
+  toggleFrontmatterSheet, isFrontmatterSheet,
+  actions,
+} from 'codemirror-for-writers';
+import {
   CodeMirrorEditor,
+  type CodeMirrorEditorHandle,
   TemplatePicker,
   VersionHistory,
 } from '@/components/editor';
@@ -48,6 +62,28 @@ function useCurrentGroup(): string {
   return parts[0] ?? 'all';
 }
 
+type EditorToggles = {
+  isDark: boolean;
+  isRaw: boolean;
+  isReadOnlyMode: boolean;
+  isWritingMode: boolean;
+  isToolbarOn: boolean;
+  isWordCountOn: boolean;
+  isScrollPastEndOn: boolean;
+  isFrontmatterOn: boolean;
+};
+
+const DEFAULT_TOGGLES: EditorToggles = {
+  isDark: false,
+  isRaw: false,
+  isReadOnlyMode: false,
+  isWritingMode: false,
+  isToolbarOn: false,
+  isWordCountOn: true,
+  isScrollPastEndOn: true,
+  isFrontmatterOn: false,
+};
+
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
   const router = useRouter();
@@ -59,6 +95,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  const [editorToggles, setEditorToggles] = useState<EditorToggles>(DEFAULT_TOGGLES);
+  const cmRef = useRef<CodeMirrorEditorHandle>(null);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -272,6 +310,27 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     markVersionSaved(noteId);
   }, [noteId]);
 
+  const handleMenuOpenChange = useCallback((open: boolean) => {
+    if (!open) return;
+    const view = cmRef.current?.view;
+    if (!view) return;
+    setEditorToggles({
+      isDark: getTheme(view) === 'dark',
+      isRaw: getMode(view) === 'raw',
+      isReadOnlyMode: isReadOnly(view),
+      isWritingMode: isTypewriter(view) || isFocusMode(view),
+      isToolbarOn: isToolbar(view),
+      isWordCountOn: isWordCount(view),
+      isScrollPastEndOn: isScrollPastEnd(view),
+      isFrontmatterOn: isFrontmatterSheet(view),
+    });
+  }, []);
+
+  const cmToggle = useCallback((fn: (v: EditorView) => void) => {
+    const view = cmRef.current?.view;
+    if (view) fn(view);
+  }, []);
+
   const handleBacklinksRequested = useCallback(
     async (title: string): Promise<BacklinkEntry[]> => {
       if (!db || !noteId) return [];
@@ -341,7 +400,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               </button>
             </div>
             <div className={`${styles.headerActions} ${styles.headerActionsRight}`}>
-              <Dropdown>
+              <Dropdown onOpenChange={handleMenuOpenChange}>
                 <DropdownTrigger asChild>
                   <button
                     type="button"
@@ -366,6 +425,60 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                   <DropdownItem data-variant="danger" onSelect={handleDelete}>
                     Trash
                   </DropdownItem>
+                  <DropdownSeparator />
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isDark}
+                    onCheckedChange={() => cmToggle(toggleTheme)}
+                  >
+                    Dark mode
+                  </DropdownCheckboxItem>
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isRaw}
+                    onCheckedChange={() => cmToggle(toggleHybridMode)}
+                  >
+                    Raw markdown
+                  </DropdownCheckboxItem>
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isReadOnlyMode}
+                    onCheckedChange={() => cmToggle(toggleReadOnly)}
+                  >
+                    Read-only
+                  </DropdownCheckboxItem>
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isWritingMode}
+                    onCheckedChange={() => cmToggle(toggleWritingModeSheet)}
+                  >
+                    Writing mode
+                  </DropdownCheckboxItem>
+                  <DropdownSeparator />
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isToolbarOn}
+                    onCheckedChange={() => cmToggle(toggleToolbar)}
+                  >
+                    Toolbar
+                  </DropdownCheckboxItem>
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isWordCountOn}
+                    onCheckedChange={() => cmToggle(toggleWordCount)}
+                  >
+                    Word count
+                  </DropdownCheckboxItem>
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isScrollPastEndOn}
+                    onCheckedChange={() => cmToggle(toggleScrollPastEnd)}
+                  >
+                    Scroll past end
+                  </DropdownCheckboxItem>
+                  <DropdownCheckboxItem
+                    checked={editorToggles.isFrontmatterOn}
+                    onCheckedChange={() => cmToggle(toggleFrontmatterSheet)}
+                  >
+                    Frontmatter
+                  </DropdownCheckboxItem>
+                  <DropdownSeparator />
+                  <DropdownItem onSelect={() => cmToggle((v) => actions.search(v))}>
+                    Find &amp; Replace
+                  </DropdownItem>
                 </DropdownContent>
               </Dropdown>
             </div>
@@ -375,6 +488,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
       <div className={styles.editorPane}>
         <CodeMirrorEditor
+          ref={cmRef}
           key={editorKey}
           initialContent={content}
           content={isDirty ? undefined : content}

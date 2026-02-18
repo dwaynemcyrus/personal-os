@@ -40,6 +40,24 @@
   color: var(--color-error-ink-strong);
 }
 
+.item--checkbox {
+  justify-content: space-between;
+}
+
+.checkboxLabel {
+  flex: 1;
+}
+
+.checkboxIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-ink-700);
+  flex-shrink: 0;
+}
+
 .separator {
   height: 1px;
   background: var(--color-border-200);

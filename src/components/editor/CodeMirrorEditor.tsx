@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
@@ -8,7 +8,6 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections, NoteDocument } from '@/lib/db';
 import {
   hybridMarkdown,
-  moreMenu,
   actions,
   createNoteIndex,
   wikiLinkAutocomplete,
@@ -50,7 +49,12 @@ type CodeMirrorEditorProps = {
   onSaveVersion?: () => void;
 };
 
-export function CodeMirrorEditor({
+export type CodeMirrorEditorHandle = {
+  view: EditorView | null;
+};
+
+export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(
+function CodeMirrorEditor({
   initialContent,
   content,
   onChange,
@@ -63,9 +67,13 @@ export function CodeMirrorEditor({
   db = null,
   noteTitle,
   onSaveVersion,
-}: CodeMirrorEditorProps) {
+}: CodeMirrorEditorProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    get view() { return viewRef.current; },
+  }), []);
   const dbRef = useRef(db);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
@@ -189,22 +197,6 @@ export function CodeMirrorEditor({
           scrollPastEnd: true,
         }),
 
-        ...moreMenu({
-          items: [
-            { label: 'Dark mode', handler: (v) => toggleTheme(v), getState: (v) => getTheme(v) === 'dark' },
-            { label: 'Raw mode', handler: (v) => toggleHybridMode(v), getState: (v) => getMode(v) === 'raw' },
-            { label: 'Read-only', handler: (v) => toggleReadOnly(v), getState: (v) => isReadOnly(v) },
-            { type: 'separator' },
-            { label: 'Writing Mode', handler: (v) => toggleWritingModeSheet(v), getState: (v) => isTypewriter(v) || isFocusMode(v) },
-            { label: 'Toolbar', handler: (v) => toggleToolbar(v), getState: (v) => isToolbar(v) },
-            { label: 'Word count', handler: (v) => toggleWordCount(v), getState: (v) => isWordCount(v) },
-            { label: 'Scroll past end', handler: (v) => toggleScrollPastEnd(v), getState: (v) => isScrollPastEnd(v) },
-            { label: 'Properties', handler: (v) => toggleFrontmatterSheet(v), getState: (v) => isFrontmatterSheet(v) },
-            { type: 'separator' },
-            { type: 'action', label: 'Find & Replace', handler: (v) => actions.replace(v) },
-          ],
-        }),
-
         autocompletion({
           override: [
             wikiLinkAutocomplete({ noteIndex: noteIndexProxyRef.current }),
@@ -317,4 +309,4 @@ export function CodeMirrorEditor({
   return (
     <div ref={containerRef} className={styles.editor} />
   );
-}
+});

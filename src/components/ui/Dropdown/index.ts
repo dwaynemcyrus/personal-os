@@ -3,5 +3,6 @@ export {
   DropdownTrigger,
   DropdownContent,
   DropdownItem,
+  DropdownCheckboxItem,
   DropdownSeparator,
 } from './Dropdown';

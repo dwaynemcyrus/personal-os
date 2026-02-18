@@ -4,6 +4,14 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type React from 'react';
 import styles from './Dropdown.module.css';
 
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
 const Dropdown = DropdownMenu.Root;
 const DropdownTrigger = DropdownMenu.Trigger;
 const DropdownPortal = DropdownMenu.Portal;
@@ -45,6 +53,28 @@ function DropdownItem({
   );
 }
 
+function DropdownCheckboxItem({
+  className,
+  children,
+  checked,
+  onCheckedChange,
+  ...props
+}: DropdownMenu.DropdownMenuCheckboxItemProps) {
+  return (
+    <DropdownMenu.CheckboxItem
+      className={[styles.item, styles['item--checkbox'], className].filter(Boolean).join(' ')}
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      {...props}
+    >
+      <span className={styles.checkboxLabel}>{children}</span>
+      <DropdownMenu.ItemIndicator className={styles.checkboxIndicator}>
+        <CheckIcon />
+      </DropdownMenu.ItemIndicator>
+    </DropdownMenu.CheckboxItem>
+  );
+}
+
 function DropdownSeparator({
   className,
   ...props
@@ -62,5 +92,6 @@ export {
   DropdownTrigger,
   DropdownContent,
   DropdownItem,
+  DropdownCheckboxItem,
   DropdownSeparator,
 };
