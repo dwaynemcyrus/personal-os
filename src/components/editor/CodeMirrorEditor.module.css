@@ -1,11 +1,7 @@
 .editor {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
   background: var(--color-white);
-  border-radius: 0;
-  border: none;
-  /* Override parent touch-action restrictions for iOS selection */
   touch-action: auto;
 }
 
@@ -14,18 +10,18 @@
 }
 
 .editor :global(.cm-scroller) {
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Enable iOS text selection handles */
+/* iOS text selection */
 .editor :global(.cm-content) {
   -webkit-user-select: text;
   user-select: text;
-  touch-action: pan-x pan-y;
+  touch-action: pan-y;
 }
 
 .editor :global(.cm-line) {
   -webkit-user-select: text;
   user-select: text;
 }
-

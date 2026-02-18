@@ -211,8 +211,9 @@ export function CodeMirrorEditor({
           '.cm-content': {
             fontFamily: 'var(--font-atten), ui-sans-serif, system-ui, sans-serif',
             fontSize: '16px',
-            padding: '0',
-            paddingTop: '64px',
+            padding: '0 20px',
+            paddingTop: 'calc(64px + env(safe-area-inset-top))',
+            paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
             lineHeight: 'normal',
             caretColor: 'var(--color-ink-900)',
           },
