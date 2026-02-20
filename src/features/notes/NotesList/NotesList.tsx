@@ -1,9 +1,7 @@
-'use client';
-
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
+import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
 import { useGroupedNotes } from '../hooks/useGroupedNotes';
 import type { NoteGroup } from '../hooks/useGroupedNotes';
@@ -31,12 +29,12 @@ type NotesListProps = {
 };
 
 export function NotesList({ group }: NotesListProps) {
-  const router = useRouter();
   const { db, isReady } = useDatabase();
+  const { pushLayer, goBack } = useNavigationActions();
   const { notes, isLoading } = useGroupedNotes(group);
 
   const handleNotePress = (noteId: string) => {
-    router.push(`/notes/${group}/${noteId}`);
+    pushLayer({ view: 'note-detail', noteId });
   };
 
   const handleCreateNote = async () => {
@@ -56,7 +54,7 @@ export function NotesList({ group }: NotesListProps) {
       is_trashed: false,
       trashed_at: null,
     });
-    router.push(`/notes/${group}/${noteId}`);
+    pushLayer({ view: 'note-detail', noteId });
   };
 
   const label = GROUP_LABELS[group] ?? 'Notes';
@@ -74,7 +72,7 @@ export function NotesList({ group }: NotesListProps) {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => router.back()}
+          onClick={goBack}
           aria-label="Go back"
         >
           <BackIcon />

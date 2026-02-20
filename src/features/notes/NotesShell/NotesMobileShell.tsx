@@ -1,50 +1,52 @@
-'use client';
-
-import { usePathname, useRouter } from 'next/navigation';
+import { type ReactNode, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useRef } from 'react';
+import { useNavigationState, useNavigationActions } from '@/components/providers';
 import { useSwipeBack } from '@/hooks/useSwipeBack';
+import { NotesList } from '../NotesList/NotesList';
+import { NoteDetailPage } from '../NoteDetailPage/NoteDetailPage';
 import styles from './NotesMobileShell.module.css';
-
-function getDepth(pathname: string): number {
-  // /notes → 0, /notes/all → 1, /notes/all/noteId → 2
-  const parts = pathname.replace(/^\/notes\/?/, '').split('/').filter(Boolean);
-  return parts.length;
-}
 
 const SPRING = { type: 'spring', stiffness: 300, damping: 30 } as const;
 
-type NotesMobileShellProps = {
-  children: React.ReactNode;
+const variants = {
+  enter: (forward: boolean) => ({
+    x: forward ? '100%' : '-30%',
+  }),
+  center: { x: '0%' },
+  exit: (forward: boolean) => ({
+    x: forward ? '-30%' : '100%',
+  }),
 };
 
-export function NotesMobileShell({ children }: NotesMobileShellProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const prevDepthRef = useRef(getDepth(pathname));
-  const currentDepth = getDepth(pathname);
-  const isForward = currentDepth >= prevDepthRef.current;
-  prevDepthRef.current = currentDepth;
+export function NotesMobileShell() {
+  const { stack } = useNavigationState();
+  const { goBack } = useNavigationActions();
+  const prevStackLengthRef = useRef(stack.length);
 
-  useSwipeBack({ onBack: () => router.back() });
+  const prevLength = prevStackLengthRef.current;
+  prevStackLengthRef.current = stack.length;
+  const isForward = stack.length >= prevLength;
 
-  // Forward: enter from right (x: 100% → 0), exit to left (x: 0 → -30%)
-  // Backward: enter from left (x: -30% → 0), exit to right (x: 0 → 100%)
-  const variants = {
-    enter: (forward: boolean) => ({
-      x: forward ? '100%' : '-30%',
-    }),
-    center: { x: '0%' },
-    exit: (forward: boolean) => ({
-      x: forward ? '-30%' : '100%',
-    }),
-  };
+  useSwipeBack({ onBack: goBack, enabled: stack.length > 0 });
+
+  const topLayer = stack[stack.length - 1];
+
+  let content: ReactNode = null;
+  let viewKey = 'empty';
+
+  if (topLayer?.view === 'notes-list') {
+    content = <NotesList group={topLayer.group} />;
+    viewKey = `notes-list-${topLayer.group}`;
+  } else if (topLayer?.view === 'note-detail') {
+    content = <NoteDetailPage noteId={topLayer.noteId} />;
+    viewKey = `note-detail-${topLayer.noteId}`;
+  }
 
   return (
     <div className={styles.shell}>
       <AnimatePresence initial={false} custom={isForward} mode="popLayout">
         <motion.div
-          key={pathname}
+          key={viewKey}
           className={styles.page}
           custom={isForward}
           variants={variants}
@@ -53,7 +55,7 @@ export function NotesMobileShell({ children }: NotesMobileShellProps) {
           exit="exit"
           transition={SPRING}
         >
-          {children}
+          {content}
         </motion.div>
       </AnimatePresence>
     </div>

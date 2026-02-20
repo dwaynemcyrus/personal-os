@@ -1,27 +1,20 @@
-'use client';
-
-import { usePathname } from 'next/navigation';
+import { useNavigationState } from '@/components/providers';
 import { NotesOverview } from '../NotesOverview/NotesOverview';
 import { NotesList } from '../NotesList/NotesList';
 import { NoteDetailPage } from '../NoteDetailPage/NoteDetailPage';
 import type { NoteGroup } from '../hooks/useGroupedNotes';
 import styles from './NotesDesktopShell.module.css';
 
-const VALID_GROUPS = new Set(['all', 'todo', 'today', 'locked', 'pinned', 'trash']);
+export function NotesDesktopShell() {
+  const { stack } = useNavigationState();
 
-function parseNotesPath(pathname: string): {
-  group: NoteGroup | null;
-  noteId: string | null;
-} {
-  const parts = pathname.replace(/^\/notes\/?/, '').split('/').filter(Boolean);
-  const group = parts[0] && VALID_GROUPS.has(parts[0]) ? (parts[0] as NoteGroup) : null;
-  const noteId = parts[1] ?? null;
-  return { group, noteId };
-}
+  const notesListLayer = stack.find(
+    (l) => l.view === 'notes-list'
+  ) as { view: 'notes-list'; group: NoteGroup } | undefined;
 
-export function NotesDesktopShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const { group, noteId } = parseNotesPath(pathname);
+  const noteDetailLayer = stack.find(
+    (l) => l.view === 'note-detail'
+  ) as { view: 'note-detail'; noteId: string } | undefined;
 
   return (
     <div className={styles.shell}>
@@ -29,11 +22,11 @@ export function NotesDesktopShell({ children }: { children: React.ReactNode }) {
         <NotesOverview />
       </div>
       <div className={styles.paneList}>
-        {group ? <NotesList group={group} /> : null}
+        {notesListLayer ? <NotesList group={notesListLayer.group} /> : null}
       </div>
       <div className={styles.paneDetail}>
-        {noteId && group ? (
-          <NoteDetailPage noteId={noteId} group={group} />
+        {noteDetailLayer ? (
+          <NoteDetailPage noteId={noteDetailLayer.noteId} />
         ) : null}
       </div>
     </div>

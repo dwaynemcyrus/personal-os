@@ -3,22 +3,15 @@
   gap: var(--space-28);
 }
 
-.home__loading {
-  padding: var(--space-32);
-  text-align: center;
-  color: var(--color-ink-500);
-  font-size: var(--font-sm);
-}
-
 /* ── Now section ── */
-.home__now-title {
+.homeNowTitle {
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: var(--leading-tight);
 }
 
-.home__now-card {
+.homeNowCard {
   width: 100%;
   background: var(--color-surface);
   border: 1px solid var(--color-border-200);
@@ -34,28 +27,28 @@
     box-shadow var(--duration-160) var(--ease-default);
 }
 
-.home__now-card:hover {
+.homeNowCard:hover {
   border-color: var(--color-border-400);
   box-shadow: var(--shadow-hover);
 }
 
-.home__now-card:focus-visible {
+.homeNowCard:focus-visible {
   outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
-.home__now-date {
+.homeNowDate {
   font-size: var(--font-base);
   font-weight: var(--font-medium);
   color: var(--color-ink-900);
 }
 
-.home__now-subtitle {
+.homeNowSubtitle {
   font-size: var(--font-sm);
   color: var(--color-ink-450);
 }
 
-.home__now-button {
+.homeNowButton {
   display: block;
   width: 100%;
   padding: var(--space-10) var(--space-18);
@@ -70,7 +63,7 @@
 }
 
 /* ── Inbox section ── */
-.home__section-label {
+.homeSectionLabel {
   font-size: 13px;
   font-weight: var(--font-medium);
   text-transform: uppercase;
@@ -79,7 +72,7 @@
   margin-bottom: var(--space-8);
 }
 
-.home__inbox-card {
+.homeInboxCard {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -96,39 +89,39 @@
     box-shadow var(--duration-160) var(--ease-default);
 }
 
-.home__inbox-card:hover {
+.homeInboxCard:hover {
   border-color: var(--color-border-500);
   box-shadow: var(--shadow-hover);
 }
 
-.home__inbox-card:focus-visible {
+.homeInboxCard:focus-visible {
   outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
-.home__inbox-text {
+.homeInboxText {
   display: grid;
   gap: 2px;
 }
 
-.home__inbox-title {
+.homeInboxTitle {
   font-size: var(--font-base);
   font-weight: var(--font-medium);
   color: var(--color-ink-900);
 }
 
-.home__inbox-subtitle {
+.homeInboxSubtitle {
   font-size: var(--font-sm);
   color: var(--color-ink-450);
 }
 
-.home__inbox-right {
+.homeInboxRight {
   display: flex;
   align-items: center;
   gap: var(--space-8);
 }
 
-.home__inbox-badge {
+.homeInboxBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -142,13 +135,13 @@
   font-weight: 600;
 }
 
-.home__inbox-arrow {
+.homeInboxArrow {
   font-size: 18px;
   color: var(--color-ink-300);
 }
 
 /* ── Workbench section ── */
-.home__workbench-empty {
+.homeWorkbenchEmpty {
   border-radius: var(--radius-16);
   border: 1px dashed var(--color-border-dashed);
   background: var(--color-surface);
@@ -158,7 +151,7 @@
   text-align: center;
 }
 
-.home__workbench-add {
+.homeWorkbenchAdd {
   display: block;
   width: 100%;
   padding: var(--space-14) var(--space-18);
@@ -170,25 +163,35 @@
   font-weight: var(--font-medium);
   text-align: center;
   cursor: pointer;
+  margin-top: var(--space-8);
   transition: border-color var(--duration-160) var(--ease-default),
     box-shadow var(--duration-160) var(--ease-default);
 }
 
-.home__workbench-add:hover {
+.homeWorkbenchAdd:hover {
   border-color: var(--color-border-400);
   box-shadow: var(--shadow-hover);
 }
 
-.home__workbench-add:focus-visible {
+.homeWorkbenchAdd:focus-visible {
   outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 
-/* ── Focus card (reused from old design, kept for timer state) ── */
-.home__focus-status[data-state='running'] {
-  color: var(--color-success-ink);
+/* ── Placeholder views ── */
+.placeholder {
+  display: grid;
+  gap: var(--space-8);
 }
 
-.home__focus-status[data-state='paused'] {
-  color: var(--color-warning-ink);
+.placeholderTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--letter-tight);
+}
+
+.placeholderBody {
+  font-size: var(--font-base);
+  color: var(--color-ink-500);
 }

@@ -1,6 +1,4 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
+import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
 import { useNoteGroupCounts } from '../hooks/useNoteGroupCounts';
 import type { NoteGroup } from '../hooks/useGroupedNotes';
@@ -23,7 +21,7 @@ const GROUP_ROWS: GroupRow[] = [
 ];
 
 export function NotesOverview() {
-  const router = useRouter();
+  const { pushLayer } = useNavigationActions();
   const counts = useNoteGroupCounts();
 
   const handleGroupPress = (row: GroupRow) => {
@@ -31,7 +29,7 @@ export function NotesOverview() {
       showToast(`${row.label} is coming soon`);
       return;
     }
-    router.push(`/notes/${row.id}`);
+    pushLayer({ view: 'notes-list', group: row.id });
   };
 
   return (

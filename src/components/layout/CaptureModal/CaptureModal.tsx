@@ -1,5 +1,3 @@
-'use client';
-
 import {
   useCallback,
   useDeferredValue,
@@ -9,8 +7,8 @@ import {
   useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useRouter } from 'next/navigation';
 import { useDatabase } from '@/hooks/useDatabase';
+import { useNavigationActions } from '@/components/providers';
 import { searchNotes, type SearchResult } from '@/lib/search';
 import type { NoteDocument } from '@/lib/db';
 import {
@@ -33,7 +31,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { db, isReady } = useDatabase();
-  const router = useRouter();
+  const { pushLayer } = useNavigationActions();
 
   // Subscribe to recent notes
   const [allNotes, setAllNotes] = useState<NoteDocument[]>([]);
@@ -136,9 +134,9 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const handleOpenNote = useCallback(
     (noteId: string) => {
       onOpenChange(false);
-      router.push(`/notes/all/${noteId}`);
+      pushLayer({ view: 'note-detail', noteId });
     },
-    [onOpenChange, router]
+    [onOpenChange, pushLayer]
   );
 
   // Keyboard navigation

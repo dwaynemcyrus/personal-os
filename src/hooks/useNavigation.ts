@@ -1,18 +1,15 @@
 /**
  * useNavigation Hook
  *
- * Main navigation hook with browser history integration.
- * Always starts at the home (today) context on page load.
+ * Main navigation hook. Always starts at Today (empty stack) on page load.
  */
-
-'use client';
 
 import { useReducer, useEffect, useCallback } from 'react';
 import {
   navigationReducer,
   navigationActions,
 } from '@/lib/navigation/reducer';
-import type { NavigationLayer, NavigationContext } from '@/lib/navigation/types';
+import type { NavigationLayer } from '@/lib/navigation/types';
 import { initialNavigationState } from '@/lib/navigation/types';
 
 export function useNavigation() {
@@ -21,12 +18,8 @@ export function useNavigation() {
     initialNavigationState
   );
 
-  // Browser history integration
+  // Browser history integration — back button pops a layer
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
     const handlePopState = () => {
       dispatch(navigationActions.goBack());
     };
@@ -35,22 +28,13 @@ export function useNavigation() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Wrapped action creators
   const pushLayer = useCallback((layer: NavigationLayer) => {
     dispatch(navigationActions.pushLayer(layer));
-
-    // Push to browser history
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '');
-    }
+    window.history.pushState({}, '');
   }, []);
 
   const popLayer = useCallback(() => {
     dispatch(navigationActions.popLayer());
-  }, []);
-
-  const switchContext = useCallback((context: NavigationContext) => {
-    dispatch(navigationActions.switchContext(context));
   }, []);
 
   const goBack = useCallback(() => {
@@ -66,7 +50,6 @@ export function useNavigation() {
     actions: {
       pushLayer,
       popLayer,
-      switchContext,
       goBack,
       resetToToday,
     },

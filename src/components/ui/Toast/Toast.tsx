@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useSyncExternalStore } from 'react';
 import styles from './Toast.module.css';
