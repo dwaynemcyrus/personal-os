@@ -166,7 +166,7 @@ export function CodeMirrorEditor({
         EditorView.theme({
           '&': { height: '100%' },
           '.cm-content': {
-            fontFamily: 'var(--font-atten), ui-sans-serif, system-ui, sans-serif',
+            fontFamily: 'var(--font-family-primary)',
             fontSize: '16px',
             padding: '0 20px',
             paddingTop: 'calc(64px + env(safe-area-inset-top))',
