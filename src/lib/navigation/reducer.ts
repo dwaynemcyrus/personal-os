@@ -1,15 +1,13 @@
 /**
  * Navigation Reducer
  *
- * State machine for SPA navigation with stack-based sheet management.
- * Critical behavior: Context switches clear the stack.
+ * State machine for SPA navigation with stack-based layer management.
  */
 
 import type {
   NavigationState,
   NavigationAction,
   NavigationLayer,
-  NavigationContext,
 } from './types';
 import { initialNavigationState } from './types';
 
@@ -33,15 +31,7 @@ export function navigationReducer(
         stack: state.stack.slice(0, -1),
       };
 
-    case 'SWITCH_CONTEXT':
-      // Critical: Context switch clears the stack
-      return {
-        context: action.context,
-        stack: [],
-      };
-
     case 'GO_BACK':
-      // Same as POP_LAYER, provided for semantic clarity
       if (state.stack.length === 0) {
         return state;
       }
@@ -70,11 +60,6 @@ export const navigationActions = {
 
   popLayer: (): NavigationAction => ({
     type: 'POP_LAYER',
-  }),
-
-  switchContext: (context: NavigationContext): NavigationAction => ({
-    type: 'SWITCH_CONTEXT',
-    context,
   }),
 
   goBack: (): NavigationAction => ({

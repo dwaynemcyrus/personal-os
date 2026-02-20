@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.13.0 - 2026-02-20
+- Migrated from Next.js to Vite — app is now a pure client-side SPA served as static files
+- Replaced URL-based notes routing (`/notes/[group]/[noteId]`) with stack-based navigation
+- Added `index.html`, `vite.config.ts`, `src/main.tsx`, `src/App.tsx` as new entry points
+- Added `vite-plugin-pwa` replacing `next-pwa`; added `vitest` + `jsdom` for testing
+- Replaced `NavigationLayer` union with new views: `notes-list`, `note-detail`, `tasks-list`, `task-detail`, `plans-list`, `plan-detail`
+- Removed `NavigationContext` (`today/execution/thoughts/strategy`) and `SWITCH_CONTEXT` action
+- Added `ContextSheet` — bottom sheet opened by FAB long-press with Notes/Tasks/Plans tabs; replaces radial drag-to-navigate
+- Removed all `'use client'` directives and `next/*` imports across the codebase
+- Moved `globals.css` to `src/styles/globals.css`; converted `next/font/local` to `@font-face` declarations
+- Updated `NotesMobileShell` and `NotesDesktopShell` to read nav state directly (no Next.js children prop)
+- Updated `CaptureModal`, `NoteDetailPage`, `NoteList`, `NotesList`, `NotesOverview` to use nav actions
+- Updated `ProjectList` to use local state for project detail sheet (removed from nav layers)
+- Deleted `src/app/` directory, `next.config.ts`, `next-env.d.ts`
+
 ## 0.12.0 - 2026-02-19
 - Replaced SPA sheet-based notes navigation with URL-based routing via Next.js App Router (`/notes`, `/notes/[group]`, `/notes/[group]/[noteId]`)
 - Added 3-pane desktop layout (overview 220px + list 300px + editor flex) and Framer Motion slide animations on mobile

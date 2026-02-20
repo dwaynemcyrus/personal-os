@@ -1,11 +1,9 @@
-'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
-import { useNavigationState, useNavigationActions } from '@/components/providers';
 import styles from './ProjectList.module.css';
 
 type ProjectFilter = 'all' | 'backlog' | 'next' | 'active' | 'hold';
@@ -44,15 +42,7 @@ export function ProjectList() {
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [filter, setFilter] = useState<ProjectFilter>('all');
   const [titleInput, setTitleInput] = useState('');
-
-  const { stack } = useNavigationState();
-  const { pushLayer, popLayer } = useNavigationActions();
-
-  // Find if project-detail is in stack
-  const projectDetailLayer = stack.find((layer) => layer.view === 'project-detail');
-  const selectedProjectId = projectDetailLayer && projectDetailLayer.view === 'project-detail'
-    ? projectDetailLayer.projectId
-    : null;
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -136,12 +126,12 @@ export function ProjectList() {
   };
 
   const handleOpenProject = (projectId: string) => {
-    pushLayer({ view: 'project-detail', projectId });
+    setSelectedProjectId(projectId);
   };
 
   const handleDetailOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      popLayer();
+      setSelectedProjectId(null);
     }
   };
 

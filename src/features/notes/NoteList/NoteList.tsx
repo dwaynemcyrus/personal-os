@@ -1,9 +1,7 @@
-'use client';
-
 import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useRouter } from 'next/navigation';
 import { useDatabase } from '@/hooks/useDatabase';
+import { useNavigationActions } from '@/components/providers';
 import type { NoteDocument } from '@/lib/db';
 import {
   extractNoteSnippet,
@@ -18,7 +16,7 @@ const nowIso = () => new Date().toISOString();
 export function NoteList() {
   const { db, isReady } = useDatabase();
   const [notes, setNotes] = useState<NoteDocument[]>([]);
-  const router = useRouter();
+  const { pushLayer } = useNavigationActions();
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -71,11 +69,11 @@ export function NoteList() {
       is_trashed: false,
       trashed_at: null,
     });
-    router.push(`/notes/all/${noteId}`);
+    pushLayer({ view: 'note-detail', noteId });
   };
 
   const handleOpenNote = (noteId: string) => {
-    router.push(`/notes/all/${noteId}`);
+    pushLayer({ view: 'note-detail', noteId });
   };
 
   return (
@@ -115,7 +113,6 @@ export function NoteList() {
           ))}
         </div>
       )}
-
     </div>
   );
 }

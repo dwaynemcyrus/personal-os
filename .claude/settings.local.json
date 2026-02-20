@@ -51,7 +51,23 @@
       "Bash(gh pr merge:*)",
       "Bash(git pull:*)",
       "Bash(git stash:*)",
-      "Bash(gh release create:*)"
+      "Bash(gh release create:*)",
+      "Bash(npm remove:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/components/providers/NavigationProvider.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/main.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/App.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/App.module.css:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/components/layout/ContextSheet/ContextSheet.module.css:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/components/layout/OfflinePage/OfflinePage.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/components/layout/OfflinePage/OfflinePage.module.css:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/features/notes/NoteDetailPage/NoteDetailPage.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/features/notes/NotesOverview/NotesOverview.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/features/notes/NotesShell/NotesMobileShell.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/tsconfig.json:*)",
+      "Bash(/Users/cyrus/Code/personal-os/eslint.config.mjs:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/components/layout/SheetManager/SheetManager.tsx:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/features/projects/ProjectList/ProjectList.tsx:*)",
+      "Bash(timeout 15 npm run dev:*)"
     ]
   }
 }

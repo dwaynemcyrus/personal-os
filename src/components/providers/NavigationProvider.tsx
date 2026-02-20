@@ -2,10 +2,7 @@
  * NavigationProvider
  *
  * React Context wrapper for navigation state and actions.
- * Provides access to navigation from any component.
  */
-
-'use client';
 
 import React, {
   createContext,
@@ -15,7 +12,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useNavigation } from '@/hooks/useNavigation';
-import type { NavigationState, NavigationLayer, NavigationContext } from '@/lib/navigation/types';
+import type { NavigationState, NavigationLayer } from '@/lib/navigation/types';
 
 interface NavigationContextValue {
   state: NavigationState;
@@ -23,7 +20,6 @@ interface NavigationContextValue {
   actions: {
     pushLayer: (layer: NavigationLayer) => void;
     popLayer: () => void;
-    switchContext: (context: NavigationContext) => void;
     goBack: () => void;
     resetToToday: () => void;
     setReaderMode: (nextValue: boolean) => void;
