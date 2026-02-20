@@ -24,12 +24,6 @@ type AppShellProps = {
 
 const LONG_PRESS_MS = 500;
 
-const triggerHaptic = () => {
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    navigator.vibrate(10);
-  }
-};
-
 const useHydrated = () =>
   useSyncExternalStore(
     (onStoreChange) => {
@@ -94,7 +88,6 @@ export function AppShell({ children }: AppShellProps) {
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
-    triggerHaptic();
     goBack();
   };
 
@@ -115,7 +108,6 @@ export function AppShell({ children }: AppShellProps) {
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      triggerHaptic();
       setIsContextSheetOpen(true);
     }, LONG_PRESS_MS);
   };
@@ -135,7 +127,6 @@ export function AppShell({ children }: AppShellProps) {
       return;
     }
     clearLongPressTimer();
-    triggerHaptic();
     setIsCommandOpen(true);
   };
 
@@ -155,7 +146,6 @@ export function AppShell({ children }: AppShellProps) {
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      triggerHaptic();
       setIsContextSheetOpen(true);
     }, LONG_PRESS_MS);
   };
@@ -174,13 +164,11 @@ export function AppShell({ children }: AppShellProps) {
   // --- Other handlers ---
 
   const handleOpenFocus = () => {
-    triggerHaptic();
     setIsFocusOpen(true);
   };
 
   useEffect(() => {
     const handleOpen = () => {
-      triggerHaptic();
       setIsFocusOpen(true);
     };
 
@@ -192,7 +180,6 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     const handleOpenInbox = () => {
-      triggerHaptic();
       setIsInboxOpen(true);
     };
 

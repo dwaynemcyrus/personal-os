@@ -9,8 +9,8 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // Only in development
 if (import.meta.env.DEV) {
-  addRxPlugin(RxDBDevModePlugin);
   disableWarnings();
+  addRxPlugin(RxDBDevModePlugin);
 }
 
 const baseFields = {
