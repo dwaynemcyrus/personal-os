@@ -35,7 +35,23 @@
       "Bash(npx next dev:*)",
       "Bash(npm cache clean:*)",
       "Bash(git reset:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(sips --getProperty:*)",
+      "Bash(sips:*)",
+      "Bash(sips -s format png:*)",
+      "Bash(node -e:*)",
+      "Bash(npm view:*)",
+      "Bash(tar:*)",
+      "Bash(npm version:*)",
+      "Bash(npm publish:*)",
+      "Bash(npm whoami:*)",
+      "Bash(git -C:*)",
+      "Bash(npm show:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(gh release create:*)"
     ]
   }
 }
