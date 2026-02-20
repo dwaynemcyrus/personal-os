@@ -11,7 +11,7 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   padding-top: calc(var(--space-3) + env(safe-area-inset-top));
-  border-bottom: 1px solid var(--color-border-100);
+  border-bottom: 1px solid var(--color-border-200);
   background: var(--color-paper);
   position: sticky;
   top: 0;
@@ -77,53 +77,57 @@
 .list {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-3) var(--space-4);
-  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
-  display: grid;
-  gap: var(--space-2);
-  align-content: start;
+  padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
 }
 
 .empty {
   font-size: var(--font-sm);
   color: var(--color-ink-500);
-  padding: var(--space-4) 0;
+  padding: var(--space-20);
 }
 
 .item {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-16);
-  border-radius: var(--radius-14);
-  border: 1px solid var(--color-border-200);
-  background: var(--color-surface);
+  display: block;
+  padding: 13px var(--space-20);
+  border-bottom: 1px solid var(--color-border-200);
+  background: transparent;
   text-align: left;
   width: 100%;
   cursor: pointer;
   font: inherit;
   color: inherit;
-  transition: border-color var(--duration-160) var(--ease-default),
-    box-shadow var(--duration-160) var(--ease-default);
+  transition: background var(--duration-100) var(--ease-default);
 }
 
-.item:hover {
-  border-color: var(--color-border-400);
-  box-shadow: var(--shadow-hover);
+.item:first-child {
+  border-top: 1px solid var(--color-border-200);
+}
+
+@media (hover: hover) {
+  .item:hover {
+    background: var(--color-ink-alpha-06);
+  }
+}
+
+.item:active {
+  background: var(--color-ink-alpha-08);
 }
 
 .item:focus-visible {
   outline: 2px solid var(--color-ink-900);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.itemTitleRow {
+.itemHeader {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  align-items: baseline;
+  gap: var(--space-8);
+  margin-bottom: 3px;
 }
 
 .itemTitle {
+  flex: 1;
+  min-width: 0;
   font-size: var(--font-base);
   font-weight: var(--font-medium);
   white-space: nowrap;
@@ -135,29 +139,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  color: var(--color-ink-500);
+  width: 14px;
+  height: 14px;
+  color: var(--color-ink-400);
   flex-shrink: 0;
 }
 
 .pinIcon svg {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
+}
+
+.itemDate {
+  font-size: 11px;
+  color: var(--color-ink-350);
+  flex-shrink: 0;
 }
 
 .itemSnippet {
   font-size: var(--font-sm);
   color: var(--color-ink-500);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
-}
-
-.itemMeta {
-  font-size: var(--font-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-ink-500);
+  text-overflow: ellipsis;
 }

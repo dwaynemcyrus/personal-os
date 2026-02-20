@@ -80,6 +80,7 @@ const SheetContent = forwardRef<
           .filter(Boolean)
           .join(' ')}
         style={{ zIndex }}
+        aria-describedby={undefined}
         onPointerDownOutside={onPointerDownOutside}
         asChild={asChild}
         {...props}

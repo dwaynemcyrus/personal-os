@@ -17,11 +17,11 @@ export function useDatabase() {
       
       if (!mounted) return;
 
-      // Setup sync
-      await setupSync(database);
-
       setDb(database);
       setIsReady(true);
+
+      // Sync runs in the background — never blocks local data loading
+      setupSync(database).catch(console.error);
     }
 
     init();

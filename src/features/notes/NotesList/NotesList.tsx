@@ -108,14 +108,14 @@ export function NotesList({ group }: NotesListProps) {
                 className={styles.item}
                 onClick={() => handleNotePress(note.id)}
               >
-                <div className={styles.itemTitleRow}>
+                <div className={styles.itemHeader}>
                   <div className={styles.itemTitle}>{title}</div>
                   {note.is_pinned && <PinIcon />}
+                  <div className={styles.itemDate}>{updatedLabel}</div>
                 </div>
                 {snippet ? (
                   <div className={styles.itemSnippet}>{snippet}</div>
                 ) : null}
-                <div className={styles.itemMeta}>Updated {updatedLabel}</div>
               </button>
             );
           })
