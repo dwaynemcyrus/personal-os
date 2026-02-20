@@ -35,7 +35,7 @@ const useHydrated = () =>
   );
 
 function getPageTitle(topLayer: NavigationLayer | undefined): string {
-  if (!topLayer) return 'Today';
+  if (!topLayer) return 'Now';
   switch (topLayer.view) {
     case 'notes-list':
       return (
@@ -52,7 +52,7 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
     case 'plan-detail':
       return 'Plans';
     default:
-      return 'Today';
+      return 'Now';
   }
 }
 

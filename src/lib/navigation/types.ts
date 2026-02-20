@@ -20,7 +20,7 @@ export type NavigationAction =
   | { type: 'PUSH_LAYER'; layer: NavigationLayer }
   | { type: 'POP_LAYER' }
   | { type: 'GO_BACK' }
-  | { type: 'RESET_TO_TODAY' }
+  | { type: 'RESET_TO_NOW' }
   | { type: 'RESTORE_STATE'; state: NavigationState };
 
 export const initialNavigationState: NavigationState = {

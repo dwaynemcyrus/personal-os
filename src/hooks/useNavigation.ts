@@ -1,7 +1,7 @@
 /**
  * useNavigation Hook
  *
- * Main navigation hook. Always starts at Today (empty stack) on page load.
+ * Main navigation hook. Always starts at Now (empty stack) on page load.
  */
 
 import { useReducer, useEffect, useCallback } from 'react';
@@ -41,8 +41,8 @@ export function useNavigation() {
     dispatch(navigationActions.goBack());
   }, []);
 
-  const resetToToday = useCallback(() => {
-    dispatch(navigationActions.resetToToday());
+  const resetToNow = useCallback(() => {
+    dispatch(navigationActions.resetToNow());
   }, []);
 
   return {
@@ -51,7 +51,7 @@ export function useNavigation() {
       pushLayer,
       popLayer,
       goBack,
-      resetToToday,
+      resetToNow,
     },
   };
 }

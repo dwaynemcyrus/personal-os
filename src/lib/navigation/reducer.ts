@@ -40,7 +40,7 @@ export function navigationReducer(
         stack: state.stack.slice(0, -1),
       };
 
-    case 'RESET_TO_TODAY':
+    case 'RESET_TO_NOW':
       return initialNavigationState;
 
     case 'RESTORE_STATE':
@@ -66,8 +66,8 @@ export const navigationActions = {
     type: 'GO_BACK',
   }),
 
-  resetToToday: (): NavigationAction => ({
-    type: 'RESET_TO_TODAY',
+  resetToNow: (): NavigationAction => ({
+    type: 'RESET_TO_NOW',
   }),
 
   restoreState: (state: NavigationState): NavigationAction => ({

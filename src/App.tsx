@@ -45,7 +45,7 @@ function PlansView() {
   );
 }
 
-function TodayView() {
+function NowView() {
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
 
@@ -53,7 +53,7 @@ function TodayView() {
     window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
   };
 
-  const todayLabel = useMemo(() => {
+  const nowLabel = useMemo(() => {
     const d = new Date();
     return d.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -62,36 +62,36 @@ function TodayView() {
     });
   }, []);
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const todayNoteType = `daily:${todayIso}`;
-  const todayTitle = `daily_${todayIso}`;
+  const nowIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const nowNoteType = `daily:${nowIso}`;
+  const nowTitle = `daily_${nowIso}`;
 
-  const [todayNote, setTodayNote] = useState<NoteDocument | null>(null);
+  const [nowNote, setNowNote] = useState<NoteDocument | null>(null);
   useEffect(() => {
     if (!db || !isReady) return;
     const subscription = db.notes
       .findOne({
-        selector: { note_type: todayNoteType, is_trashed: false },
+        selector: { note_type: nowNoteType, is_trashed: false },
       })
       .$.subscribe((doc) => {
-        setTodayNote(doc ? (doc.toJSON() as NoteDocument) : null);
+        setNowNote(doc ? (doc.toJSON() as NoteDocument) : null);
       });
     return () => subscription.unsubscribe();
-  }, [db, isReady, todayNoteType]);
+  }, [db, isReady, nowNoteType]);
 
-  const handleTodayNote = async () => {
+  const handleNowNote = async () => {
     if (!db) return;
-    if (todayNote) {
-      pushLayer({ view: 'note-detail', noteId: todayNote.id });
+    if (nowNote) {
+      pushLayer({ view: 'note-detail', noteId: nowNote.id });
     } else {
       const noteId = uuidv4();
       const timestamp = new Date().toISOString();
       await db.notes.insert({
         id: noteId,
-        title: todayTitle,
-        content: `# ${todayTitle}\n`,
+        title: nowTitle,
+        content: `# ${nowTitle}\n`,
         inbox_at: null,
-        note_type: todayNoteType,
+        note_type: nowNoteType,
         is_pinned: false,
         properties: null,
         created_at: timestamp,
@@ -127,15 +127,15 @@ function TodayView() {
       <button
         type="button"
         className={styles.homeNowCard}
-        onClick={handleTodayNote}
-        aria-label="Open today's working surface"
+        onClick={handleNowNote}
+        aria-label="Open now working surface"
       >
         <div>
-          <div className={styles.homeNowDate}>{todayLabel}</div>
+          <div className={styles.homeNowDate}>{nowLabel}</div>
           <div className={styles.homeNowSubtitle}>Your daily working surface</div>
         </div>
         <div className={styles.homeNowButton}>
-          {todayNote ? "Open Today's Note" : 'Create Today Note'}
+          {nowNote ? 'Open Now Note' : 'Create Now Note'}
         </div>
       </button>
 
@@ -166,7 +166,7 @@ function TodayView() {
         <button
           type="button"
           className={styles.homeWorkbenchAdd}
-          onClick={handleTodayNote}
+          onClick={handleNowNote}
           aria-label="Add to workbench"
         >
           + Add to Workbench
@@ -178,7 +178,7 @@ function TodayView() {
 
 function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
   if (!topLayer) {
-    return <TodayView />;
+    return <NowView />;
   }
 
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') {
@@ -193,7 +193,7 @@ function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
     return <PlansView />;
   }
 
-  return <TodayView />;
+  return <NowView />;
 }
 
 export function App() {

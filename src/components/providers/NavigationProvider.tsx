@@ -21,7 +21,7 @@ interface NavigationContextValue {
     pushLayer: (layer: NavigationLayer) => void;
     popLayer: () => void;
     goBack: () => void;
-    resetToToday: () => void;
+    resetToNow: () => void;
     setReaderMode: (nextValue: boolean) => void;
     toggleReaderMode: () => void;
   };
