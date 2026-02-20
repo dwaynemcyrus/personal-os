@@ -1,3 +1,2 @@
-export { CodeMirrorEditor, type CodeMirrorEditorHandle } from './CodeMirrorEditor';
-export { TemplatePicker } from './TemplatePicker';
+export { CodeMirrorEditor } from './CodeMirrorEditor';
 export { VersionHistory } from './VersionHistory';

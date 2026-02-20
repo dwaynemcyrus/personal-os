@@ -1,49 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { EditorView } from '@codemirror/view';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument } from '@/lib/db';
+import type { NoteDocument, NoteProperties } from '@/lib/db';
 import {
   Dropdown,
-  DropdownCheckboxItem,
   DropdownContent,
   DropdownItem,
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
 import { showToast } from '@/components/ui/Toast';
-import type { BacklinkEntry } from 'codemirror-for-writers';
-import {
-  toggleTheme, getTheme,
-  toggleHybridMode, getMode,
-  toggleReadOnly, isReadOnly,
-  toggleWritingModeSheet, isTypewriter, isFocusMode,
-  toggleToolbar, isToolbar,
-  toggleWordCount, isWordCount,
-  toggleScrollPastEnd, isScrollPastEnd,
-  toggleFrontmatterSheet, isFrontmatterSheet,
-  actions,
-} from 'codemirror-for-writers';
-import {
-  CodeMirrorEditor,
-  type CodeMirrorEditorHandle,
-  TemplatePicker,
-  VersionHistory,
-} from '@/components/editor';
+import { CodeMirrorEditor, VersionHistory } from '@/components/editor';
 import {
   saveVersion,
   shouldAutoSaveVersion,
   markVersionSaved,
 } from '@/lib/versions';
-import type { NoteProperties } from '@/lib/db';
 import {
   parseFrontmatter,
   replaceFrontmatterBlock,
 } from '@/lib/markdown/frontmatter';
-import { syncNoteLinks, getBacklinks } from '@/lib/noteLinks';
 import { extractNoteTitle } from '../noteUtils';
 import styles from './NoteEditor.module.css';
 
@@ -55,48 +33,14 @@ type NoteEditorProps = {
   onClose?: () => void;
 };
 
-function useCurrentGroup(): string {
-  const pathname = usePathname();
-  // pathname like /notes/all/noteId → group is "all"
-  const parts = pathname?.replace(/^\/notes\/?/, '').split('/').filter(Boolean) ?? [];
-  return parts[0] ?? 'all';
-}
-
-type EditorToggles = {
-  isDark: boolean;
-  isRaw: boolean;
-  isReadOnlyMode: boolean;
-  isWritingMode: boolean;
-  isToolbarOn: boolean;
-  isWordCountOn: boolean;
-  isScrollPastEndOn: boolean;
-  isFrontmatterOn: boolean;
-};
-
-const DEFAULT_TOGGLES: EditorToggles = {
-  isDark: false,
-  isRaw: false,
-  isReadOnlyMode: false,
-  isWritingMode: false,
-  isToolbarOn: false,
-  isWordCountOn: false,
-  isScrollPastEndOn: true,
-  isFrontmatterOn: false,
-};
-
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
-  const router = useRouter();
-  const currentGroup = useCurrentGroup();
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
-  const [editorToggles, setEditorToggles] = useState<EditorToggles>(DEFAULT_TOGGLES);
-  const cmRef = useRef<CodeMirrorEditorHandle>(null);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -124,31 +68,18 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
 
-  const derivedTitle = useMemo(
-    () => extractNoteTitle(content, note?.title),
-    [content, note?.title]
-  );
-
-  const handleClose = () => {
-    onClose?.();
-  };
+  const handleClose = () => onClose?.();
 
   const handleDelete = async () => {
     if (!db || !note) return;
     const doc = await db.notes.findOne(note.id).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({
-      is_trashed: true,
-      trashed_at: timestamp,
-      updated_at: timestamp,
-    });
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     onClose?.();
   };
 
@@ -156,47 +87,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     if (!db || !note) return;
     const doc = await db.notes.findOne(note.id).exec();
     if (!doc) return;
-    const timestamp = nowIso();
-    await doc.patch({
-      is_pinned: !note.is_pinned,
-      updated_at: timestamp,
-    });
+    await doc.patch({ is_pinned: !note.is_pinned, updated_at: nowIso() });
   };
 
-  const handleWikiLinkClick = useCallback(
-    async (target: string, existingNoteId: string | null) => {
-      if (!db) return;
-
-      if (existingNoteId) {
-        router.push(`/notes/${currentGroup}/${existingNoteId}`);
-      } else {
-        const shouldCreate = window.confirm(
-          `Create new note "${target}"?`
-        );
-        if (!shouldCreate) return;
-
-        const newNoteId = uuidv4();
-        const timestamp = nowIso();
-        await db.notes.insert({
-          id: newNoteId,
-          title: target,
-          content: `# ${target}\n`,
-          inbox_at: null,
-          note_type: null,
-          is_pinned: false,
-          properties: null,
-          created_at: timestamp,
-          updated_at: timestamp,
-          is_trashed: false,
-          trashed_at: null,
-        });
-        router.push(`/notes/${currentGroup}/${newNoteId}`);
-      }
-    },
-    [db, router, currentGroup]
-  );
-
-  // Use ref to always have latest save function available
   const saveContentRef = useRef<(content: string) => Promise<void>>(async () => {});
 
   saveContentRef.current = async (nextContent: string) => {
@@ -218,8 +111,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       console.error('Frontmatter parse error', frontmatterResult.errors);
     } else {
       const parsedProperties = frontmatterResult.properties ?? null;
-      const hasProperties =
-        parsedProperties && Object.keys(parsedProperties).length > 0;
+      const hasProperties = parsedProperties && Object.keys(parsedProperties).length > 0;
       propertiesToSave = hasProperties ? (parsedProperties as NoteProperties) : null;
 
       if (!hasProperties && frontmatterResult.hasFrontmatter) {
@@ -228,19 +120,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       }
     }
 
-    await doc.patch({
-      title,
-      content: contentToSave,
-      properties: propertiesToSave,
-      updated_at: timestamp,
-    });
+    await doc.patch({ title, content: contentToSave, properties: propertiesToSave, updated_at: timestamp });
     lastSavedContentRef.current = contentToSave;
-    if (contentToSave !== nextContent) {
-      setContent(contentToSave);
-    }
+    if (contentToSave !== nextContent) setContent(contentToSave);
     setIsDirty(false);
-
-    syncNoteLinks(db, noteId, contentToSave).catch(() => {});
 
     if (shouldAutoSaveVersion(noteId)) {
       saveVersion(db, noteId, contentToSave, propertiesToSave, 'auto', 'Auto-save').catch(() => {});
@@ -248,9 +131,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   };
 
   const scheduleSave = useCallback((nextContent: string) => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       saveContentRef.current?.(nextContent);
     }, SAVE_DEBOUNCE_MS);
@@ -275,113 +156,27 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     }
   }, []);
 
-  const handleTemplateSelect = useCallback((templateContent: string) => {
-    const currentContent = content.trim();
-    const newContent = currentContent
-      ? `${templateContent}\n\n${currentContent}`
-      : templateContent;
-
-    setContent(newContent);
-    setIsDirty(true);
-    scheduleSave(newContent);
-
-    setEditorKey((k) => k + 1);
-  }, [content, scheduleSave]);
-
   const handleSaveVersion = useCallback(async () => {
     if (!db || !noteId || !note) return;
-
-    if (isDirtyRef.current) {
-      await saveContentRef.current?.(content);
-    }
-
-    await saveVersion(
-      db,
-      noteId,
-      note.content,
-      note.properties,
-      'manual',
-      'Manual save'
-    );
+    if (isDirtyRef.current) await saveContentRef.current?.(content);
+    await saveVersion(db, noteId, note.content, note.properties, 'manual', 'Manual save');
   }, [db, noteId, note, content]);
 
   const handleVersionRestore = useCallback(() => {
-    setEditorKey((k) => k + 1);
+    setEditorKey(k => k + 1);
     markVersionSaved(noteId);
   }, [noteId]);
 
-  const handleMenuOpenChange = useCallback((open: boolean) => {
-    if (!open) return;
-    const view = cmRef.current?.view;
-    if (!view) return;
-    setEditorToggles({
-      isDark: getTheme(view) === 'dark',
-      isRaw: getMode(view) === 'raw',
-      isReadOnlyMode: isReadOnly(view),
-      isWritingMode: isTypewriter(view) || isFocusMode(view),
-      isToolbarOn: isToolbar(view),
-      isWordCountOn: isWordCount(view),
-      isScrollPastEndOn: isScrollPastEnd(view),
-      isFrontmatterOn: isFrontmatterSheet(view),
-    });
-  }, []);
-
-  const cmToggle = useCallback((fn: (v: EditorView) => void) => {
-    const view = cmRef.current?.view;
-    if (view) fn(view);
-  }, []);
-
-  const handleBacklinksRequested = useCallback(
-    async (title: string): Promise<BacklinkEntry[]> => {
-      if (!db || !noteId) return [];
-      try {
-        const links = await getBacklinks(db, noteId);
-        return links.map((link) => ({ title: link.title }));
-      } catch {
-        return [];
-      }
-    },
-    [db, noteId]
-  );
-
-  const handleBacklinkClick = useCallback(
-    (backlink: BacklinkEntry) => {
-      if (!db) return;
-      db.notes
-        .find({ selector: { title: backlink.title, is_trashed: false } })
-        .exec()
-        .then((docs) => {
-          if (docs.length > 0) {
-            router.push(`/notes/${currentGroup}/${docs[0].id}`);
-          }
-        })
-        .catch(() => {});
-    },
-    [db, router, currentGroup]
-  );
-
   if (!noteId) {
-    return (
-      <section className={styles.editor}>
-        <p className={styles.empty}>Note not found.</p>
-      </section>
-    );
+    return <section className={styles.editor}><p className={styles.empty}>Note not found.</p></section>;
   }
 
   if (!hasLoaded) {
-    return (
-      <section className={styles.editor}>
-        <p className={styles.empty}>Loading note...</p>
-      </section>
-    );
+    return <section className={styles.editor}><p className={styles.empty}>Loading note...</p></section>;
   }
 
   if (!note) {
-    return (
-      <section className={styles.editor}>
-        <p className={styles.empty}>Note not found.</p>
-      </section>
-    );
+    return <section className={styles.editor}><p className={styles.empty}>Note not found.</p></section>;
   }
 
   return (
@@ -400,7 +195,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               </button>
             </div>
             <div className={`${styles.headerActions} ${styles.headerActionsRight}`}>
-              <Dropdown onOpenChange={handleMenuOpenChange}>
+              <Dropdown>
                 <DropdownTrigger asChild>
                   <button
                     type="button"
@@ -412,9 +207,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 </DropdownTrigger>
                 <DropdownContent align="end" sideOffset={12}>
                   <DropdownItem onSelect={handleClose}>Close</DropdownItem>
-                  <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
-                    Insert Template
-                  </DropdownItem>
                   <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
                     Version History
                   </DropdownItem>
@@ -425,60 +217,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                   <DropdownItem data-variant="danger" onSelect={handleDelete}>
                     Trash
                   </DropdownItem>
-                  <DropdownSeparator />
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isDark}
-                    onCheckedChange={() => cmToggle(toggleTheme)}
-                  >
-                    Dark mode
-                  </DropdownCheckboxItem>
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isRaw}
-                    onCheckedChange={() => cmToggle(toggleHybridMode)}
-                  >
-                    Raw markdown
-                  </DropdownCheckboxItem>
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isReadOnlyMode}
-                    onCheckedChange={() => cmToggle(toggleReadOnly)}
-                  >
-                    Read-only
-                  </DropdownCheckboxItem>
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isWritingMode}
-                    onCheckedChange={() => cmToggle(toggleWritingModeSheet)}
-                  >
-                    Writing mode
-                  </DropdownCheckboxItem>
-                  <DropdownSeparator />
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isToolbarOn}
-                    onCheckedChange={() => cmToggle(toggleToolbar)}
-                  >
-                    Toolbar
-                  </DropdownCheckboxItem>
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isWordCountOn}
-                    onCheckedChange={() => cmToggle(toggleWordCount)}
-                  >
-                    Word count
-                  </DropdownCheckboxItem>
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isScrollPastEndOn}
-                    onCheckedChange={() => cmToggle(toggleScrollPastEnd)}
-                  >
-                    Scroll past end
-                  </DropdownCheckboxItem>
-                  <DropdownCheckboxItem
-                    checked={editorToggles.isFrontmatterOn}
-                    onCheckedChange={() => cmToggle(toggleFrontmatterSheet)}
-                  >
-                    Frontmatter
-                  </DropdownCheckboxItem>
-                  <DropdownSeparator />
-                  <DropdownItem onSelect={() => cmToggle((v) => actions.search(v))}>
-                    Find &amp; Replace
-                  </DropdownItem>
                 </DropdownContent>
               </Dropdown>
             </div>
@@ -488,29 +226,17 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
       <div className={styles.editorPane}>
         <CodeMirrorEditor
-          ref={cmRef}
           key={editorKey}
           initialContent={content}
           content={isDirty ? undefined : content}
           onChange={handleChange}
           onBlur={handleBlur}
-          onWikiLinkClick={handleWikiLinkClick}
-          onBacklinksRequested={handleBacklinksRequested}
-          onBacklinkClick={handleBacklinkClick}
-          noteTitle={derivedTitle !== 'Untitled' ? derivedTitle : undefined}
+          onSaveVersion={handleSaveVersion}
           placeholderText="Start writing..."
           autoFocus
           db={db}
-          onSaveVersion={handleSaveVersion}
         />
       </div>
-
-      <TemplatePicker
-        open={isTemplatePickerOpen}
-        onOpenChange={setIsTemplatePickerOpen}
-        onSelect={handleTemplateSelect}
-        customTitle={derivedTitle !== 'Untitled' ? derivedTitle : undefined}
-      />
 
       <VersionHistory
         open={isVersionHistoryOpen}
