@@ -51,6 +51,7 @@ export const projectSchema = z.object({
   status: z.enum(projectStatuses),
   start_date: z.string().nullable(),
   due_date: z.string().nullable(),
+  okr_id: z.string().uuid().nullable().optional(),
 });
 
 const taskStatuses = ['backlog', 'waiting', 'next'] as const;
@@ -71,6 +72,10 @@ export const taskSchema = z.object({
   status: z.enum(taskStatuses),
   completed: z.boolean(),
   due_date: z.string().nullable(),
+  content: z.string().nullable().optional(),
+  priority: z.number().int().min(1).max(4).nullable().optional(),
+  depends_on: z.array(z.string().uuid()).readonly().nullable().optional(),
+  okr_id: z.string().uuid().nullable().optional(),
 });
 
 export const notePropertiesSchema = z.object({
@@ -80,6 +85,9 @@ export const notePropertiesSchema = z.object({
   related_notes: z.array(z.string().uuid()).optional(),
   due_date: z.string().nullable().optional(),
   priority: z.number().int().min(1).max(5).nullable().optional(),
+  okr_id: z.string().uuid().nullable().optional(),
+  period: z.enum(['weekly', 'monthly', 'quarterly', 'annual']).nullable().optional(),
+  period_date: z.string().nullable().optional(),
 }).passthrough(); // Allow additional custom properties
 
 export const noteSchema = z.object({
@@ -92,10 +100,18 @@ export const noteSchema = z.object({
   properties: notePropertiesSchema.nullable(),
 });
 
+const habitFrequencies = ['daily', 'weekdays', 'weekly'] as const;
+
 export const habitSchema = z.object({
   ...baseFields,
   title: z.string(),
   description: z.string().nullable(),
+  frequency: z.enum(habitFrequencies).optional(),
+  target: z.number().int().positive().optional(),
+  active: z.boolean().optional(),
+  okr_id: z.string().uuid().nullable().optional(),
+  streak: z.number().int().nonnegative().optional(),
+  last_completed_at: z.string().nullable().optional(),
 });
 
 export const habitCompletionSchema = z.object({
@@ -175,6 +191,34 @@ export const timeEntrySchema = z.object({
   }
 });
 
+const captureSources = ['quick', 'voice', 'email'] as const;
+const captureResultTypes = ['note', 'task', 'project', 'discarded'] as const;
+
+export const captureSchema = z.object({
+  ...baseFields,
+  body: z.string(),
+  source: z.enum(captureSources).nullable(),
+  processed: z.boolean(),
+  processed_at: z.string().nullable(),
+  result_type: z.enum(captureResultTypes).nullable(),
+  result_id: z.string().uuid().nullable(),
+});
+
+export const OkrType = ['yearly', '12week', 'objective', 'key_result'] as const;
+const okrStatuses = ['draft', 'active', 'complete', 'abandoned'] as const;
+
+export const okrSchema = z.object({
+  ...baseFields,
+  title: z.string(),
+  description: z.string().nullable(),
+  type: z.enum(OkrType),
+  parent_id: z.string().uuid().nullable(),
+  period_start: z.string().nullable(),
+  period_end: z.string().nullable(),
+  status: z.enum(okrStatuses),
+  progress: z.number().int().min(0).max(100),
+});
+
 const baseProperties = {
   id: { type: 'string', maxLength: 36 },
   created_at: { type: 'string', format: 'date-time' },
@@ -203,7 +247,7 @@ const syncTestRxSchema = {
 };
 
 const projectsRxSchema = {
-  version: 2,
+  version: 3,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -213,6 +257,7 @@ const projectsRxSchema = {
     status: { type: 'string', enum: projectStatuses },
     start_date: { type: ['string', 'null'], format: 'date-time' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
+    okr_id: { type: ['string', 'null'], maxLength: 36 },
   },
   required: [
     ...baseRequired,
@@ -221,11 +266,12 @@ const projectsRxSchema = {
     'status',
     'start_date',
     'due_date',
+    'okr_id',
   ],
 };
 
 const tasksRxSchema = {
-  version: 2,
+  version: 3,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -236,6 +282,10 @@ const tasksRxSchema = {
     status: { type: 'string', enum: taskStatuses },
     completed: { type: 'boolean' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
+    content: { type: ['string', 'null'] },
+    priority: { type: ['number', 'null'] },
+    depends_on: { type: ['array', 'null'], items: { type: 'string', maxLength: 36 } },
+    okr_id: { type: ['string', 'null'], maxLength: 36 },
   },
   required: [
     ...baseRequired,
@@ -245,11 +295,15 @@ const tasksRxSchema = {
     'status',
     'completed',
     'due_date',
+    'content',
+    'priority',
+    'depends_on',
+    'okr_id',
   ],
 };
 
 const notesRxSchema = {
-  version: 5,
+  version: 6,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -273,15 +327,31 @@ const notesRxSchema = {
 };
 
 const habitsRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
     title: { type: 'string' },
     description: { type: ['string', 'null'] },
+    frequency: { type: 'string', enum: habitFrequencies },
+    target: { type: 'number' },
+    active: { type: 'boolean' },
+    okr_id: { type: ['string', 'null'], maxLength: 36 },
+    streak: { type: 'number' },
+    last_completed_at: { type: ['string', 'null'] },
   },
-  required: [...baseRequired, 'title', 'description'],
+  required: [
+    ...baseRequired,
+    'title',
+    'description',
+    'frequency',
+    'target',
+    'active',
+    'okr_id',
+    'streak',
+    'last_completed_at',
+  ],
 };
 
 const habitCompletionsRxSchema = {
@@ -396,6 +466,58 @@ const timeEntriesRxSchema = {
   ],
 };
 
+const capturesRxSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    body: { type: 'string' },
+    source: { type: ['string', 'null'] },
+    processed: { type: 'boolean' },
+    processed_at: { type: ['string', 'null'] },
+    result_type: { type: ['string', 'null'] },
+    result_id: { type: ['string', 'null'], maxLength: 36 },
+  },
+  required: [
+    ...baseRequired,
+    'body',
+    'source',
+    'processed',
+    'processed_at',
+    'result_type',
+    'result_id',
+  ],
+};
+
+const okrsRxSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    title: { type: 'string' },
+    description: { type: ['string', 'null'] },
+    type: { type: 'string', enum: OkrType },
+    parent_id: { type: ['string', 'null'], maxLength: 36 },
+    period_start: { type: ['string', 'null'] },
+    period_end: { type: ['string', 'null'] },
+    status: { type: 'string', enum: okrStatuses },
+    progress: { type: 'number' },
+  },
+  required: [
+    ...baseRequired,
+    'title',
+    'description',
+    'type',
+    'parent_id',
+    'period_start',
+    'period_end',
+    'status',
+    'progress',
+  ],
+};
+
 type LegacySyncTestDocument = {
   id: string;
   content: string;
@@ -502,6 +624,7 @@ const notesMigrationStrategies = {
     ...oldDoc,
     properties: oldDoc.properties ?? null,
   }),
+  6: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
 };
 
 const tasksMigrationStrategies = {
@@ -527,6 +650,13 @@ const tasksMigrationStrategies = {
       completed,
     };
   },
+  3: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    content: oldDoc.content ?? null,
+    priority: oldDoc.priority ?? null,
+    depends_on: Array.isArray(oldDoc.depends_on) ? oldDoc.depends_on : null,
+    okr_id: oldDoc.okr_id ?? null,
+  }),
 };
 
 const projectsMigrationStrategies = {
@@ -558,6 +688,24 @@ const projectsMigrationStrategies = {
       due_date,
     };
   },
+  3: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    okr_id: oldDoc.okr_id ?? null,
+  }),
+};
+
+const habitsMigrationStrategies = {
+  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
+    migrateSoftDeleteFields(oldDoc),
+  2: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    frequency: (oldDoc.frequency as string) ?? 'daily',
+    target: (oldDoc.target as number) ?? 1,
+    active: (oldDoc.active as boolean) ?? true,
+    okr_id: oldDoc.okr_id ?? null,
+    streak: (oldDoc.streak as number) ?? 0,
+    last_completed_at: oldDoc.last_completed_at ?? null,
+  }),
 };
 
 const timeEntriesMigrationStrategies = {
@@ -593,6 +741,9 @@ export type TimeEntryDocument = z.infer<typeof timeEntrySchema>;
 export type NoteLinkDocument = z.infer<typeof noteLinkSchema>;
 export type TemplateDocument = z.infer<typeof templateSchema>;
 export type NoteVersionDocument = z.infer<typeof noteVersionSchema>;
+export type CaptureDocument = z.infer<typeof captureSchema>;
+export type OkrDocument = z.infer<typeof okrSchema>;
+export type OkrTypeValue = (typeof OkrType)[number];
 
 export type DatabaseCollections = {
   sync_test: RxCollection<SyncTestDocument>;
@@ -605,6 +756,8 @@ export type DatabaseCollections = {
   note_links: RxCollection<NoteLinkDocument>;
   templates: RxCollection<TemplateDocument>;
   note_versions: RxCollection<NoteVersionDocument>;
+  captures: RxCollection<CaptureDocument>;
+  okrs: RxCollection<OkrDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -639,7 +792,7 @@ export async function getDatabase() {
       },
       habits: {
         schema: habitsRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
+        migrationStrategies: habitsMigrationStrategies,
       },
       habit_completions: {
         schema: habitCompletionsRxSchema,
@@ -659,6 +812,12 @@ export async function getDatabase() {
       },
       note_versions: {
         schema: noteVersionsRxSchema,
+      },
+      captures: {
+        schema: capturesRxSchema,
+      },
+      okrs: {
+        schema: okrsRxSchema,
       },
     });
 
