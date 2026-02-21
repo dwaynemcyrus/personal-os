@@ -220,19 +220,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
         className={styles.sheet}
       >
         <div className={styles.content}>
-          <div className={styles.header}>
-            <textarea
-              ref={textareaRef}
-              className={styles.input}
-              placeholder="What's on your mind?"
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setSelectedIndex(null);
-              }}
-            />
-          </div>
-
           <div className={styles.actions}>
             <button
               type="button"
@@ -273,6 +260,19 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
                 Save
               </button>
             </div>
+          </div>
+
+          <div className={styles.header}>
+            <textarea
+              ref={textareaRef}
+              className={styles.input}
+              placeholder="What's on your mind?"
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setSelectedIndex(null);
+              }}
+            />
           </div>
 
           <div className={styles.results}>
