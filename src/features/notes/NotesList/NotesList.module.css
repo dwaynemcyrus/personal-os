@@ -135,7 +135,7 @@
 .itemTitle {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: var(--font-bold);
   white-space: nowrap;
   overflow: hidden;
@@ -143,7 +143,7 @@
 }
 
 .itemSnippet {
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(252, 251, 248, 0.74);
   display: -webkit-box;
   -webkit-line-clamp: 2;
