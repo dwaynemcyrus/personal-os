@@ -164,7 +164,11 @@ export function CodeMirrorEditor({
         updateListener,
         blurHandler,
         EditorView.theme({
-          '&': { height: '100%' },
+          '&': {
+            height: '100%',
+            backgroundColor: '#282828',
+            color: '#fcfbf8',
+          },
           '.cm-content': {
             fontFamily: 'var(--font-family-primary)',
             fontSize: '16px',
@@ -172,21 +176,21 @@ export function CodeMirrorEditor({
             paddingTop: 'calc(64px + env(safe-area-inset-top))',
             paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
             lineHeight: 'normal',
-            caretColor: 'var(--color-ink-900)',
+            caretColor: '#fcfbf8',
           },
           '.cm-line': { padding: '0' },
           '.cm-cursor': {
-            borderLeftColor: 'var(--color-ink-900)',
+            borderLeftColor: '#fcfbf8',
             borderLeftWidth: '2px',
           },
           '.cm-selectionBackground': {
-            backgroundColor: 'var(--color-highlight) !important',
+            backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
           },
           '&.cm-focused .cm-selectionBackground': {
-            backgroundColor: 'var(--color-highlight) !important',
+            backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
           },
           '.cm-placeholder': {
-            color: 'var(--color-ink-300)',
+            color: 'rgba(252, 251, 248, 0.55)',
             fontStyle: 'italic',
           },
           '.cm-scroller': { overflow: 'auto' },

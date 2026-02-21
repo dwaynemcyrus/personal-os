@@ -58,6 +58,6 @@
 
 .empty {
   font-size: var(--font-sm);
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.74);
   padding: var(--space-4);
 }

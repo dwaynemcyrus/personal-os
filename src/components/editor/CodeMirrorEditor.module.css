@@ -1,12 +1,14 @@
 .editor {
   position: absolute;
   inset: 0;
-  background: var(--color-white);
+  background: #282828;
   touch-action: auto;
 }
 
 .editor :global(.cm-editor) {
   height: 100%;
+  background: #282828;
+  color: #fcfbf8;
 }
 
 .editor :global(.cm-scroller) {
