@@ -110,12 +110,16 @@ export function NotesList({ group }: NotesListProps) {
               >
                 <div className={styles.itemHeader}>
                   <div className={styles.itemTitle}>{title}</div>
-                  {note.is_pinned && <PinIcon />}
-                  <div className={styles.itemDate}>{updatedLabel}</div>
                 </div>
                 {snippet ? (
                   <div className={styles.itemSnippet}>{snippet}</div>
                 ) : null}
+                <div className={styles.itemMeta}>
+                  <span className={styles.itemDate}>{updatedLabel}</span>
+                  {note.is_pinned ? (
+                    <span className={styles.itemPinned}>Pinned</span>
+                  ) : null}
+                </div>
               </button>
             );
           })
@@ -156,18 +160,5 @@ function PlusIcon() {
     >
       <path d="M12 5v14M5 12h14" />
     </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <span className={styles.pinIcon} aria-hidden="true">
-      <svg viewBox="0 0 24 24" focusable="false">
-        <path
-          d="M8 4h8l-1.6 3.2c-.2.4-.2.8 0 1.2L16 12v4l-4-2.2L8 16v-4l1.6-3.6c.2-.4.2-.8 0-1.2L8 4z"
-          fill="currentColor"
-        />
-      </svg>
-    </span>
   );
 }

@@ -99,7 +99,7 @@
 
 .item {
   display: block;
-  padding: 13px var(--space-20);
+  padding: 8px var(--space-20);
   border-bottom: 1px solid rgba(252, 251, 248, 0.14);
   background: transparent;
   text-align: left;
@@ -108,10 +108,6 @@
   font: inherit;
   color: inherit;
   transition: background var(--duration-100) var(--ease-default);
-}
-
-.item:first-child {
-  border-top: 1px solid rgba(252, 251, 248, 0.14);
 }
 
 @media (hover: hover) {
@@ -139,36 +135,15 @@
 .itemTitle {
   flex: 1;
   min-width: 0;
-  font-size: var(--font-base);
-  font-weight: var(--font-medium);
+  font-size: 14px;
+  font-weight: var(--font-bold);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pinIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  color: rgba(252, 251, 248, 0.72);
-  flex-shrink: 0;
-}
-
-.pinIcon svg {
-  width: 12px;
-  height: 12px;
-}
-
-.itemDate {
-  font-size: 11px;
-  color: rgba(252, 251, 248, 0.64);
-  flex-shrink: 0;
-}
-
 .itemSnippet {
-  font-size: 13px;
+  font-size: 14px;
   color: rgba(252, 251, 248, 0.74);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -176,4 +151,22 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: clip;
+}
+
+.itemDate {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.64);
+}
+
+.itemMeta {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.itemPinned {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.64);
+  text-transform: capitalize;
 }
