@@ -21,11 +21,12 @@ import {
   parseFrontmatter,
   replaceFrontmatterBlock,
 } from '@/lib/markdown/frontmatter';
-import { extractNoteTitle } from '../noteUtils';
+import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
 import styles from './NoteEditor.module.css';
 
 const nowIso = () => new Date().toISOString();
 const SAVE_DEBOUNCE_MS = 1000;
+const TITLE_REVEAL_SCROLL_PX = 64;
 
 type NoteEditorProps = {
   noteId: string;
@@ -39,6 +40,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isHeaderTitleVisible, setIsHeaderTitleVisible] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,6 +168,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     markVersionSaved(noteId);
   }, [noteId]);
 
+  const handleEditorScroll = useCallback((scrollTop: number) => {
+    setIsHeaderTitleVisible(scrollTop >= TITLE_REVEAL_SCROLL_PX);
+  }, []);
+
   if (!noteId) {
     return <section className={styles.editor}><p className={styles.empty}>Note not found.</p></section>;
   }
@@ -178,22 +184,52 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     return <section className={styles.editor}><p className={styles.empty}>Note not found.</p></section>;
   }
 
+  const headerTitle = formatNoteTitle(extractNoteTitle(content, note.title));
+
   return (
     <section className={styles.editor}>
       <header className={styles.header}>
         {onClose ? (
           <>
-            <div className={`${styles.headerActions} ${styles.headerActionsLeft}`}>
-              <button
-                type="button"
-                className={styles.actionButton}
-                aria-label="Go back"
-                onClick={handleClose}
-              >
-                <BackIcon />
-              </button>
+            <button
+              type="button"
+              className={styles.actionButton}
+              aria-label="Go back"
+              onClick={handleClose}
+            >
+              <BackIcon />
+            </button>
+            <div
+              className={styles.headerTitle}
+              data-visible={isHeaderTitleVisible}
+              aria-live="polite"
+            >
+              {headerTitle}
             </div>
-            <div className={`${styles.headerActions} ${styles.headerActionsRight}`}>
+            <div className={styles.headerRight}>
+              <Dropdown>
+                <DropdownTrigger asChild>
+                  <button
+                    type="button"
+                    className={styles.actionButton}
+                    aria-label="Note info"
+                  >
+                    <InfoIcon />
+                  </button>
+                </DropdownTrigger>
+                <DropdownContent align="end" sideOffset={12}>
+                  <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
+                    Version History
+                  </DropdownItem>
+                  <DropdownSeparator />
+                  <DropdownItem disabled>
+                    Created {formatRelativeTime(note.created_at)}
+                  </DropdownItem>
+                  <DropdownItem disabled>
+                    Updated {formatRelativeTime(note.updated_at)}
+                  </DropdownItem>
+                </DropdownContent>
+              </Dropdown>
               <Dropdown>
                 <DropdownTrigger asChild>
                   <button
@@ -206,9 +242,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 </DropdownTrigger>
                 <DropdownContent align="end" sideOffset={12}>
                   <DropdownItem onSelect={handleClose}>Close</DropdownItem>
-                  <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
-                    Version History
-                  </DropdownItem>
                   <DropdownItem onSelect={handleTogglePinned}>
                     {note.is_pinned ? 'Unpin' : 'Pin'}
                   </DropdownItem>
@@ -230,6 +263,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           content={isDirty ? undefined : content}
           onChange={handleChange}
           onBlur={handleBlur}
+          onScrollPositionChange={handleEditorScroll}
           onSaveVersion={handleSaveVersion}
           placeholderText="Start writing..."
           autoFocus
@@ -278,6 +312,26 @@ function MoreIcon() {
       <circle cx="12" cy="5" r="2" />
       <circle cx="12" cy="12" r="2" />
       <circle cx="12" cy="19" r="2" />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={styles.actionIcon}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 10v6" />
+      <path d="M12 7h.01" />
     </svg>
   );
 }

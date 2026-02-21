@@ -77,6 +77,7 @@ type CodeMirrorEditorProps = {
   onChange: (content: string) => void;
   onBlur?: () => void;
   onSaveVersion?: () => void;
+  onScrollPositionChange?: (scrollTop: number) => void;
   placeholderText?: string;
   autoFocus?: boolean;
   db?: RxDatabase<DatabaseCollections> | null;
@@ -88,6 +89,7 @@ export function CodeMirrorEditor({
   onChange,
   onBlur,
   onSaveVersion,
+  onScrollPositionChange,
   placeholderText = 'Start writing...',
   autoFocus = true,
   db = null,
@@ -97,6 +99,7 @@ export function CodeMirrorEditor({
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onSaveVersionRef = useRef(onSaveVersion);
+  const onScrollPositionChangeRef = useRef(onScrollPositionChange);
   const dbRef = useRef(db);
   const noteEntriesRef = useRef<NoteEntry[]>([]);
   const tagsArrayRef = useRef<string[]>([]);
@@ -104,6 +107,7 @@ export function CodeMirrorEditor({
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
   useEffect(() => { onSaveVersionRef.current = onSaveVersion; }, [onSaveVersion]);
+  useEffect(() => { onScrollPositionChangeRef.current = onScrollPositionChange; }, [onScrollPositionChange]);
   useEffect(() => { dbRef.current = db; }, [db]);
 
   // Keep note index and tag list in sync with DB
@@ -174,7 +178,7 @@ export function CodeMirrorEditor({
             fontFamily: 'var(--font-family-primary)',
             fontSize: '16px',
             padding: '0 20px',
-            paddingTop: 'calc(64px + env(safe-area-inset-top))',
+            paddingTop: '16px',
             paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
             lineHeight: 'normal',
             caretColor: '#fcfbf8',
@@ -210,12 +214,18 @@ export function CodeMirrorEditor({
     viewRef.current = view;
 
     view.scrollDOM.setAttribute('data-scroll-lock-scrollable', '');
+    const handleScroll = () => {
+      onScrollPositionChangeRef.current?.(view.scrollDOM.scrollTop);
+    };
+    view.scrollDOM.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
 
     if (autoFocus) {
       requestAnimationFrame(() => view.focus());
     }
 
     return () => {
+      view.scrollDOM.removeEventListener('scroll', handleScroll);
       view.destroy();
       viewRef.current = null;
     };
