@@ -4,9 +4,14 @@
   align-content: start;
 }
 
-.homeNowLink {
+.homeNowGroup {
   display: grid;
   gap: 4px;
+  width: fit-content;
+}
+
+.homeNowLink {
+  display: inline-flex;
   width: fit-content;
   border: none;
   background: transparent;
@@ -35,7 +40,7 @@
   gap: var(--space-6);
   font-size: var(--font-base);
   font-weight: var(--font-medium);
-  text-transform: lowercase;
+  text-transform: capitalize;
 }
 
 .homeInboxLink {
@@ -61,6 +66,7 @@
 .homeInboxTitle {
   font-size: var(--font-base);
   font-weight: var(--font-medium);
+  text-transform: capitalize;
 }
 
 .homeInboxRight {
@@ -77,6 +83,109 @@
 .homeLinkArrow {
   font-size: 16px;
   line-height: 1;
+}
+
+.workbenchSheet {
+  border-radius: var(--radius-16) var(--radius-16) 0 0;
+  padding: var(--space-16);
+  max-height: 70vh;
+  background: #282828;
+  color: #fcfbf8;
+  border: 1px solid rgba(252, 251, 248, 0.14);
+}
+
+.workbenchSheetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-16);
+}
+
+.workbenchSheetTitle {
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+}
+
+.workbenchClose {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.workbenchClose:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+.workbenchCloseIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.workbenchList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-10);
+}
+
+.workbenchNoteButton {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.workbenchNoteButton:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+.workbenchNoteTitle {
+  font-size: var(--font-base);
+}
+
+.workbenchEmpty {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.workbenchEmptyTitle {
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+}
+
+.workbenchAddLink {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: fit-content;
+}
+
+.workbenchAddLink:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
 }
 
 /* ── Placeholder views ── */

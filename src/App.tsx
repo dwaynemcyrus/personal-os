@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppShell } from '@/components/layout/AppShell';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetTitle,
+} from '@/components/ui/Sheet';
 import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
 import { useDatabase } from '@/hooks/useDatabase';
@@ -48,6 +54,7 @@ function PlansView() {
 function NowView() {
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
+  const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
 
   const handleOpenInbox = () => {
     window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
@@ -116,24 +123,58 @@ function NowView() {
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
+  const [workbenchNotes, setWorkbenchNotes] = useState<NoteDocument[]>([]);
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const subscription = db.notes
+      .find({
+        selector: { is_pinned: true, is_trashed: false },
+        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
+      })
+      .$.subscribe((docs) => {
+        setWorkbenchNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
+      });
+    return () => subscription.unsubscribe();
+  }, [db, isReady]);
+
+  const handleOpenWorkbench = () => {
+    setIsWorkbenchOpen(true);
+  };
+
+  const handleOpenWorkbenchNote = (noteId: string) => {
+    setIsWorkbenchOpen(false);
+    pushLayer({ view: 'note-detail', noteId });
+  };
+
+  const handleOpenAllNotesForPinning = () => {
+    setIsWorkbenchOpen(false);
+    pushLayer({ view: 'notes-list', group: 'all' });
+  };
+
   const inboxCount = inboxNotes.length;
+  const workbenchCount = workbenchNotes.length;
+  const todayActionLabel = nowNote ? "Open Today's Note" : "Create Today's Note";
+  const workbenchLineLabel =
+    workbenchCount === 0 ? 'Your Workbench Empty' : 'Your Workbench';
 
   return (
     <section className={styles.home}>
-      <button
-        type="button"
-        className={styles.homeNowLink}
-        onClick={handleNowNote}
-        aria-label="Create now note"
-      >
-        <span className={styles.homeNowDate}>{nowLabel}</span>
-        <span className={styles.homeNowAction}>
-          create now note
-          <span className={styles.homeLinkArrow} aria-hidden="true">
-            &rsaquo;
+      <div className={styles.homeNowGroup}>
+        <div className={styles.homeNowDate}>{nowLabel}</div>
+        <button
+          type="button"
+          className={styles.homeNowLink}
+          onClick={handleNowNote}
+          aria-label={todayActionLabel}
+        >
+          <span className={styles.homeNowAction}>
+            {todayActionLabel}
+            <span className={styles.homeLinkArrow} aria-hidden="true">
+              &rsaquo;
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+      </div>
 
       <button
         type="button"
@@ -143,16 +184,99 @@ function NowView() {
       >
         <span className={styles.homeInboxTitle}>Process inbox</span>
         <span className={styles.homeInboxRight}>
-          {inboxCount > 0 && (
-            <span className={styles.homeInboxCount}>{inboxCount}</span>
-          )}
+          <span className={styles.homeInboxCount}>{inboxCount}</span>
           <span className={styles.homeLinkArrow} aria-hidden="true">
             &rsaquo;
           </span>
         </span>
       </button>
 
+      <button
+        type="button"
+        className={styles.homeInboxLink}
+        onClick={handleOpenWorkbench}
+        aria-label={workbenchLineLabel}
+      >
+        <span className={styles.homeInboxTitle}>{workbenchLineLabel}</span>
+        <span className={styles.homeInboxRight}>
+          <span className={styles.homeInboxCount}>{workbenchCount}</span>
+          <span className={styles.homeLinkArrow} aria-hidden="true">
+            &rsaquo;
+          </span>
+        </span>
+      </button>
+
+      <Sheet open={isWorkbenchOpen} onOpenChange={setIsWorkbenchOpen}>
+        <SheetContent
+          side="bottom"
+          className={styles.workbenchSheet}
+          aria-label="Workbench"
+        >
+          <header className={styles.workbenchSheetHeader}>
+            <SheetTitle className={styles.workbenchSheetTitle}>Workbench</SheetTitle>
+            <SheetClose asChild>
+              <button
+                type="button"
+                className={styles.workbenchClose}
+                aria-label="Close workbench"
+              >
+                <CloseIcon />
+              </button>
+            </SheetClose>
+          </header>
+
+          {workbenchCount > 0 ? (
+            <ul className={styles.workbenchList}>
+              {workbenchNotes.map((note) => (
+                <li key={note.id}>
+                  <button
+                    type="button"
+                    className={styles.workbenchNoteButton}
+                    onClick={() => handleOpenWorkbenchNote(note.id)}
+                  >
+                    <span className={styles.workbenchNoteTitle}>{note.title}</span>
+                    <span className={styles.homeLinkArrow} aria-hidden="true">
+                      &rsaquo;
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className={styles.workbenchEmpty}>
+              <div className={styles.workbenchEmptyTitle}>Pin Notes To Add</div>
+              <button
+                type="button"
+                className={styles.workbenchAddLink}
+                onClick={handleOpenAllNotesForPinning}
+              >
+                Add 4 Notes Max
+                <span className={styles.homeLinkArrow} aria-hidden="true">
+                  &rsaquo;
+                </span>
+              </button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
     </section>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      className={styles.workbenchCloseIcon}
+    >
+      <path d="M6 6l12 12M18 6l-12 12" />
+    </svg>
   );
 }
 
