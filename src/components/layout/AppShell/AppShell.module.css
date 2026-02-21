@@ -140,16 +140,14 @@
   pointer-events: all;
   position: fixed;
   left: 50%;
-  bottom: calc(48px + var(--space-4) + var(--safe-area-bottom));
+  bottom: calc(24px + var(--safe-area-bottom));
   transform: translateX(-50%);
-  width: 56px;
-  height: 56px;
-  border-radius: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   border: none;
   background: var(--color-ink-900);
   color: var(--color-paper);
-  font-size: 22px;
-  font-weight: 600;
   box-shadow: var(--shadow-fab);
   display: inline-flex;
   align-items: center;
@@ -160,6 +158,14 @@
   -webkit-touch-callout: none;
   touch-action: manipulation;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.app-shell__fab-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  transform: rotate(45deg);
+  transform-origin: center;
 }
 
 .app-shell__fab:focus-visible {

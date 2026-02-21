@@ -303,7 +303,7 @@ export function AppShell({ children }: AppShellProps) {
               onPointerCancel={handleFabPointerCancel}
               {...touchHandlers}
             >
-              +
+              <FabIcon />
             </button>
 
             <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
@@ -332,6 +332,21 @@ function BackIcon() {
       strokeLinejoin="round"
     >
       <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function FabIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className={styles['app-shell__fab-icon']}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+    >
+      <circle cx="10" cy="10" r="7" />
     </svg>
   );
 }
