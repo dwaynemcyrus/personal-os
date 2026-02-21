@@ -166,7 +166,7 @@ export function TaskDetailSheet({
             }
           >
             <option value="backlog">Backlog</option>
-            <option value="waiting">Waiting</option>
+            <option value="waiting">Someday</option>
             <option value="next">Next</option>
           </select>
         </label>

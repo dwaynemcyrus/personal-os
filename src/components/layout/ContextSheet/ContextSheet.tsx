@@ -4,6 +4,8 @@ import { showToast } from '@/components/ui/Toast';
 import { useNavigationActions } from '@/components/providers';
 import { useNoteGroupCounts } from '@/features/notes/hooks/useNoteGroupCounts';
 import type { NoteGroup } from '@/features/notes/hooks/useGroupedNotes';
+import { useTaskBucketCounts } from '@/features/tasks/hooks/useTaskBucketCounts';
+import type { TaskListFilter } from '@/features/tasks/taskBuckets';
 import styles from './ContextSheet.module.css';
 
 type ContextSheetProps = {
@@ -19,6 +21,11 @@ type NoteGroupRow = {
   comingSoon?: boolean;
 };
 
+type TaskGroupRow = {
+  id: TaskListFilter;
+  label: string;
+};
+
 const NOTE_GROUPS: NoteGroupRow[] = [
   { id: 'all', label: 'Notes' },
   { id: 'todo', label: 'Todo' },
@@ -28,10 +35,21 @@ const NOTE_GROUPS: NoteGroupRow[] = [
   { id: 'trash', label: 'Trash' },
 ];
 
+const TASK_GROUPS: TaskGroupRow[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'next', label: 'Next' },
+  { id: 'backlog', label: 'Backlog' },
+  { id: 'someday', label: 'Someday' },
+  { id: 'logbook', label: 'Logbook' },
+  { id: 'trash', label: 'Trash' },
+];
+
 export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
   const { pushLayer } = useNavigationActions();
-  const counts = useNoteGroupCounts();
+  const noteCounts = useNoteGroupCounts();
+  const taskCounts = useTaskBucketCounts();
 
   const handleNoteGroupPress = (row: NoteGroupRow) => {
     if (row.comingSoon) {
@@ -42,9 +60,9 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     pushLayer({ view: 'notes-list', group: row.id });
   };
 
-  const handleTasksPress = () => {
+  const handleTaskGroupPress = (row: TaskGroupRow) => {
     onOpenChange(false);
-    pushLayer({ view: 'tasks-list' });
+    pushLayer({ view: 'tasks-list', filter: row.id });
   };
 
   const handlePlansPress = () => {
@@ -66,8 +84,8 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                   onClick={() => handleNoteGroupPress(row)}
                 >
                   <span className={styles.rowLabel}>{row.label}</span>
-                  {counts[row.id] > 0 && !row.comingSoon ? (
-                    <span className={styles.rowCount}>{counts[row.id]}</span>
+                  {noteCounts[row.id] > 0 && !row.comingSoon ? (
+                    <span className={styles.rowCount}>{noteCounts[row.id]}</span>
                   ) : null}
                   {row.comingSoon ? (
                     <span className={styles.rowSoon}>Soon</span>
@@ -81,14 +99,20 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
           {activeTab === 'tasks' && (
             <div className={styles.list}>
-              <button
-                type="button"
-                className={styles.row}
-                onClick={handleTasksPress}
-              >
-                <span className={styles.rowLabel}>All Tasks</span>
-                <span className={styles.rowCaret} aria-hidden="true">›</span>
-              </button>
+              {TASK_GROUPS.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className={styles.row}
+                  onClick={() => handleTaskGroupPress(row)}
+                >
+                  <span className={styles.rowLabel}>{row.label}</span>
+                  {taskCounts[row.id] > 0 ? (
+                    <span className={styles.rowCount}>{taskCounts[row.id]}</span>
+                  ) : null}
+                  <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+              ))}
             </div>
           )}
 

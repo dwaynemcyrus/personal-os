@@ -5,9 +5,12 @@ import type { ProjectDocument, TaskDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import { formatRelativeTime } from '@/features/notes/noteUtils';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
+import {
+  buildProjectStartMap,
+  matchesTaskFilter,
+  type TaskListFilter,
+} from '@/features/tasks/taskBuckets';
 import styles from './TaskList.module.css';
-
-type TaskFilter = 'all' | 'next' | 'backlog' | 'waiting' | 'completed';
 
 const nowIso = () => new Date().toISOString();
 
@@ -46,17 +49,26 @@ const formatStatusLabel = (status: TaskDocument['status']) => {
     case 'next':
       return 'Next';
     case 'waiting':
-      return 'Waiting';
+      return 'Someday';
     default:
       return 'Backlog';
   }
 };
 
+const FILTER_ORDER: TaskListFilter[] = [
+  'today',
+  'upcoming',
+  'next',
+  'backlog',
+  'someday',
+  'logbook',
+  'trash',
+];
+
 export function TaskList() {
   const { db, isReady } = useDatabase();
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
-  const [filter, setFilter] = useState<TaskFilter>('all');
 
   const { stack } = useNavigationState();
   const { pushLayer, popLayer, goBack } = useNavigationActions();
@@ -66,13 +78,24 @@ export function TaskList() {
     taskDetailLayer && taskDetailLayer.view === 'task-detail'
       ? taskDetailLayer.taskId
       : null;
+  const taskListLayer = [...stack]
+    .reverse()
+    .find((layer) => layer.view === 'tasks-list');
+  const layerFilter =
+    taskListLayer && taskListLayer.view === 'tasks-list'
+      ? taskListLayer.filter ?? 'next'
+      : 'next';
+  const [filter, setFilter] = useState<TaskListFilter>(layerFilter);
+
+  useEffect(() => {
+    setFilter(layerFilter);
+  }, [layerFilter]);
 
   useEffect(() => {
     if (!db || !isReady) return;
 
     const subscription = db.tasks
       .find({
-        selector: { is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
@@ -105,6 +128,10 @@ export function TaskList() {
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects]
   );
+  const projectStartById = useMemo(
+    () => buildProjectStartMap(projects),
+    [projects]
+  );
 
   const sortedTasks = useMemo(() => [...tasks].sort(sortTasks), [tasks]);
   const selectedTask = useMemo(
@@ -112,19 +139,17 @@ export function TaskList() {
     [tasks, selectedTaskId]
   );
 
-  const filteredTasks = useMemo(() => {
-    if (filter === 'completed') {
-      return sortedTasks.filter((task) => task.completed);
-    }
-
-    if (filter === 'all') {
-      return sortedTasks;
-    }
-
-    return sortedTasks.filter(
-      (task) => !task.completed && task.status === filter
-    );
-  }, [filter, sortedTasks]);
+  const filteredTasks = useMemo(
+    () =>
+      sortedTasks.filter((task) =>
+        matchesTaskFilter(
+          task,
+          filter,
+          task.project_id ? projectStartById.get(task.project_id) : null
+        )
+      ),
+    [filter, projectStartById, sortedTasks]
+  );
 
   const handleCreateTask = async () => {
     if (!db) return;
@@ -227,25 +252,23 @@ export function TaskList() {
       </div>
 
       <div className={styles.filters} role="group" aria-label="Task filters">
-        {(['all', 'next', 'backlog', 'waiting', 'completed'] as const).map(
-          (value) => (
-            <button
-              key={value}
-              type="button"
-              className={styles.filterButton}
-              data-active={filter === value}
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
-            >
-              {value}
-            </button>
-          )
-        )}
+        {FILTER_ORDER.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={styles.filterButton}
+            data-active={filter === value}
+            aria-pressed={filter === value}
+            onClick={() => setFilter(value)}
+          >
+            {value}
+          </button>
+        ))}
       </div>
 
       <div className={styles.list}>
         {filteredTasks.length === 0 ? (
-          <p className={styles.empty}>No tasks here yet.</p>
+          <p className={styles.empty}>No tasks in this view yet.</p>
         ) : (
           filteredTasks.map((task) => {
             const projectLabel = task.project_id

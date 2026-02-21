@@ -1,3 +1,5 @@
+import type { TaskListFilter } from '@/features/tasks/taskBuckets';
+
 /**
  * Navigation Types
  *
@@ -7,7 +9,7 @@
 export type NavigationLayer =
   | { view: 'notes-list'; group: 'all' | 'pinned' | 'today' | 'locked' | 'todo' | 'trash' }
   | { view: 'note-detail'; noteId: string }
-  | { view: 'tasks-list' }
+  | { view: 'tasks-list'; filter?: TaskListFilter }
   | { view: 'task-detail'; taskId: string }
   | { view: 'plans-list' }
   | { view: 'plan-detail'; planId: string };
