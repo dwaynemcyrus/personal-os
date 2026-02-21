@@ -251,7 +251,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
                   }`}
                 />
               </span>
-              <span className={styles.toggleText}>Rapid</span>
+              <span className={styles.toggleText}>Rapid Entry</span>
             </button>
 
             <div className={styles.actionButtons}>
