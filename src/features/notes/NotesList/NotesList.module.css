@@ -72,8 +72,8 @@
 }
 
 .newButton svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .newButton:disabled {
@@ -100,6 +100,7 @@
 .item {
   display: block;
   padding: 8px var(--space-20);
+  border: none;
   border-bottom: 1px solid rgba(252, 251, 248, 0.14);
   background: transparent;
   text-align: left;
