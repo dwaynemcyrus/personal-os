@@ -54,11 +54,12 @@ export const projectSchema = z.object({
   okr_id: z.string().uuid().nullable().optional(),
 });
 
-const taskStatuses = ['backlog', 'waiting', 'next'] as const;
+const taskStatuses = ['backlog', 'someday', 'next'] as const;
 
 const coerceTaskStatus = (value: unknown) => {
   if (value === 'active') return 'next';
-  if (value === 'backlog' || value === 'waiting' || value === 'next') {
+  if (value === 'waiting') return 'someday';
+  if (value === 'backlog' || value === 'someday' || value === 'next') {
     return value;
   }
   return 'backlog';
@@ -71,6 +72,7 @@ export const taskSchema = z.object({
   description: z.string().nullable(),
   status: z.enum(taskStatuses),
   completed: z.boolean(),
+  start_date: z.string().nullable(),
   due_date: z.string().nullable(),
   content: z.string().nullable().optional(),
   priority: z.number().int().min(1).max(4).nullable().optional(),
@@ -271,7 +273,7 @@ const projectsRxSchema = {
 };
 
 const tasksRxSchema = {
-  version: 3,
+  version: 4,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -281,6 +283,7 @@ const tasksRxSchema = {
     description: { type: ['string', 'null'] },
     status: { type: 'string', enum: taskStatuses },
     completed: { type: 'boolean' },
+    start_date: { type: ['string', 'null'], format: 'date-time' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
     content: { type: ['string', 'null'] },
     priority: { type: ['number', 'null'] },
@@ -294,6 +297,7 @@ const tasksRxSchema = {
     'description',
     'status',
     'completed',
+    'start_date',
     'due_date',
     'content',
     'priority',
@@ -656,6 +660,12 @@ const tasksMigrationStrategies = {
     priority: oldDoc.priority ?? null,
     depends_on: Array.isArray(oldDoc.depends_on) ? oldDoc.depends_on : null,
     okr_id: oldDoc.okr_id ?? null,
+  }),
+  4: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    status: coerceTaskStatus(oldDoc.status),
+    start_date:
+      typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null,
   }),
 };
 

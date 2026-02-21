@@ -19,7 +19,7 @@ type TaskDetailSheetProps = {
     title: string;
     description: string;
     projectId: string | null;
-    status: 'backlog' | 'waiting' | 'next';
+    status: 'backlog' | 'someday' | 'next';
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
   onToggleComplete?: (taskId: string, completed: boolean) => Promise<void> | void;
@@ -39,7 +39,7 @@ export function TaskDetailSheet({
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [projectId, setProjectId] = useState(task?.project_id ?? '');
-  const [status, setStatus] = useState<'backlog' | 'waiting' | 'next'>(
+  const [status, setStatus] = useState<'backlog' | 'someday' | 'next'>(
     task?.status ?? 'backlog'
   );
 
@@ -162,11 +162,11 @@ export function TaskDetailSheet({
             className={styles['task-detail__input']}
             value={status}
             onChange={(event) =>
-              setStatus(event.target.value as 'backlog' | 'waiting' | 'next')
+              setStatus(event.target.value as 'backlog' | 'someday' | 'next')
             }
           >
             <option value="backlog">Backlog</option>
-            <option value="waiting">Someday</option>
+            <option value="someday">Someday</option>
             <option value="next">Next</option>
           </select>
         </label>

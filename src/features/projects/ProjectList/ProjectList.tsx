@@ -190,7 +190,7 @@ export function ProjectList() {
       title: string;
       description: string;
       projectId: string | null;
-      status: 'backlog' | 'waiting' | 'next';
+      status: 'backlog' | 'someday' | 'next';
     }
   ) => {
     if (!db) return;
@@ -232,6 +232,7 @@ export function ProjectList() {
       description: null,
       status: 'backlog',
       completed: false,
+      start_date: null,
       due_date: null,
       created_at: timestamp,
       updated_at: timestamp,

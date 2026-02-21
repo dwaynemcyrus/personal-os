@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { ProjectDocument, TaskDocument } from '@/lib/db';
+import type { TaskDocument } from '@/lib/db';
 import {
-  buildProjectStartMap,
   getTaskBucketCounts,
   type TaskBucketCounts,
 } from '@/features/tasks/taskBuckets';
@@ -20,7 +19,6 @@ const EMPTY_COUNTS: TaskBucketCounts = {
 export function useTaskBucketCounts(): TaskBucketCounts {
   const { db, isReady } = useDatabase();
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
-  const [projects, setProjects] = useState<ProjectDocument[]>([]);
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -36,24 +34,8 @@ export function useTaskBucketCounts(): TaskBucketCounts {
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
-  useEffect(() => {
-    if (!db || !isReady) return;
-
-    const subscription = db.projects
-      .find({
-        selector: { is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setProjects(docs.map((doc) => doc.toJSON()));
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
-
   return useMemo(() => {
     if (!db || !isReady) return EMPTY_COUNTS;
-    const projectStartById = buildProjectStartMap(projects);
-    return getTaskBucketCounts(tasks, projectStartById);
-  }, [db, isReady, projects, tasks]);
+    return getTaskBucketCounts(tasks);
+  }, [db, isReady, tasks]);
 }

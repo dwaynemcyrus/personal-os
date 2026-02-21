@@ -6,7 +6,6 @@ import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailShee
 import { formatRelativeTime } from '@/features/notes/noteUtils';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import {
-  buildProjectStartMap,
   matchesTaskFilter,
   type TaskListFilter,
 } from '@/features/tasks/taskBuckets';
@@ -48,7 +47,7 @@ const formatStatusLabel = (status: TaskDocument['status']) => {
   switch (status) {
     case 'next':
       return 'Next';
-    case 'waiting':
+    case 'someday':
       return 'Someday';
     default:
       return 'Backlog';
@@ -128,11 +127,6 @@ export function TaskList() {
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects]
   );
-  const projectStartById = useMemo(
-    () => buildProjectStartMap(projects),
-    [projects]
-  );
-
   const sortedTasks = useMemo(() => [...tasks].sort(sortTasks), [tasks]);
   const selectedTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
@@ -140,15 +134,8 @@ export function TaskList() {
   );
 
   const filteredTasks = useMemo(
-    () =>
-      sortedTasks.filter((task) =>
-        matchesTaskFilter(
-          task,
-          filter,
-          task.project_id ? projectStartById.get(task.project_id) : null
-        )
-      ),
-    [filter, projectStartById, sortedTasks]
+    () => sortedTasks.filter((task) => matchesTaskFilter(task, filter)),
+    [filter, sortedTasks]
   );
 
   const handleCreateTask = async () => {
@@ -162,6 +149,7 @@ export function TaskList() {
       description: null,
       status: 'backlog',
       completed: false,
+      start_date: null,
       due_date: null,
       created_at: timestamp,
       updated_at: timestamp,
@@ -187,7 +175,7 @@ export function TaskList() {
       title: string;
       description: string;
       projectId: string | null;
-      status: 'backlog' | 'waiting' | 'next';
+      status: 'backlog' | 'someday' | 'next';
     }
   ) => {
     if (!db) return;

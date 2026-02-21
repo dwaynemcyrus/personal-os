@@ -80,6 +80,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
       description: currentNote.content,
       status: 'backlog',
       completed: false,
+      start_date: null,
       due_date: null,
       created_at: timestamp,
       updated_at: timestamp,

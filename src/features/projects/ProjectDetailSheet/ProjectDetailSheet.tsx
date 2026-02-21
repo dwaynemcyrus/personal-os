@@ -30,7 +30,7 @@ type ProjectDetailSheetProps = {
     title: string;
     description: string;
     projectId: string | null;
-    status: 'backlog' | 'waiting' | 'next';
+    status: 'backlog' | 'someday' | 'next';
   }) => Promise<void> | void;
   onDeleteTask: (taskId: string) => Promise<void> | void;
   onCreateTask: (projectId: string, title: string) => Promise<void> | void;
