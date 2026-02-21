@@ -6,7 +6,7 @@
   bottom: calc(132px + env(safe-area-inset-bottom));
   border-radius: var(--radius-16);
   border: 1px solid rgba(252, 251, 248, 0.14);
-  background: #282828 !important;
+  background: var(--color-ink-900) !important;
   color: #fcfbf8;
   padding: 0;
   height: auto;
@@ -109,7 +109,7 @@
 
 .rowLabel {
   flex: 1;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: var(--font-medium);
 }
 
