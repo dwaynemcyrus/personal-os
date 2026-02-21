@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/Sheet';
 import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
+import { TaskList } from '@/features/tasks/TaskList/TaskList';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument } from '@/lib/db';
 import type { NavigationLayer } from '@/lib/navigation/types';
@@ -31,15 +32,6 @@ function NotesShell() {
   const isDesktop = useIsDesktop();
   if (isDesktop) return <NotesDesktopShell />;
   return <NotesMobileShell />;
-}
-
-function TasksView() {
-  return (
-    <section className={styles.placeholder}>
-      <h1 className={styles.placeholderTitle}>Tasks</h1>
-      <p className={styles.placeholderBody}>Tasks view coming soon.</p>
-    </section>
-  );
 }
 
 function PlansView() {
@@ -310,7 +302,7 @@ function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
   }
 
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') {
-    return <TasksView />;
+    return <TaskList />;
   }
 
   if (topLayer.view === 'plans-list' || topLayer.view === 'plan-detail') {

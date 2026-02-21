@@ -1,10 +1,9 @@
-
-
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
+import { formatRelativeTime } from '@/features/notes/noteUtils';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import styles from './TaskList.module.css';
 
@@ -42,21 +41,31 @@ const sortTasks = (a: TaskDocument, b: TaskDocument) => {
   return a.id.localeCompare(b.id);
 };
 
+const formatStatusLabel = (status: TaskDocument['status']) => {
+  switch (status) {
+    case 'next':
+      return 'Next';
+    case 'waiting':
+      return 'Waiting';
+    default:
+      return 'Backlog';
+  }
+};
+
 export function TaskList() {
   const { db, isReady } = useDatabase();
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [filter, setFilter] = useState<TaskFilter>('all');
-  const [titleInput, setTitleInput] = useState('');
 
   const { stack } = useNavigationState();
-  const { pushLayer, popLayer } = useNavigationActions();
+  const { pushLayer, popLayer, goBack } = useNavigationActions();
 
-  // Find if task-detail is in stack
   const taskDetailLayer = stack.find((layer) => layer.view === 'task-detail');
-  const selectedTaskId = taskDetailLayer && taskDetailLayer.view === 'task-detail'
-    ? taskDetailLayer.taskId
-    : null;
+  const selectedTaskId =
+    taskDetailLayer && taskDetailLayer.view === 'task-detail'
+      ? taskDetailLayer.taskId
+      : null;
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -98,32 +107,33 @@ export function TaskList() {
   );
 
   const sortedTasks = useMemo(() => [...tasks].sort(sortTasks), [tasks]);
-  const activeTasks = sortedTasks.filter((task) => !task.completed);
-  const completedTasks = sortedTasks.filter((task) => task.completed);
-  const nextTasks = activeTasks.filter((task) => task.status === 'next');
-  const backlogTasks = activeTasks.filter((task) => task.status === 'backlog');
-  const waitingTasks = activeTasks.filter((task) => task.status === 'waiting');
   const selectedTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
     [tasks, selectedTaskId]
   );
 
-  const showAllActive = filter === 'all';
-  const showNext = filter === 'next';
-  const showBacklog = filter === 'backlog';
-  const showWaiting = filter === 'waiting';
-  const showCompleted = filter === 'completed' || filter === 'all';
+  const filteredTasks = useMemo(() => {
+    if (filter === 'completed') {
+      return sortedTasks.filter((task) => task.completed);
+    }
 
-  const createTask = async () => {
+    if (filter === 'all') {
+      return sortedTasks;
+    }
+
+    return sortedTasks.filter(
+      (task) => !task.completed && task.status === filter
+    );
+  }, [filter, sortedTasks]);
+
+  const handleCreateTask = async () => {
     if (!db) return;
-    const trimmed = titleInput.trim();
-    if (!trimmed) return;
-
     const timestamp = nowIso();
+    const taskId = uuidv4();
     await db.tasks.insert({
-      id: uuidv4(),
+      id: taskId,
       project_id: null,
-      title: trimmed,
+      title: 'Untitled task',
       description: null,
       status: 'backlog',
       completed: false,
@@ -133,12 +143,7 @@ export function TaskList() {
       is_trashed: false,
       trashed_at: null,
     });
-    setTitleInput('');
-  };
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await createTask();
+    pushLayer({ view: 'task-detail', taskId });
   };
 
   const handleOpenTask = (taskId: string) => {
@@ -199,19 +204,27 @@ export function TaskList() {
   };
 
   return (
-    <div className={styles.tasks}>
-      <form className={styles.composer} onSubmit={onSubmit}>
-        <input
-          className={styles.composerInput}
-          type="text"
-          placeholder="Add a task"
-          value={titleInput}
-          onChange={(event) => setTitleInput(event.target.value)}
-        />
-        <button className={styles.composerButton} type="submit">
-          Add
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={goBack}
+          aria-label="Go back"
+        >
+          <BackIcon />
         </button>
-      </form>
+        <h1 className={styles.title}>Tasks</h1>
+        <button
+          type="button"
+          className={styles.newButton}
+          onClick={handleCreateTask}
+          disabled={!db || !isReady}
+          aria-label="New task"
+        >
+          <PlusIcon />
+        </button>
+      </div>
 
       <div className={styles.filters} role="group" aria-label="Task filters">
         {(['all', 'next', 'backlog', 'waiting', 'completed'] as const).map(
@@ -230,202 +243,45 @@ export function TaskList() {
         )}
       </div>
 
-      {showAllActive ? (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Open</div>
-          {activeTasks.length === 0 ? (
-            <p className={styles.empty}>No open tasks yet.</p>
-          ) : (
-            <div className={styles.list}>
-              {activeTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={styles.item}
-                  onClick={() => handleOpenTask(task.id)}
-                >
-                  <span className={styles.itemToggle}>
-                    <input
-                      className={styles.itemCheckbox}
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={(event) =>
-                        handleToggleComplete(task.id, event.target.checked)
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Mark ${task.title} as completed`}
-                    />
-                  </span>
-                  <div className={styles.itemTitle}>{task.title}</div>
-                  <div className={styles.itemMeta}>
-                    {task.project_id
-                      ? projectMap.get(task.project_id) ?? 'No project'
-                      : 'No project'}
-                    <span className={styles.itemStatus}>{task.status}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
+      <div className={styles.list}>
+        {filteredTasks.length === 0 ? (
+          <p className={styles.empty}>No tasks here yet.</p>
+        ) : (
+          filteredTasks.map((task) => {
+            const projectLabel = task.project_id
+              ? projectMap.get(task.project_id) ?? 'No project'
+              : 'No project';
+            const snippet = task.description?.trim() ?? '';
+            const updatedLabel = formatRelativeTime(task.updated_at);
 
-      {showNext ? (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Next</div>
-          {nextTasks.length === 0 ? (
-            <p className={styles.empty}>No next tasks yet.</p>
-          ) : (
-            <div className={styles.list}>
-              {nextTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={styles.item}
-                  onClick={() => handleOpenTask(task.id)}
-                >
-                  <span className={styles.itemToggle}>
-                    <input
-                      className={styles.itemCheckbox}
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={(event) =>
-                        handleToggleComplete(task.id, event.target.checked)
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Mark ${task.title} as completed`}
-                    />
-                  </span>
+            return (
+              <button
+                key={task.id}
+                type="button"
+                className={styles.item}
+                onClick={() => handleOpenTask(task.id)}
+              >
+                <div className={styles.itemHeader}>
                   <div className={styles.itemTitle}>{task.title}</div>
-                  <div className={styles.itemMeta}>
-                    {task.project_id
-                      ? projectMap.get(task.project_id) ?? 'No project'
-                      : 'No project'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {showBacklog ? (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Backlog</div>
-          {backlogTasks.length === 0 ? (
-            <p className={styles.empty}>No backlog tasks yet.</p>
-          ) : (
-            <div className={styles.list}>
-              {backlogTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={styles.item}
-                  onClick={() => handleOpenTask(task.id)}
-                >
-                  <span className={styles.itemToggle}>
-                    <input
-                      className={styles.itemCheckbox}
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={(event) =>
-                        handleToggleComplete(task.id, event.target.checked)
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Mark ${task.title} as completed`}
-                    />
+                </div>
+                {snippet ? (
+                  <div className={styles.itemSnippet}>{snippet}</div>
+                ) : null}
+                <div className={styles.itemMeta}>
+                  <span className={styles.itemDate}>{updatedLabel}</span>
+                  <span className={styles.itemStatus}>
+                    {formatStatusLabel(task.status)}
                   </span>
-                  <div className={styles.itemTitle}>{task.title}</div>
-                  <div className={styles.itemMeta}>
-                    {task.project_id
-                      ? projectMap.get(task.project_id) ?? 'No project'
-                      : 'No project'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {showWaiting ? (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Waiting</div>
-          {waitingTasks.length === 0 ? (
-            <p className={styles.empty}>No waiting tasks yet.</p>
-          ) : (
-            <div className={styles.list}>
-              {waitingTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={styles.item}
-                  onClick={() => handleOpenTask(task.id)}
-                >
-                  <span className={styles.itemToggle}>
-                    <input
-                      className={styles.itemCheckbox}
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={(event) =>
-                        handleToggleComplete(task.id, event.target.checked)
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Mark ${task.title} as completed`}
-                    />
-                  </span>
-                  <div className={styles.itemTitle}>{task.title}</div>
-                  <div className={styles.itemMeta}>
-                    {task.project_id
-                      ? projectMap.get(task.project_id) ?? 'No project'
-                      : 'No project'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {showCompleted ? (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Completed</div>
-          {completedTasks.length === 0 ? (
-            <p className={styles.empty}>No completed tasks yet.</p>
-          ) : (
-            <div className={styles.list}>
-              {completedTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={styles.item}
-                  onClick={() => handleOpenTask(task.id)}
-                >
-                  <span className={styles.itemToggle}>
-                    <input
-                      className={styles.itemCheckbox}
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={(event) =>
-                        handleToggleComplete(task.id, event.target.checked)
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Mark ${task.title} as active`}
-                    />
-                  </span>
-                  <div className={styles.itemTitle}>{task.title}</div>
-                  <div className={styles.itemMeta}>
-                    {task.project_id
-                      ? projectMap.get(task.project_id) ?? 'No project'
-                      : 'No project'}
-                    <span className={styles.itemStatus}>{task.status}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
+                  <span className={styles.itemProject}>{projectLabel}</span>
+                  {task.completed ? (
+                    <span className={styles.itemCompleted}>Completed</span>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
 
       {selectedTask ? (
         <TaskDetailSheet
@@ -440,5 +296,39 @@ export function TaskList() {
         />
       ) : null}
     </div>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
   );
 }
