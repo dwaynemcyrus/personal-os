@@ -13,7 +13,16 @@
 
 .editor :global(.cm-scroller) {
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.editor :global(.cm-scroller::-webkit-scrollbar) {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* iOS text selection */

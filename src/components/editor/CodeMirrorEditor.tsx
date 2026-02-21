@@ -156,6 +156,7 @@ export function CodeMirrorEditor({
           ],
         }),
         placeholder(placeholderText),
+        EditorView.lineWrapping,
         EditorView.contentAttributes.of({
           spellcheck: 'true',
           autocorrect: 'on',
@@ -178,7 +179,10 @@ export function CodeMirrorEditor({
             lineHeight: 'normal',
             caretColor: '#fcfbf8',
           },
-          '.cm-line': { padding: '0' },
+          '.cm-line': {
+            padding: '0',
+            wordBreak: 'break-word',
+          },
           '.cm-cursor': {
             borderLeftColor: '#fcfbf8',
             borderLeftWidth: '2px',
@@ -193,7 +197,10 @@ export function CodeMirrorEditor({
             color: 'rgba(252, 251, 248, 0.55)',
             fontStyle: 'italic',
           },
-          '.cm-scroller': { overflow: 'auto' },
+          '.cm-scroller': {
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          },
           '&.cm-focused': { outline: 'none' },
         }),
       ],
