@@ -9,6 +9,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import { useNavigationActions } from '@/components/providers';
+import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { searchNotes, type SearchResult } from '@/lib/search';
 import type { NoteDocument } from '@/lib/db';
 import {
@@ -92,21 +93,22 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     return () => cancelAnimationFrame(id);
   }, [open]);
 
-  // Body scroll lock
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
   const handleClose = useCallback(() => {
     setText('');
     setSelectedIndex(null);
     onOpenChange(false);
   }, [onOpenChange]);
+
+  const handleSheetOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        setText('');
+        setSelectedIndex(null);
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange]
+  );
 
   const handleSave = useCallback(async () => {
     if (!text.trim() || !db) return;
@@ -203,105 +205,101 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
 
   const canSave = text.trim().length > 0;
 
-  if (!open) return null;
-
   return (
-    <div className={styles.backdrop}>
-      <div
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Quick capture"
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
+      <SheetContent
+        side="bottom"
+        ariaLabel="Quick capture"
+        className={styles.sheet}
       >
-        {/* Header: label + textarea */}
-        <div className={styles.header}>
-          <span className={styles.label}>Capture</span>
-          <textarea
-            ref={textareaRef}
-            className={styles.input}
-            placeholder="What's on your mind?"
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setSelectedIndex(null);
-            }}
-          />
-        </div>
+        <div className={styles.content}>
+          <div className={styles.header}>
+            <span className={styles.label}>Capture</span>
+            <textarea
+              ref={textareaRef}
+              className={styles.input}
+              placeholder="What's on your mind?"
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setSelectedIndex(null);
+              }}
+            />
+          </div>
 
-        {/* Results section */}
-        <div className={styles.results}>
-          <span className={styles.sectionTitle}>
-            {isSearching ? 'Search Results' : 'Recently Edited'}
-          </span>
-          {displayItems.length > 0 ? (
-            <ul className={styles.list} role="list">
-              {displayItems.map((item, index) => (
-                <li key={item.id} className={styles.listItem}>
-                  <button
-                    type="button"
-                    className={`${styles.listButton} ${
-                      selectedIndex === index ? styles.listButtonSelected : ''
-                    }`}
-                    onClick={() => handleOpenNote(item.noteId)}
-                  >
-                    {item.title}
-                    <div className={styles.listButtonSubtitle}>
-                      {item.subtitle}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : isSearching ? (
-            <p className={styles.emptyState}>No results</p>
-          ) : (
-            <p className={styles.emptyState}>No recent documents</p>
-          )}
-        </div>
+          <div className={styles.results}>
+            <span className={styles.sectionTitle}>
+              {isSearching ? 'Search Results' : 'Recently Edited'}
+            </span>
+            {displayItems.length > 0 ? (
+              <ul className={styles.list} role="list">
+                {displayItems.map((item, index) => (
+                  <li key={item.id} className={styles.listItem}>
+                    <button
+                      type="button"
+                      className={`${styles.listButton} ${
+                        selectedIndex === index ? styles.listButtonSelected : ''
+                      }`}
+                      onClick={() => handleOpenNote(item.noteId)}
+                    >
+                      {item.title}
+                      <div className={styles.listButtonSubtitle}>
+                        {item.subtitle}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : isSearching ? (
+              <p className={styles.emptyState}>No results</p>
+            ) : (
+              <p className={styles.emptyState}>No recent documents</p>
+            )}
+          </div>
 
-        {/* Actions: toggle + buttons */}
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.toggle}
-            aria-pressed={rapidCapture}
-            onClick={() => setRapidCapture((v) => !v)}
-          >
-            <span
-              className={`${styles.toggleTrack} ${
-                rapidCapture ? styles.toggleTrackActive : ''
-              }`}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.toggle}
+              aria-pressed={rapidCapture}
+              onClick={() => setRapidCapture((v) => !v)}
             >
               <span
-                className={`${styles.toggleThumb} ${
-                  rapidCapture ? styles.toggleThumbActive : ''
+                className={`${styles.toggleTrack} ${
+                  rapidCapture ? styles.toggleTrackActive : ''
                 }`}
-              />
-            </span>
-            <span className={styles.toggleText}>Rapid</span>
-          </button>
+              >
+                <span
+                  className={`${styles.toggleThumb} ${
+                    rapidCapture ? styles.toggleThumbActive : ''
+                  }`}
+                />
+              </span>
+              <span className={styles.toggleText}>Rapid</span>
+            </button>
 
-          <div className={styles.actionButtons}>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={handleClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={`${styles.button} ${styles.buttonPrimary} ${
-                !canSave ? styles.buttonDisabled : ''
-              }`}
-              disabled={!canSave}
-              onClick={handleSave}
-            >
-              Save
-            </button>
+            <div className={styles.actionButtons}>
+              <button
+                type="button"
+                className={styles.button}
+                onClick={handleClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.buttonPrimary} ${
+                  !canSave ? styles.buttonDisabled : ''
+                }`}
+                disabled={!canSave}
+                onClick={handleSave}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
