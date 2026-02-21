@@ -3,14 +3,14 @@
   right: 48px;
   width: auto;
   top: 48px;
-  bottom: calc(132px + env(safe-area-inset-bottom));
+  bottom: calc(88px + env(safe-area-inset-bottom));
   border-radius: var(--radius-16);
   border: 1px solid rgba(252, 251, 248, 0.14);
   background: var(--color-ink-900) !important;
   color: #fcfbf8;
   padding: 0;
   height: auto;
-  max-height: calc(100dvh - 48px - (132px + env(safe-area-inset-bottom)));
+  max-height: calc(100dvh - 48px - (88px + env(safe-area-inset-bottom)));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -21,6 +21,10 @@
   padding: 0 20px;
   border-top: 1px solid rgba(252, 251, 248, 0.14);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: var(--color-ink-900);
+  z-index: 1;
 }
 
 .tab {
@@ -59,8 +63,10 @@
 }
 
 .content {
-  flex: 0 0 auto;
-  overflow: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-8) 20px var(--space-16);
 }
 
