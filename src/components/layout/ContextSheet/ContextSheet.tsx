@@ -55,19 +55,6 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" ariaLabel="Context" className={styles.sheet}>
-        <div className={styles.tabs}>
-          {(['tasks', 'plans', 'notes'] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-
         <div className={styles.content}>
           {activeTab === 'notes' && (
             <div className={styles.list}>
@@ -117,6 +104,19 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
               </button>
             </div>
           )}
+        </div>
+
+        <div className={styles.tabs}>
+          {(['tasks', 'plans', 'notes'] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
       </SheetContent>
     </Sheet>
