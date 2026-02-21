@@ -43,6 +43,35 @@
   text-transform: capitalize;
 }
 
+.homeFocusBlock {
+  display: grid;
+  gap: 4px;
+  width: fit-content;
+}
+
+.homeFocusLabel {
+  font-size: 13px;
+  font-weight: var(--font-medium);
+}
+
+.homeFocusLink {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: fit-content;
+}
+
+.homeFocusLink:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
 .homeInboxLink {
   display: flex;
   align-items: center;

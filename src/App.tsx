@@ -151,6 +151,10 @@ function NowView() {
     pushLayer({ view: 'notes-list', group: 'all' });
   };
 
+  const handleOpenNextTasks = () => {
+    pushLayer({ view: 'tasks-list' });
+  };
+
   const inboxCount = inboxNotes.length;
   const workbenchCount = workbenchNotes.length;
   const todayActionLabel = nowNote ? "Open Today's Note" : "Create Today's Note";
@@ -172,6 +176,22 @@ function NowView() {
             <span className={styles.homeLinkArrow} aria-hidden="true">
               &rsaquo;
             </span>
+          </span>
+        </button>
+      </div>
+
+      <div className={styles.homeFocusBlock}>
+        <div className={styles.homeFocusLabel}>Now</div>
+        <button
+          type="button"
+          className={styles.homeFocusLink}
+          onClick={handleOpenNextTasks}
+          aria-label="Fill your 2 slots for today"
+        >
+          Fill your 2 slots for today
+          {' '}
+          <span className={styles.homeLinkArrow} aria-hidden="true">
+            &rsaquo;
           </span>
         </button>
       </div>
