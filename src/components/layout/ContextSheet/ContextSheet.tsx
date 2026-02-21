@@ -55,8 +55,6 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" ariaLabel="Context" className={styles.sheet}>
-        <div className={styles.handle} />
-
         <div className={styles.tabs}>
           {(['tasks', 'plans', 'notes'] as Tab[]).map((tab) => (
             <button
