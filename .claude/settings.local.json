@@ -67,7 +67,10 @@
       "Bash(/Users/cyrus/Code/personal-os/eslint.config.mjs:*)",
       "Bash(/Users/cyrus/Code/personal-os/src/components/layout/SheetManager/SheetManager.tsx:*)",
       "Bash(/Users/cyrus/Code/personal-os/src/features/projects/ProjectList/ProjectList.tsx:*)",
-      "Bash(timeout 15 npm run dev:*)"
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(/Users/cyrus/Code/personal-os/vercel.json:*)",
+      "Bash(git fetch:*)",
+      "Bash(/Users/cyrus/Code/personal-os/src/lib/supabase.ts:*)"
     ]
   }
 }

@@ -1,181 +1,82 @@
 .home {
   display: grid;
-  gap: var(--space-28);
+  gap: var(--space-16);
+  align-content: start;
 }
 
-/* ── Now section ── */
-.homeNowTitle {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: var(--leading-tight);
-}
-
-.homeNowCard {
-  width: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-14);
-  padding: var(--space-18) var(--space-20);
+.homeNowLink {
   display: grid;
-  gap: var(--space-12);
-  text-align: left;
+  gap: 4px;
+  width: fit-content;
+  border: none;
+  background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition: border-color var(--duration-160) var(--ease-default),
-    box-shadow var(--duration-160) var(--ease-default);
+  padding: 0;
+  text-align: left;
 }
 
-.homeNowCard:hover {
-  border-color: var(--color-border-400);
-  box-shadow: var(--shadow-hover);
-}
-
-.homeNowCard:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+.homeNowLink:focus-visible {
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
 .homeNowDate {
-  font-size: var(--font-base);
-  font-weight: var(--font-medium);
-  color: var(--color-ink-900);
-}
-
-.homeNowSubtitle {
-  font-size: var(--font-sm);
-  color: var(--color-ink-450);
-}
-
-.homeNowButton {
-  display: block;
-  width: 100%;
-  padding: var(--space-10) var(--space-18);
-  border-radius: var(--radius-pill);
-  border: none;
-  background: var(--color-ink-900);
-  color: var(--color-paper);
-  font-size: var(--font-sm);
-  font-weight: 600;
-  text-align: center;
-  cursor: pointer;
-}
-
-/* ── Inbox section ── */
-.homeSectionLabel {
   font-size: 13px;
   font-weight: var(--font-medium);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-ink-450);
-  margin-bottom: var(--space-8);
+  letter-spacing: 0.08em;
 }
 
-.homeInboxCard {
+.homeNowAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  text-transform: lowercase;
+}
+
+.homeInboxLink {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: var(--space-18) var(--space-20);
-  border-radius: var(--radius-14);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-200);
-  text-align: left;
+  width: fit-content;
+  gap: var(--space-8);
+  border: none;
+  background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition: border-color var(--duration-160) var(--ease-default),
-    box-shadow var(--duration-160) var(--ease-default);
+  padding: 0;
+  text-align: left;
 }
 
-.homeInboxCard:hover {
-  border-color: var(--color-border-500);
-  box-shadow: var(--shadow-hover);
-}
-
-.homeInboxCard:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+.homeInboxLink:focus-visible {
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
-}
-
-.homeInboxText {
-  display: grid;
-  gap: 2px;
 }
 
 .homeInboxTitle {
   font-size: var(--font-base);
   font-weight: var(--font-medium);
-  color: var(--color-ink-900);
-}
-
-.homeInboxSubtitle {
-  font-size: var(--font-sm);
-  color: var(--color-ink-450);
 }
 
 .homeInboxRight {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--space-6);
 }
 
-.homeInboxBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 12px;
-  background: var(--color-ink-900);
-  color: var(--color-paper);
+.homeInboxCount {
   font-size: 13px;
-  font-weight: 600;
-}
-
-.homeInboxArrow {
-  font-size: 18px;
-  color: var(--color-ink-300);
-}
-
-/* ── Workbench section ── */
-.homeWorkbenchEmpty {
-  border-radius: var(--radius-16);
-  border: 1px dashed var(--color-border-dashed);
-  background: var(--color-surface);
-  padding: var(--space-28);
-  color: var(--color-ink-300);
-  font-size: var(--font-sm);
-  text-align: center;
-}
-
-.homeWorkbenchAdd {
-  display: block;
-  width: 100%;
-  padding: var(--space-14) var(--space-18);
-  border-radius: var(--radius-14);
-  border: 1px solid var(--color-border-200);
-  background: transparent;
-  color: var(--color-ink-900);
-  font-size: var(--font-sm);
   font-weight: var(--font-medium);
-  text-align: center;
-  cursor: pointer;
-  margin-top: var(--space-8);
-  transition: border-color var(--duration-160) var(--ease-default),
-    box-shadow var(--duration-160) var(--ease-default);
 }
 
-.homeWorkbenchAdd:hover {
-  border-color: var(--color-border-400);
-  box-shadow: var(--shadow-hover);
-}
-
-.homeWorkbenchAdd:focus-visible {
-  outline: 2px solid var(--color-ink-900);
-  outline-offset: 2px;
+.homeLinkArrow {
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ── Placeholder views ── */
@@ -193,5 +94,5 @@
 
 .placeholderBody {
   font-size: var(--font-base);
-  color: var(--color-ink-500);
+  color: #fcfbf8;
 }

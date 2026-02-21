@@ -227,7 +227,7 @@ export function AppShell({ children }: AppShellProps) {
               </button>
             )}
           </div>
-          <div className={styles['app-shell__topbar-title']}>{pageTitle}</div>
+          <div className={styles['app-shell__topbar-title']} aria-hidden="true" />
           <div className={styles['app-shell__topbar-right']}>
             {showFocusChip ? (
               <button

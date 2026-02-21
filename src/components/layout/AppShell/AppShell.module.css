@@ -1,13 +1,13 @@
 .app-shell {
   height: 100vh;
-  background: var(--color-paper);
-  color: var(--color-ink-900);
+  background: #282828;
+  color: #fcfbf8;
   display: flex;
   flex-direction: column;
 }
 
 .app-shell__topbar-spacer {
-  height: calc(var(--touch-target) + var(--space-2) + var(--safe-area-top));
+  height: calc(52px + var(--safe-area-top));
   flex-shrink: 0;
 }
 
@@ -20,12 +20,11 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: calc(var(--space-2) + var(--safe-area-top))
-    calc(var(--space-4) + var(--safe-area-right))
-    var(--space-2)
-    calc(var(--space-4) + var(--safe-area-left));
-  background: var(--color-paper);
-  border-bottom: 1px solid var(--color-border-200);
+  padding: calc(8px + var(--safe-area-top))
+    calc(20px + var(--safe-area-right))
+    8px
+    calc(20px + var(--safe-area-left));
+  background: #282828;
 }
 
 .app-shell__topbar--hidden {
@@ -36,7 +35,8 @@
 .app-shell__topbar-right {
   display: flex;
   align-items: center;
-  min-height: var(--touch-target);
+  min-height: 36px;
+  max-height: 36px;
 }
 
 .app-shell__topbar-right {
@@ -45,6 +45,11 @@
 }
 
 .app-shell__topbar-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  max-height: 36px;
   font-size: var(--font-lg);
   font-weight: var(--font-semibold);
   text-align: center;

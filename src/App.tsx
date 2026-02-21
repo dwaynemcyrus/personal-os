@@ -120,58 +120,38 @@ function NowView() {
 
   return (
     <section className={styles.home}>
-      <div>
-        <h1 className={styles.homeNowTitle}>Now</h1>
-      </div>
+      <button
+        type="button"
+        className={styles.homeNowLink}
+        onClick={handleNowNote}
+        aria-label="Create now note"
+      >
+        <span className={styles.homeNowDate}>{nowLabel}</span>
+        <span className={styles.homeNowAction}>
+          create now note
+          <span className={styles.homeLinkArrow} aria-hidden="true">
+            &rsaquo;
+          </span>
+        </span>
+      </button>
 
       <button
         type="button"
-        className={styles.homeNowCard}
-        onClick={handleNowNote}
-        aria-label="Open now working surface"
+        className={styles.homeInboxLink}
+        onClick={handleOpenInbox}
+        aria-label="Process inbox"
       >
-        <div>
-          <div className={styles.homeNowDate}>{nowLabel}</div>
-          <div className={styles.homeNowSubtitle}>Your daily working surface</div>
-        </div>
-        <div className={styles.homeNowButton}>
-          {nowNote ? 'Open Now Note' : 'Create Now Note'}
-        </div>
+        <span className={styles.homeInboxTitle}>Process inbox</span>
+        <span className={styles.homeInboxRight}>
+          {inboxCount > 0 && (
+            <span className={styles.homeInboxCount}>{inboxCount}</span>
+          )}
+          <span className={styles.homeLinkArrow} aria-hidden="true">
+            &rsaquo;
+          </span>
+        </span>
       </button>
 
-      <div>
-        <div className={styles.homeSectionLabel}>Inbox</div>
-        <button
-          type="button"
-          className={styles.homeInboxCard}
-          onClick={handleOpenInbox}
-          aria-label="Process inbox"
-        >
-          <div className={styles.homeInboxText}>
-            <div className={styles.homeInboxTitle}>Process Inbox</div>
-            <div className={styles.homeInboxSubtitle}>Items waiting to be sorted</div>
-          </div>
-          <div className={styles.homeInboxRight}>
-            {inboxCount > 0 && (
-              <span className={styles.homeInboxBadge}>{inboxCount}</span>
-            )}
-            <span className={styles.homeInboxArrow}>&rsaquo;</span>
-          </div>
-        </button>
-      </div>
-
-      <div>
-        <div className={styles.homeSectionLabel}>Workbench</div>
-        <div className={styles.homeWorkbenchEmpty}>No pinned documents yet</div>
-        <button
-          type="button"
-          className={styles.homeWorkbenchAdd}
-          onClick={handleNowNote}
-          aria-label="Add to workbench"
-        >
-          + Add to Workbench
-        </button>
-      </div>
     </section>
   );
 }
