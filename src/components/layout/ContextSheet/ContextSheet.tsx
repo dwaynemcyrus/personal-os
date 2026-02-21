@@ -29,7 +29,7 @@ const NOTE_GROUPS: NoteGroupRow[] = [
 ];
 
 export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('notes');
+  const [activeTab, setActiveTab] = useState<Tab>('tasks');
   const { pushLayer } = useNavigationActions();
   const counts = useNoteGroupCounts();
 
@@ -58,7 +58,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         <div className={styles.handle} />
 
         <div className={styles.tabs}>
-          {(['notes', 'tasks', 'plans'] as Tab[]).map((tab) => (
+          {(['tasks', 'plans', 'notes'] as Tab[]).map((tab) => (
             <button
               key={tab}
               type="button"
