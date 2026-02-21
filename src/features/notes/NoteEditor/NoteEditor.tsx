@@ -1,7 +1,6 @@
 
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { NoteDocument, NoteProperties } from '@/lib/db';
 import {

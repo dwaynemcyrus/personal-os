@@ -6,7 +6,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections, NoteLinkDocument } from './db';
+import type { DatabaseCollections } from './db';
 import { parseWikiLinks } from './markdown/wikilinks';
 
 const nowIso = () => new Date().toISOString();
