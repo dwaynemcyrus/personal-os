@@ -166,6 +166,11 @@
   display: block;
 }
 
+.app-shell__fab-icon--close {
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
 .app-shell__fab:focus-visible {
   outline: 2px solid var(--color-paper);
   outline-offset: 2px;

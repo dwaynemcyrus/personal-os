@@ -102,6 +102,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const handleFabPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (isCommandOpen) return;
+    if (isContextSheetOpen) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     longPressTriggeredRef.current = false;
@@ -127,6 +128,10 @@ export function AppShell({ children }: AppShellProps) {
       return;
     }
     clearLongPressTimer();
+    if (isContextSheetOpen) {
+      setIsContextSheetOpen(false);
+      return;
+    }
     setIsCommandOpen(true);
   };
 
@@ -140,6 +145,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const handleTouchStart = (event: React.TouchEvent<HTMLButtonElement>) => {
     if (isCommandOpen) return;
+    if (isContextSheetOpen) return;
     const touch = event.touches[0];
     if (!touch) return;
     longPressTriggeredRef.current = false;
@@ -294,7 +300,7 @@ export function AppShell({ children }: AppShellProps) {
             <button
               type="button"
               className={styles['app-shell__fab']}
-              aria-label="Quick capture"
+              aria-label={isContextSheetOpen ? 'Close context sheet' : 'Quick capture'}
               ref={fabRef}
               onClick={handleFabClick}
               onContextMenu={(e) => e.preventDefault()}
@@ -303,7 +309,7 @@ export function AppShell({ children }: AppShellProps) {
               onPointerCancel={handleFabPointerCancel}
               {...touchHandlers}
             >
-              <FabIcon />
+              {isContextSheetOpen ? <FabCloseIcon /> : <FabIcon />}
             </button>
 
             <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
@@ -347,6 +353,23 @@ function FabIcon() {
       strokeWidth="1.75"
     >
       <circle cx="10" cy="10" r="7" />
+    </svg>
+  );
+}
+
+function FabCloseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className={`${styles['app-shell__fab-icon']} ${styles['app-shell__fab-icon--close']}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+    >
+      <path d="M5 5l10 10" />
+      <path d="M15 5L5 15" />
     </svg>
   );
 }
