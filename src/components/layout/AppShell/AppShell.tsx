@@ -297,20 +297,22 @@ export function AppShell({ children }: AppShellProps) {
       {portalTarget &&
         createPortal(
           <>
-            <button
-              type="button"
-              className={styles['app-shell__fab']}
-              aria-label={isContextSheetOpen ? 'Close context sheet' : 'Quick capture'}
-              ref={fabRef}
-              onClick={handleFabClick}
-              onContextMenu={(e) => e.preventDefault()}
-              onPointerDown={handleFabPointerDown}
-              onPointerUp={handleFabPointerUp}
-              onPointerCancel={handleFabPointerCancel}
-              {...touchHandlers}
-            >
-              {isContextSheetOpen ? <FabCloseIcon /> : <FabIcon />}
-            </button>
+            {!isCommandOpen && (
+              <button
+                type="button"
+                className={styles['app-shell__fab']}
+                aria-label={isContextSheetOpen ? 'Close context sheet' : 'Quick capture'}
+                ref={fabRef}
+                onClick={handleFabClick}
+                onContextMenu={(e) => e.preventDefault()}
+                onPointerDown={handleFabPointerDown}
+                onPointerUp={handleFabPointerUp}
+                onPointerCancel={handleFabPointerCancel}
+                {...touchHandlers}
+              >
+                {isContextSheetOpen ? <FabCloseIcon /> : <FabIcon />}
+              </button>
+            )}
 
             <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
             <InboxWizard open={isInboxOpen} onOpenChange={setIsInboxOpen} />

@@ -14,6 +14,7 @@ import { searchNotes, type SearchResult } from '@/lib/search';
 import type { NoteDocument } from '@/lib/db';
 import {
   extractNoteTitle,
+  extractNoteSnippet,
   extractTitleFromFirstLine,
   formatNoteTitle,
   formatRelativeTime,
@@ -64,7 +65,9 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     id: string;
     noteId: string;
     title: string;
-    subtitle: string;
+    snippet: string;
+    updatedLabel: string;
+    isPinned: boolean;
   };
 
   const displayItems: DisplayItem[] = useMemo(() => {
@@ -73,14 +76,18 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
         id: r.note.id,
         noteId: r.note.id,
         title: formatNoteTitle(extractNoteTitle(r.note.content, r.note.title)),
-        subtitle: r.snippet,
+        snippet: r.snippet,
+        updatedLabel: formatRelativeTime(r.note.updated_at),
+        isPinned: r.note.is_pinned,
       }));
     }
     return recentNotes.map((note) => ({
       id: note.id,
       noteId: note.id,
       title: formatNoteTitle(extractNoteTitle(note.content, note.title)),
-      subtitle: formatRelativeTime(note.updated_at),
+      snippet: extractNoteSnippet(note.content),
+      updatedLabel: formatRelativeTime(note.updated_at),
+      isPinned: note.is_pinned,
     }));
   }, [isSearching, searchResults, recentNotes]);
 
@@ -214,7 +221,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       >
         <div className={styles.content}>
           <div className={styles.header}>
-            <span className={styles.label}>Capture</span>
             <textarea
               ref={textareaRef}
               className={styles.input}
@@ -225,36 +231,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
                 setSelectedIndex(null);
               }}
             />
-          </div>
-
-          <div className={styles.results}>
-            <span className={styles.sectionTitle}>
-              {isSearching ? 'Search Results' : 'Recently Edited'}
-            </span>
-            {displayItems.length > 0 ? (
-              <ul className={styles.list} role="list">
-                {displayItems.map((item, index) => (
-                  <li key={item.id} className={styles.listItem}>
-                    <button
-                      type="button"
-                      className={`${styles.listButton} ${
-                        selectedIndex === index ? styles.listButtonSelected : ''
-                      }`}
-                      onClick={() => handleOpenNote(item.noteId)}
-                    >
-                      {item.title}
-                      <div className={styles.listButtonSubtitle}>
-                        {item.subtitle}
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : isSearching ? (
-              <p className={styles.emptyState}>No results</p>
-            ) : (
-              <p className={styles.emptyState}>No recent documents</p>
-            )}
           </div>
 
           <div className={styles.actions}>
@@ -297,6 +273,44 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
                 Save
               </button>
             </div>
+          </div>
+
+          <div className={styles.results}>
+            <span className={styles.sectionTitle}>
+              {isSearching ? 'Search Results' : 'Recently Edited'}
+            </span>
+            {displayItems.length > 0 ? (
+              <ul className={styles.list} role="list">
+                {displayItems.map((item, index) => (
+                  <li key={item.id} className={styles.listItem}>
+                    <button
+                      type="button"
+                      className={`${styles.listButton} ${
+                        selectedIndex === index ? styles.listButtonSelected : ''
+                      }`}
+                      onClick={() => handleOpenNote(item.noteId)}
+                    >
+                      <div className={styles.listItemHeader}>
+                        <div className={styles.listItemTitle}>{item.title}</div>
+                      </div>
+                      {item.snippet ? (
+                        <div className={styles.listItemSnippet}>{item.snippet}</div>
+                      ) : null}
+                      <div className={styles.listItemMeta}>
+                        <span className={styles.listItemDate}>{item.updatedLabel}</span>
+                        {item.isPinned ? (
+                          <span className={styles.listItemPinned}>Pinned</span>
+                        ) : null}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : isSearching ? (
+              <p className={styles.emptyState}>No results</p>
+            ) : (
+              <p className={styles.emptyState}>No recent documents</p>
+            )}
           </div>
         </div>
       </SheetContent>
