@@ -432,18 +432,7 @@ async function pullFromSupabase(
 
       queue.add(docId);
       try {
-        const exists = await collection.findOne(docId).exec();
-        if (!exists) {
-          markRemoteUpdate(name, docId, row.updated_at);
-          await collection.insert(row);
-        } else {
-          const localData = exists.toJSON();
-          if (isRemoteNewer(row.updated_at, localData.updated_at)) {
-            if (!hasMeaningfulDiff(row, localData, fields)) continue;
-            markRemoteUpdate(name, docId, row.updated_at);
-            await exists.patch(row);
-          }
-        }
+        await applyRemoteDoc(collection, name, row, fields);
       } finally {
         queue.delete(docId);
       }
@@ -451,6 +440,44 @@ async function pullFromSupabase(
   } catch (error) {
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
       console.error('Pull error:', error);
+    }
+  }
+}
+
+// Applies a remote row to the local collection, retrying once on CONFLICT.
+// A CONFLICT means the local doc was written between our findOne and patch
+// calls. On retry we re-fetch the latest revision; if local is now newer we
+// skip, otherwise we apply with the fresh reference.
+async function applyRemoteDoc(
+  collection: RxCollection<SyncDocument>,
+  name: CollectionName,
+  row: SyncDocument,
+  fields: readonly string[],
+  attempt = 0
+) {
+  const docId = row.id;
+  const exists = await collection.findOne(docId).exec();
+  if (!exists) {
+    markRemoteUpdate(name, docId, row.updated_at);
+    await collection.insert(row);
+    return;
+  }
+
+  const localData = exists.toJSON();
+  if (!isRemoteNewer(row.updated_at, localData.updated_at)) return;
+  if (!hasMeaningfulDiff(row, localData, fields)) return;
+
+  try {
+    markRemoteUpdate(name, docId, row.updated_at);
+    await exists.patch(row);
+  } catch (e) {
+    // Local doc was updated between findOne and patch — retry once with a
+    // fresh reference. If local is now newer the isRemoteNewer guard above
+    // will bail out cleanly.
+    if (attempt === 0 && e instanceof Error && e.message.includes('CONFLICT')) {
+      await applyRemoteDoc(collection, name, row, fields, 1);
+    } else {
+      throw e;
     }
   }
 }
