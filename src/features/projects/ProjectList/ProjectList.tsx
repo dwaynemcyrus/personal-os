@@ -190,6 +190,7 @@ export function ProjectList() {
       title: string;
       description: string;
       projectId: string | null;
+      areaId: string | null;
       status: 'backlog' | 'next';
       startDate: string | null;
       dueDate: string | null;
@@ -207,6 +208,7 @@ export function ProjectList() {
       title: trimmedTitle,
       description: updates.description.trim() || null,
       project_id: updates.projectId,
+      area_id: updates.areaId,
       status: updates.status,
       start_date: updates.startDate,
       due_date: updates.dueDate,

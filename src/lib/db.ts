@@ -51,6 +51,7 @@ export const projectSchema = z.object({
   status: z.enum(projectStatuses),
   start_date: z.string().nullable(),
   due_date: z.string().nullable(),
+  area_id: z.string().uuid().nullable().optional(),
   okr_id: z.string().uuid().nullable().optional(),
 });
 
@@ -76,6 +77,7 @@ const coerceLegacyTaskStatus = (value: unknown) => {
 export const taskSchema = z.object({
   ...baseFields,
   project_id: z.string().uuid().nullable(),
+  area_id: z.string().uuid().nullable().optional(),
   title: z.string(),
   description: z.string().nullable(),
   status: z.enum(taskStatuses),
@@ -236,6 +238,11 @@ export const tagSchema = z.object({
   name: z.string(),
 });
 
+export const areaSchema = z.object({
+  ...baseFields,
+  title: z.string(),
+});
+
 const baseProperties = {
   id: { type: 'string', maxLength: 36 },
   created_at: { type: 'string', format: 'date-time' },
@@ -264,7 +271,7 @@ const syncTestRxSchema = {
 };
 
 const projectsRxSchema = {
-  version: 3,
+  version: 4,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -274,6 +281,7 @@ const projectsRxSchema = {
     status: { type: 'string', enum: projectStatuses },
     start_date: { type: ['string', 'null'], format: 'date-time' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
+    area_id: { type: ['string', 'null'], maxLength: 36 },
     okr_id: { type: ['string', 'null'], maxLength: 36 },
   },
   required: [
@@ -283,17 +291,19 @@ const projectsRxSchema = {
     'status',
     'start_date',
     'due_date',
+    'area_id',
     'okr_id',
   ],
 };
 
 const tasksRxSchema = {
-  version: 5,
+  version: 6,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
     project_id: { type: ['string', 'null'], maxLength: 36 },
+    area_id: { type: ['string', 'null'], maxLength: 36 },
     title: { type: 'string' },
     description: { type: ['string', 'null'] },
     status: { type: 'string', enum: taskStatuses },
@@ -310,6 +320,7 @@ const tasksRxSchema = {
   required: [
     ...baseRequired,
     'project_id',
+    'area_id',
     'title',
     'description',
     'status',
@@ -552,6 +563,17 @@ const tagsRxSchema = {
   required: [...baseRequired, 'name'],
 };
 
+const areasRxSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    title: { type: 'string' },
+  },
+  required: [...baseRequired, 'title'],
+};
+
 type LegacySyncTestDocument = {
   id: string;
   content: string;
@@ -715,6 +737,10 @@ const tasksMigrationStrategies = {
       tags,
     };
   },
+  6: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    area_id: oldDoc.area_id ?? null,
+  }),
 };
 
 const projectsMigrationStrategies = {
@@ -749,6 +775,10 @@ const projectsMigrationStrategies = {
   3: (oldDoc: Record<string, unknown>) => ({
     ...oldDoc,
     okr_id: oldDoc.okr_id ?? null,
+  }),
+  4: (oldDoc: Record<string, unknown>) => ({
+    ...oldDoc,
+    area_id: oldDoc.area_id ?? null,
   }),
 };
 
@@ -803,6 +833,7 @@ export type CaptureDocument = z.infer<typeof captureSchema>;
 export type OkrDocument = z.infer<typeof okrSchema>;
 export type OkrTypeValue = (typeof OkrType)[number];
 export type TagDocument = z.infer<typeof tagSchema>;
+export type AreaDocument = z.infer<typeof areaSchema>;
 
 export type DatabaseCollections = {
   sync_test: RxCollection<SyncTestDocument>;
@@ -818,6 +849,7 @@ export type DatabaseCollections = {
   captures: RxCollection<CaptureDocument>;
   okrs: RxCollection<OkrDocument>;
   tags: RxCollection<TagDocument>;
+  areas: RxCollection<AreaDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -881,6 +913,9 @@ export async function getDatabase() {
       },
       tags: {
         schema: tagsRxSchema,
+      },
+      areas: {
+        schema: areasRxSchema,
       },
     });
 

@@ -30,6 +30,7 @@ type ProjectDetailSheetProps = {
     title: string;
     description: string;
     projectId: string | null;
+    areaId: string | null;
     status: 'backlog' | 'next';
     startDate: string | null;
     dueDate: string | null;

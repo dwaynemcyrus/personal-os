@@ -29,6 +29,7 @@ const collectionConfig = {
       'status',
       'start_date',
       'due_date',
+      'area_id',
       'created_at',
       'updated_at',
       'is_trashed',
@@ -40,6 +41,7 @@ const collectionConfig = {
     fields: [
       'id',
       'project_id',
+      'area_id',
       'title',
       'description',
       'status',
@@ -196,6 +198,10 @@ const collectionConfig = {
   tags: {
     table: 'tags',
     fields: ['id', 'name', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
+  },
+  areas: {
+    table: 'areas',
+    fields: ['id', 'title', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
   },
 } as const satisfies Record<
   CollectionName,
