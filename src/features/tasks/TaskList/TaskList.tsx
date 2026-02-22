@@ -30,6 +30,19 @@ function formatDateLabel(iso: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(iso));
 }
 
+function isStartDateToday(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const offsetMs = d.getTimezoneOffset() * 60000;
+  const now = new Date();
+  const nowOffsetMs = now.getTimezoneOffset() * 60000;
+  return (
+    new Date(d.getTime() - offsetMs).toISOString().slice(0, 10) ===
+    new Date(now.getTime() - nowOffsetMs).toISOString().slice(0, 10)
+  );
+}
+
 export function TaskList() {
   const { db, isReady } = useDatabase();
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
@@ -223,6 +236,9 @@ export function TaskList() {
         <div className={styles.itemMeta}>
           {dateLabel ? (
             <span className={styles.itemDateLabel}>{dateLabel}</span>
+          ) : null}
+          {!task.is_waiting && !task.is_someday && isStartDateToday(task.start_date ?? null) ? (
+            <span className={styles.itemBadge}>Today</span>
           ) : null}
           {task.is_waiting ? (
             <span className={styles.itemWaiting}>Waiting</span>
