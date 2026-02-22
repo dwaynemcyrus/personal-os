@@ -28,10 +28,13 @@ type TaskDetailSheetProps = {
     description: string;
     projectId: string | null;
     areaId: string | null;
-    status: 'backlog' | 'next';
+    isNext: boolean;
     startDate: string | null;
     dueDate: string | null;
     isSomeday: boolean;
+    isWaiting: boolean;
+    waitingNote: string | null;
+    waitingStartedAt: string | null;
     tags: string[];
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
@@ -108,10 +111,13 @@ export function TaskDetailSheet({
   const [description, setDescription] = useState(task?.description ?? '');
   const [projectId, setProjectId] = useState(task?.project_id ?? '');
   const [areaId, setAreaId] = useState(task?.area_id ?? '');
-  const [status, setStatus] = useState<'backlog' | 'next'>(task?.status ?? 'backlog');
+  const [isNext, setIsNext] = useState(task?.is_next ?? false);
   const [startDateInput, setStartDateInput] = useState(toDateInputValue(task?.start_date ?? null));
   const [dueDateInput, setDueDateInput] = useState(toDateInputValue(task?.due_date ?? null));
   const [isSomeday, setIsSomeday] = useState(task?.is_someday ?? false);
+  const [isWaiting, setIsWaiting] = useState(task?.is_waiting ?? false);
+  const [waitingNote, setWaitingNote] = useState(task?.waiting_note ?? '');
+  const [waitingStartedAt, setWaitingStartedAt] = useState(task?.waiting_started_at ?? null);
   const [tags, setTags] = useState<string[]>(dedupeTags(task?.tags ?? []));
 
   // Catalogs
@@ -165,10 +171,13 @@ export function TaskDetailSheet({
     setDescription(task.description ?? '');
     setProjectId(task.project_id ?? '');
     setAreaId(task.area_id ?? '');
-    setStatus(task.status ?? 'backlog');
+    setIsNext(task.is_next ?? false);
     setStartDateInput(toDateInputValue(task.start_date));
     setDueDateInput(toDateInputValue(task.due_date));
     setIsSomeday(task.is_someday ?? false);
+    setIsWaiting(task.is_waiting ?? false);
+    setWaitingNote(task.waiting_note ?? '');
+    setWaitingStartedAt(task.waiting_started_at ?? null);
     setTags(dedupeTags(task.tags ?? []));
     setTagInput('');
     setShowTagInput(false);
@@ -269,11 +278,16 @@ export function TaskDetailSheet({
   const moveDisplayLabel = moveLabel ?? 'move to...';
 
   // Meta label values
-  const whenLabel = isSomeday
+  const isStartToday = startDateInput === getTodayDateInputValue();
+  const whenLabel = isWaiting
+    ? 'Waiting'
+    : isSomeday
     ? 'Someday'
+    : isStartToday
+    ? 'Today'
     : formatMetaDateLabel(fromDateInputValue(startDateInput));
   const dueLabel = formatMetaDateLabel(fromDateInputValue(dueDateInput));
-  const hasWhen = isSomeday || Boolean(startDateInput);
+  const hasWhen = isSomeday || isWaiting || Boolean(startDateInput);
   const hasDue = Boolean(dueDateInput);
 
   // ─── Auto-save helper ────────────────────────────────────────────────────
@@ -281,34 +295,41 @@ export function TaskDetailSheet({
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
   const doSave = (opts: {
-    status?: 'backlog' | 'next';
+    isNext?: boolean;
     startDate?: string | null;
     dueDate?: string | null;
     isSomeday?: boolean;
+    isWaiting?: boolean;
+    waitingNote?: string | null;
+    waitingStartedAt?: string | null;
     tags?: string[];
     projectId?: string | null;
     areaId?: string | null;
   } = {}): Promise<void> => {
     if (!task || !title.trim()) return Promise.resolve();
     const resolvedIsSomeday = opts.isSomeday ?? isSomeday;
+    const resolvedIsWaiting = opts.isWaiting ?? isWaiting;
     const resolvedStartDate = opts.startDate !== undefined
       ? opts.startDate
-      : (resolvedIsSomeday ? null : fromDateInputValue(startDateInput));
-    const resolvedDueDate = opts.dueDate !== undefined
-      ? opts.dueDate
-      : fromDateInputValue(dueDateInput);
+      : (resolvedIsSomeday || resolvedIsWaiting ? null : fromDateInputValue(startDateInput));
+    const resolvedDueDate = opts.dueDate !== undefined ? opts.dueDate : fromDateInputValue(dueDateInput);
     const resolvedProjectId = opts.projectId !== undefined ? opts.projectId : (projectId || null);
     const resolvedAreaId = opts.areaId !== undefined ? opts.areaId : (areaId || null);
-    const resolvedStatus = opts.status ?? status;
+    const resolvedIsNext = opts.isNext ?? isNext;
+    const resolvedWaitingNote = opts.waitingNote !== undefined ? opts.waitingNote : (waitingNote || null);
+    const resolvedWaitingStartedAt = opts.waitingStartedAt !== undefined ? opts.waitingStartedAt : waitingStartedAt;
     const payload = {
       title: title.trim(),
       description: description.trim(),
       projectId: resolvedProjectId,
       areaId: resolvedAreaId,
-      status: resolvedStatus,
+      isNext: resolvedIsNext,
       startDate: resolvedStartDate,
       dueDate: resolvedDueDate,
       isSomeday: resolvedIsSomeday,
+      isWaiting: resolvedIsWaiting,
+      waitingNote: resolvedWaitingNote,
+      waitingStartedAt: resolvedWaitingStartedAt,
       tags: dedupeTags(opts.tags ?? tags),
     };
     const taskId = task.id;
@@ -338,9 +359,10 @@ export function TaskDetailSheet({
     onOpenChange(false);
   };
 
-  const handleMarkNext = async () => {
-    setStatus('next');
-    await doSave({ status: 'next' });
+  const handleToggleNext = async () => {
+    const next = !isNext;
+    setIsNext(next);
+    await doSave({ isNext: next });
   };
 
   const handleToggleComplete = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -532,22 +554,40 @@ export function TaskDetailSheet({
     const today = getTodayDateInputValue();
     setStartDateInput(today);
     setIsSomeday(false);
+    setIsNext(false);
+    setIsWaiting(false);
+    setWaitingNote('');
+    setWaitingStartedAt(null);
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: fromDateInputValue(today), isSomeday: false });
+    await doSave({ startDate: fromDateInputValue(today), isSomeday: false, isNext: false, isWaiting: false, waitingNote: null, waitingStartedAt: null });
   };
 
   const handleWhenSomeday = async () => {
     setIsSomeday(true);
     setStartDateInput('');
+    setIsWaiting(false);
+    setWaitingNote('');
+    setWaitingStartedAt(null);
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: null, isSomeday: true });
+    await doSave({ startDate: null, isSomeday: true, isWaiting: false, waitingNote: null, waitingStartedAt: null });
+  };
+
+  const handleWhenWaiting = () => {
+    const now = nowIso();
+    setIsWaiting(true);
+    setIsSomeday(false);
+    setStartDateInput('');
+    setWaitingStartedAt(now);
   };
 
   const handleWhenClear = async () => {
     setStartDateInput('');
     setIsSomeday(false);
+    setIsWaiting(false);
+    setWaitingNote('');
+    setWaitingStartedAt(null);
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: null, isSomeday: false });
+    await doSave({ startDate: null, isSomeday: false, isWaiting: false, waitingNote: null, waitingStartedAt: null });
   };
 
   const handleWhenSheetOpenChange = (open: boolean) => {
@@ -631,8 +671,8 @@ export function TaskDetailSheet({
                 <DropdownItem onSelect={() => void handleSave()}>
                   Save
                 </DropdownItem>
-                <DropdownItem onSelect={() => void handleMarkNext()}>
-                  Mark Next
+                <DropdownItem onSelect={() => void handleToggleNext()}>
+                  {isNext ? 'Unmark Next' : 'Mark Next'}
                 </DropdownItem>
                 <DropdownItem data-variant="danger" onSelect={() => void handleDelete()}>
                   Delete
@@ -994,11 +1034,18 @@ export function TaskDetailSheet({
 
           <div className={styles['task-detail__metaSheetContent']}>
             <div className={styles['task-detail__metaActions']}>
-              <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenToday}>
+              <button type="button" className={`${styles['task-detail__metaAction']}${isWaiting ? '' : ''}`} onClick={handleWhenToday}>
                 Today
               </button>
               <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenSomeday}>
                 Someday
+              </button>
+              <button
+                type="button"
+                className={`${styles['task-detail__metaAction']}${isWaiting ? ` ${styles['task-detail__metaAction--active']}` : ''}`}
+                onClick={handleWhenWaiting}
+              >
+                Waiting
               </button>
               {hasWhen && (
                 <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenClear}>
@@ -1007,13 +1054,29 @@ export function TaskDetailSheet({
               )}
             </div>
 
-            <CalendarPicker
-              value={startDateInput}
-              onChange={v => {
-                setStartDateInput(v);
-                setIsSomeday(false);
-              }}
-            />
+            {isWaiting ? (
+              <div className={styles['task-detail__waitingSection']}>
+                <label className={styles['task-detail__waitingLabel']}>
+                  Waiting on
+                </label>
+                <textarea
+                  className={styles['task-detail__waitingInput']}
+                  value={waitingNote}
+                  onChange={e => setWaitingNote(e.target.value)}
+                  placeholder="What are you waiting for?"
+                  rows={3}
+                />
+              </div>
+            ) : (
+              <CalendarPicker
+                value={startDateInput}
+                onChange={v => {
+                  setStartDateInput(v);
+                  setIsSomeday(false);
+                  setIsWaiting(false);
+                }}
+              />
+            )}
           </div>
         </SheetContent>
       </Sheet>

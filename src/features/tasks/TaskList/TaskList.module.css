@@ -195,10 +195,61 @@
   color: rgba(252, 251, 248, 0.64);
 }
 
-.itemStatus,
 .itemProject,
-.itemCompleted {
+.itemCompleted,
+.itemBadge,
+.itemWaiting,
+.itemNextBadge {
   font-size: 11px;
   color: rgba(252, 251, 248, 0.64);
   text-transform: capitalize;
+}
+
+.itemDateLabel {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.86);
+  font-weight: var(--font-medium);
+}
+
+.itemNext {
+  border-left: 2px solid rgba(252, 251, 248, 0.5);
+}
+
+.section {
+  display: contents;
+}
+
+.sectionLabel {
+  padding: var(--space-8) var(--space-20) var(--space-4);
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(252, 251, 248, 0.55);
+}
+
+.viewToggle {
+  display: flex;
+  padding: 0 var(--space-20) var(--space-8);
+}
+
+.viewToggleBtn {
+  border: none;
+  background: transparent;
+  color: rgba(252, 251, 248, 0.55);
+  font-size: 12px;
+  font-weight: var(--font-medium);
+  padding: 0;
+  cursor: pointer;
+}
+
+.viewToggleBtn[data-active='true'] {
+  color: #fcfbf8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.viewToggleBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
 }

@@ -9,7 +9,6 @@ import {
 const EMPTY_COUNTS: TaskBucketCounts = {
   today: 0,
   upcoming: 0,
-  next: 0,
   backlog: 0,
   someday: 0,
   logbook: 0,

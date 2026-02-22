@@ -224,6 +224,27 @@
   color: var(--color-ink-500);
 }
 
+.project-detail__hidden-toggle {
+  border: none;
+  background: transparent;
+  color: var(--color-ink-400);
+  font-size: var(--font-xs);
+  padding: var(--space-2) 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.project-detail__hidden-toggle:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.project-detail__item-badge {
+  font-size: 11px;
+  color: var(--color-ink-400);
+  font-weight: var(--font-normal);
+}
+
 .project-detail__actions {
   display: grid;
   gap: var(--space-2);

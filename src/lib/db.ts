@@ -55,22 +55,19 @@ export const projectSchema = z.object({
   okr_id: z.string().uuid().nullable().optional(),
 });
 
+// Kept only for migration strategies 1–6 that reference the old status field
 const taskStatuses = ['backlog', 'next'] as const;
 
 const coerceTaskStatus = (value: unknown) => {
   if (value === 'active') return 'next';
-  if (value === 'backlog' || value === 'next') {
-    return value;
-  }
+  if (value === 'backlog' || value === 'next') return value;
   return 'backlog';
 };
 
 const coerceLegacyTaskStatus = (value: unknown) => {
   if (value === 'active') return 'next';
   if (value === 'waiting') return 'someday';
-  if (value === 'backlog' || value === 'someday' || value === 'next') {
-    return value;
-  }
+  if (value === 'backlog' || value === 'someday' || value === 'next') return value;
   return 'backlog';
 };
 
@@ -80,9 +77,12 @@ export const taskSchema = z.object({
   area_id: z.string().uuid().nullable().optional(),
   title: z.string(),
   description: z.string().nullable(),
-  status: z.enum(taskStatuses),
   completed: z.boolean(),
   is_someday: z.boolean(),
+  is_next: z.boolean(),
+  is_waiting: z.boolean(),
+  waiting_note: z.string().nullable(),
+  waiting_started_at: z.string().nullable(),
   start_date: z.string().nullable(),
   due_date: z.string().nullable(),
   tags: z.array(z.string()).readonly(),
@@ -297,7 +297,7 @@ const projectsRxSchema = {
 };
 
 const tasksRxSchema = {
-  version: 6,
+  version: 7,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -306,9 +306,12 @@ const tasksRxSchema = {
     area_id: { type: ['string', 'null'], maxLength: 36 },
     title: { type: 'string' },
     description: { type: ['string', 'null'] },
-    status: { type: 'string', enum: taskStatuses },
     completed: { type: 'boolean' },
     is_someday: { type: 'boolean' },
+    is_next: { type: 'boolean' },
+    is_waiting: { type: 'boolean' },
+    waiting_note: { type: ['string', 'null'] },
+    waiting_started_at: { type: ['string', 'null'], format: 'date-time' },
     start_date: { type: ['string', 'null'], format: 'date-time' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
     tags: { type: 'array', items: { type: 'string' } },
@@ -323,9 +326,12 @@ const tasksRxSchema = {
     'area_id',
     'title',
     'description',
-    'status',
     'completed',
     'is_someday',
+    'is_next',
+    'is_waiting',
+    'waiting_note',
+    'waiting_started_at',
     'start_date',
     'due_date',
     'tags',
@@ -741,6 +747,16 @@ const tasksMigrationStrategies = {
     ...oldDoc,
     area_id: oldDoc.area_id ?? null,
   }),
+  7: (oldDoc: Record<string, unknown>) => {
+    const { status, ...rest } = oldDoc;
+    return {
+      ...rest,
+      is_next: status === 'next',
+      is_waiting: false,
+      waiting_note: null,
+      waiting_started_at: null,
+    };
+  },
 };
 
 const projectsMigrationStrategies = {

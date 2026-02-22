@@ -144,7 +144,7 @@ function NowView() {
   };
 
   const handleOpenNextTasks = () => {
-    pushLayer({ view: 'tasks-list', filter: 'next' });
+    pushLayer({ view: 'tasks-list', filter: 'backlog' });
   };
 
   const inboxCount = inboxNotes.length;

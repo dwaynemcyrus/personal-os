@@ -191,10 +191,13 @@ export function ProjectList() {
       description: string;
       projectId: string | null;
       areaId: string | null;
-      status: 'backlog' | 'next';
+      isNext: boolean;
       startDate: string | null;
       dueDate: string | null;
       isSomeday: boolean;
+      isWaiting: boolean;
+      waitingNote: string | null;
+      waitingStartedAt: string | null;
       tags: string[];
     }
   ) => {
@@ -203,18 +206,20 @@ export function ProjectList() {
     if (!trimmedTitle) return;
     const doc = await db.tasks.findOne(taskId).exec();
     if (!doc) return;
-    const timestamp = nowIso();
     await doc.patch({
       title: trimmedTitle,
       description: updates.description.trim() || null,
       project_id: updates.projectId,
       area_id: updates.areaId,
-      status: updates.status,
+      is_next: updates.isNext,
       start_date: updates.startDate,
       due_date: updates.dueDate,
       is_someday: updates.isSomeday,
+      is_waiting: updates.isWaiting,
+      waiting_note: updates.waitingNote,
+      waiting_started_at: updates.waitingStartedAt,
       tags: updates.tags,
-      updated_at: timestamp,
+      updated_at: nowIso(),
     });
   };
 
@@ -238,14 +243,22 @@ export function ProjectList() {
     await db.tasks.insert({
       id: uuidv4(),
       project_id: projectId,
+      area_id: null,
       title: trimmed,
       description: null,
-      status: 'backlog',
       completed: false,
       is_someday: false,
+      is_next: false,
+      is_waiting: false,
+      waiting_note: null,
+      waiting_started_at: null,
       start_date: null,
       due_date: null,
       tags: [],
+      content: null,
+      priority: null,
+      depends_on: null,
+      okr_id: null,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
