@@ -154,6 +154,7 @@ export function TaskDetailSheet({
 
     const nextHeight = Math.min(element.scrollHeight, maxHeight);
     element.style.height = `${nextHeight}px`;
+    element.style.overflowX = 'hidden';
     element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
 
@@ -661,6 +662,38 @@ export function TaskDetailSheet({
               />
             </div>
 
+            <div className={styles['task-detail__field']}>
+              <textarea
+                ref={notesTextareaRef}
+                className={styles['task-detail__textarea']}
+                value={description}
+                onChange={e => {
+                  setDescription(e.target.value);
+                  resizeNotesTextarea(e.currentTarget);
+                }}
+                onBlur={() => void doSave()}
+                placeholder="Notes"
+                aria-label="Notes"
+                rows={1}
+                wrap="soft"
+              />
+            </div>
+
+            {tags.length > 0 && (
+              <div className={styles['task-detail__tagPills']}>
+                {tags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={styles['task-detail__tagPill']}
+                    onClick={() => setIsTagsSheetOpen(true)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Meta row */}
             <div className={styles['task-detail__metaRow']}>
               <button
@@ -693,37 +726,6 @@ export function TaskDetailSheet({
                 Checklist
               </button>
             </div>
-
-            <div className={styles['task-detail__field']}>
-              <textarea
-                ref={notesTextareaRef}
-                className={styles['task-detail__textarea']}
-                value={description}
-                onChange={e => {
-                  setDescription(e.target.value);
-                  resizeNotesTextarea(e.currentTarget);
-                }}
-                onBlur={() => void doSave()}
-                placeholder="Notes"
-                aria-label="Notes"
-                rows={1}
-              />
-            </div>
-
-            {tags.length > 0 && (
-              <div className={styles['task-detail__tagPills']}>
-                {tags.map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={styles['task-detail__tagPill']}
-                    onClick={() => setIsTagsSheetOpen(true)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            )}
 
           </div>
         </SheetContent>

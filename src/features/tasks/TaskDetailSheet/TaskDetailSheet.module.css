@@ -165,6 +165,8 @@
   display: flex;
   gap: var(--space-12);
   align-items: center;
+  margin-top: auto;
+  padding-top: var(--space-8);
 }
 
 .task-detail__metaButton {
@@ -194,6 +196,8 @@
 
 .task-detail__textarea {
   min-height: 1.6em;
+  width: 100%;
+  box-sizing: border-box;
   border-radius: 12px;
   border: none;
   background: var(--color-ink-900);
