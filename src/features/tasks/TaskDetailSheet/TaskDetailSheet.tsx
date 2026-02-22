@@ -265,6 +265,7 @@ export function TaskDetailSheet({
     return null;
   }, [projectId, areaId, projects, areas]);
   const hasMove = Boolean(projectId || areaId);
+  const moveHeaderLabel = moveLabel ?? 'move to...';
 
   // Meta label values
   const whenLabel = isSomeday
@@ -597,6 +598,14 @@ export function TaskDetailSheet({
           }}
         >
           <header className={styles['task-detail__header']}>
+            <button
+              type="button"
+              className={`${styles['task-detail__headerMove']}${hasMove ? ` ${styles['task-detail__headerMove--set']}` : ''}`}
+              onClick={() => setIsMoveSheetOpen(true)}
+            >
+              {moveHeaderLabel}
+            </button>
+
             <Dropdown>
               <DropdownTrigger asChild>
                 <button
@@ -666,14 +675,6 @@ export function TaskDetailSheet({
                 onClick={() => setIsDueSheetOpen(true)}
               >
                 {hasDue ? dueLabel : 'Due'}
-              </button>
-
-              <button
-                type="button"
-                className={`${styles['task-detail__metaButton']}${hasMove ? ` ${styles['task-detail__metaButton--set']}` : ''}`}
-                onClick={() => setIsMoveSheetOpen(true)}
-              >
-                {hasMove ? moveLabel : 'Move'}
               </button>
             </div>
 
