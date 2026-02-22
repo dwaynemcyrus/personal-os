@@ -1,9 +1,10 @@
 .editor {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  background: #282828;
+  background: var(--color-ink-900);
   color: #fcfbf8;
 }
 
@@ -14,11 +15,8 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  padding: calc(8px + env(safe-area-inset-top))
-    calc(20px + env(safe-area-inset-right))
-    8px
-    calc(20px + env(safe-area-inset-left));
-  background: #282828;
+  padding: 8px 20px;
+  background: var(--color-ink-900);
 }
 
 .editorPane {
