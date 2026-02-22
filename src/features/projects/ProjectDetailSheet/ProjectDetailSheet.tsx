@@ -38,7 +38,6 @@ type ProjectDetailSheetProps = {
     isSomeday: boolean;
     isWaiting: boolean;
     waitingNote: string | null;
-    waitingStartedAt: string | null;
     tags: string[];
   }) => Promise<void> | void;
   onDeleteTask: (taskId: string) => Promise<void> | void;

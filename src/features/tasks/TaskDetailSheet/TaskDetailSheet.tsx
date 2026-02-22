@@ -34,7 +34,6 @@ type TaskDetailSheetProps = {
     isSomeday: boolean;
     isWaiting: boolean;
     waitingNote: string | null;
-    waitingStartedAt: string | null;
     tags: string[];
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
@@ -117,7 +116,6 @@ export function TaskDetailSheet({
   const [isSomeday, setIsSomeday] = useState(task?.is_someday ?? false);
   const [isWaiting, setIsWaiting] = useState(task?.is_waiting ?? false);
   const [waitingNote, setWaitingNote] = useState(task?.waiting_note ?? '');
-  const [waitingStartedAt, setWaitingStartedAt] = useState(task?.waiting_started_at ?? null);
   const [tags, setTags] = useState<string[]>(dedupeTags(task?.tags ?? []));
 
   // Catalogs
@@ -178,7 +176,6 @@ export function TaskDetailSheet({
     setIsSomeday(task.is_someday ?? false);
     setIsWaiting(task.is_waiting ?? false);
     setWaitingNote(task.waiting_note ?? '');
-    setWaitingStartedAt(task.waiting_started_at ?? null);
     setTags(dedupeTags(task.tags ?? []));
     setTagInput('');
     setShowTagInput(false);
@@ -302,7 +299,6 @@ export function TaskDetailSheet({
     isSomeday?: boolean;
     isWaiting?: boolean;
     waitingNote?: string | null;
-    waitingStartedAt?: string | null;
     tags?: string[];
     projectId?: string | null;
     areaId?: string | null;
@@ -318,7 +314,6 @@ export function TaskDetailSheet({
     const resolvedAreaId = opts.areaId !== undefined ? opts.areaId : (areaId || null);
     const resolvedIsNext = opts.isNext ?? isNext;
     const resolvedWaitingNote = opts.waitingNote !== undefined ? opts.waitingNote : (waitingNote || null);
-    const resolvedWaitingStartedAt = opts.waitingStartedAt !== undefined ? opts.waitingStartedAt : waitingStartedAt;
     const payload = {
       title: title.trim(),
       description: description.trim(),
@@ -330,7 +325,6 @@ export function TaskDetailSheet({
       isSomeday: resolvedIsSomeday,
       isWaiting: resolvedIsWaiting,
       waitingNote: resolvedWaitingNote,
-      waitingStartedAt: resolvedWaitingStartedAt,
       tags: dedupeTags(opts.tags ?? tags),
     };
     const taskId = task.id;
@@ -562,9 +556,8 @@ export function TaskDetailSheet({
     setIsNext(false);
     setIsWaiting(false);
     setWaitingNote('');
-    setWaitingStartedAt(null);
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: fromDateInputValue(today), isSomeday: false, isNext: false, isWaiting: false, waitingNote: null, waitingStartedAt: null });
+    await doSave({ startDate: fromDateInputValue(today), isSomeday: false, isNext: false, isWaiting: false, waitingNote: null });
   };
 
   const handleWhenSomeday = async () => {
@@ -572,17 +565,14 @@ export function TaskDetailSheet({
     setStartDateInput('');
     setIsWaiting(false);
     setWaitingNote('');
-    setWaitingStartedAt(null);
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: null, isSomeday: true, isWaiting: false, waitingNote: null, waitingStartedAt: null });
+    await doSave({ startDate: null, isSomeday: true, isWaiting: false, waitingNote: null });
   };
 
   const handleWhenWaiting = () => {
-    const now = nowIso();
     setIsWaiting(true);
     setIsSomeday(false);
     setStartDateInput('');
-    setWaitingStartedAt(now);
   };
 
   const handleWhenClear = async () => {
@@ -590,9 +580,8 @@ export function TaskDetailSheet({
     setIsSomeday(false);
     setIsWaiting(false);
     setWaitingNote('');
-    setWaitingStartedAt(null);
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: null, isSomeday: false, isWaiting: false, waitingNote: null, waitingStartedAt: null });
+    await doSave({ startDate: null, isSomeday: false, isWaiting: false, waitingNote: null });
   };
 
   const handleWhenSheetOpenChange = (open: boolean) => {

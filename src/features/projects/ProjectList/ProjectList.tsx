@@ -197,7 +197,6 @@ export function ProjectList() {
       isSomeday: boolean;
       isWaiting: boolean;
       waitingNote: string | null;
-      waitingStartedAt: string | null;
       tags: string[];
     }
   ) => {
@@ -217,7 +216,6 @@ export function ProjectList() {
       is_someday: updates.isSomeday,
       is_waiting: updates.isWaiting,
       waiting_note: updates.waitingNote,
-      waiting_started_at: updates.waitingStartedAt,
       tags: updates.tags,
       updated_at: nowIso(),
     });

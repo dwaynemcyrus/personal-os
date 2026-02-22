@@ -193,7 +193,6 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       isSomeday: boolean;
       isWaiting: boolean;
       waitingNote: string | null;
-      waitingStartedAt: string | null;
       tags: string[];
     }
   ) => {
@@ -213,7 +212,6 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       is_someday: updates.isSomeday,
       is_waiting: updates.isWaiting,
       waiting_note: updates.waitingNote,
-      waiting_started_at: updates.waitingStartedAt,
       tags: updates.tags,
       updated_at: nowIso(),
     });
