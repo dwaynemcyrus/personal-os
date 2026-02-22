@@ -137,14 +137,13 @@
 }
 
 .itemCheckboxLabel {
-  min-width: 28px;
-  min-height: 28px;
+  width: 28px;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  padding-top: 1px;
+  padding-top: 3px;
 }
 
 .itemCheckbox {
@@ -192,7 +191,7 @@
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  font-weight: var(--font-bold);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
