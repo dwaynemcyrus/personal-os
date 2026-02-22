@@ -281,6 +281,8 @@ export function AppShell({ children }: AppShellProps) {
         <main
           className={`${styles['app-shell__content']} ${
             isNotesRoute ? styles['app-shell__content--notes'] : ''
+          } ${
+            isTasksRoute ? styles['app-shell__content--tasks'] : ''
           }`}
         >
           {children}

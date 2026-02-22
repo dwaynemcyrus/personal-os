@@ -131,7 +131,8 @@
   min-height: 0;
 }
 
-.app-shell__content--notes {
+.app-shell__content--notes,
+.app-shell__content--tasks {
   padding: 0;
   overflow: hidden;
 }
