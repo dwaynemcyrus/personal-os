@@ -138,6 +138,7 @@ export function TaskDetailSheet({
   const [isDueSheetOpen, setIsDueSheetOpen] = useState(false);
   const [isMoveSheetOpen, setIsMoveSheetOpen] = useState(false);
   const notesTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const subSheetJustClosedRef = useRef(false);
 
   const resizeNotesTextarea = (elementArg?: HTMLTextAreaElement | null) => {
     const element = elementArg ?? notesTextareaRef.current;
@@ -418,6 +419,8 @@ export function TaskDetailSheet({
   const handleTagsSheetOpenChange = (open: boolean) => {
     setIsTagsSheetOpen(open);
     if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
       setIsTagEditMode(false);
       let finalTags = tags;
       if (tagInput.trim()) {
@@ -543,6 +546,8 @@ export function TaskDetailSheet({
   const handleMoveSheetOpenChange = (open: boolean) => {
     setIsMoveSheetOpen(open);
     if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
       setMoveSearch('');
       void doSave();
     }
@@ -592,7 +597,11 @@ export function TaskDetailSheet({
 
   const handleWhenSheetOpenChange = (open: boolean) => {
     setIsWhenSheetOpen(open);
-    if (!open) void doSave();
+    if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
+      void doSave();
+    }
   };
 
   // ─── Due sheet ───────────────────────────────────────────────────────────
@@ -612,7 +621,11 @@ export function TaskDetailSheet({
 
   const handleDueSheetOpenChange = (open: boolean) => {
     setIsDueSheetOpen(open);
-    if (!open) void doSave();
+    if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
+      void doSave();
+    }
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -635,7 +648,7 @@ export function TaskDetailSheet({
           className={contentClassName}
           aria-label="Task details"
           onPointerDownOutside={(e) => {
-            if (isAnySubSheetOpen) e.preventDefault();
+            if (isAnySubSheetOpen || subSheetJustClosedRef.current) e.preventDefault();
           }}
         >
           <header className={styles['task-detail__header']}>
