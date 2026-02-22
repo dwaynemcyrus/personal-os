@@ -318,6 +318,22 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
   if (setupPromise) return setupPromise;
 
   setupPromise = (async () => {
+    // Wait for a valid auth session before syncing. On hard refresh, Supabase
+    // restores the session from localStorage asynchronously — without this guard,
+    // the first sync attempt would be unauthenticated (401 on tables with RLS).
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Reset so setupSync can be called again once auth is available.
+      setupPromise = null;
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        if (newSession && !setupPromise) {
+          subscription.unsubscribe();
+          setupSync(db);
+        }
+      });
+      return;
+    }
+
     // Pull from all collections in parallel for faster initial load
     await Promise.all(
       collectionNames.map(async (name) => {

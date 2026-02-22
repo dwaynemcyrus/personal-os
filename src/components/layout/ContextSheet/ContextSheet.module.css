@@ -151,10 +151,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  border-top: 1px solid rgba(252, 251, 248, 0.14);
+  padding-top: var(--space-8);
+  margin-top: var(--space-2);
 }
 
-.areaHeader {
-  font-weight: var(--font-semibold);
+.areaHeader .rowLabel {
+  font-weight: 700;
 }
 
 .nestedProject {
