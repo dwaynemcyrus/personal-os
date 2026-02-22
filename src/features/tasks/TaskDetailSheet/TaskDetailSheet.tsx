@@ -5,7 +5,6 @@ import {
   Sheet,
   SheetClose,
   SheetContent,
-  SheetTitle,
 } from '@/components/ui/Sheet';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
 import styles from './TaskDetailSheet.module.css';
@@ -109,7 +108,6 @@ export function TaskDetailSheet({
         aria-label="Task details"
       >
         <header className={styles['task-detail__header']}>
-          <SheetTitle className={styles['task-detail__title']}>Task</SheetTitle>
           <SheetClose asChild>
             <button
               type="button"
