@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { showToast } from '@/components/ui/Toast';
+import {
+  Dropdown,
+  DropdownContent,
+  DropdownItem,
+  DropdownTrigger,
+} from '@/components/ui/Dropdown';
 import { useNavigationActions } from '@/components/providers';
 import { useNoteGroupCounts } from '@/features/notes/hooks/useNoteGroupCounts';
 import type { NoteGroup } from '@/features/notes/hooks/useGroupedNotes';
@@ -63,6 +69,9 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null);
+  const [createTitle, setCreateTitle] = useState('');
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!db || !isReady) return;
@@ -120,6 +129,41 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   );
 
   // --- Handlers ---
+
+  const handleCreateSubmit = async () => {
+    if (submittingRef.current || !createMode) return;
+    submittingRef.current = true;
+    const mode = createMode;
+    const trimmed = createTitle.trim();
+    setCreateMode(null);
+    setCreateTitle('');
+    submittingRef.current = false;
+    if (!trimmed || !db) return;
+    const timestamp = nowIso();
+    if (mode === 'project') {
+      await db.projects.insert({
+        id: uuidv4(),
+        title: trimmed,
+        description: null,
+        status: 'backlog',
+        start_date: null,
+        due_date: null,
+        created_at: timestamp,
+        updated_at: timestamp,
+        is_trashed: false,
+        trashed_at: null,
+      });
+    } else {
+      await db.areas.insert({
+        id: uuidv4(),
+        title: trimmed,
+        created_at: timestamp,
+        updated_at: timestamp,
+        is_trashed: false,
+        trashed_at: null,
+      });
+    }
+  };
 
   const handleNoteGroupPress = (row: NoteGroupRow) => {
     if (row.comingSoon) {
@@ -316,47 +360,80 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                   </button>
                 ))}
 
-                {(ungroupedProjects.length > 0 || areas.length > 0) && (
-                  <>
-                    <div className={styles.divider} />
+                <div className={styles.divider} />
 
-                    {ungroupedProjects.map((project) => (
+                {createMode ? (
+                  <div className={styles.createRow}>
+                    <span className={styles.createLabel}>
+                      {createMode === 'project' ? 'New Project' : 'New Area'}
+                    </span>
+                    <input
+                      className={styles.createInput}
+                      value={createTitle}
+                      onChange={(e) => setCreateTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleCreateSubmit();
+                        if (e.key === 'Escape') { setCreateMode(null); setCreateTitle(''); }
+                      }}
+                      onBlur={() => void handleCreateSubmit()}
+                      placeholder={createMode === 'project' ? 'Project name…' : 'Area name…'}
+                      // eslint-disable-next-line jsx-a11y/no-autofocus
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <Dropdown>
+                    <DropdownTrigger asChild>
+                      <button type="button" className={styles.createButton}>
+                        Create new…
+                      </button>
+                    </DropdownTrigger>
+                    <DropdownContent align="start" sideOffset={4}>
+                      <DropdownItem onSelect={() => { setCreateMode('project'); setCreateTitle(''); }}>
+                        New Project
+                      </DropdownItem>
+                      <DropdownItem onSelect={() => { setCreateMode('area'); setCreateTitle(''); }}>
+                        New Area
+                      </DropdownItem>
+                    </DropdownContent>
+                  </Dropdown>
+                )}
+
+                {ungroupedProjects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    className={styles.row}
+                    onClick={() => setSelectedProjectId(project.id)}
+                  >
+                    <span className={styles.rowLabel}>{project.title}</span>
+                    <span className={styles.rowCaret} aria-hidden="true">›</span>
+                  </button>
+                ))}
+
+                {areas.map((area) => (
+                  <div key={area.id} className={styles.areaGroup}>
+                    <button
+                      type="button"
+                      className={`${styles.row} ${styles.areaHeader}`}
+                      onClick={() => setSelectedAreaId(area.id)}
+                    >
+                      <span className={styles.rowLabel}>{area.title}</span>
+                      <span className={styles.rowCaret} aria-hidden="true">›</span>
+                    </button>
+                    {(projectsByArea.get(area.id) ?? []).map((project) => (
                       <button
                         key={project.id}
                         type="button"
-                        className={styles.row}
+                        className={`${styles.row} ${styles.nestedProject}`}
                         onClick={() => setSelectedProjectId(project.id)}
                       >
                         <span className={styles.rowLabel}>{project.title}</span>
                         <span className={styles.rowCaret} aria-hidden="true">›</span>
                       </button>
                     ))}
-
-                    {areas.map((area) => (
-                      <div key={area.id} className={styles.areaGroup}>
-                        <button
-                          type="button"
-                          className={`${styles.row} ${styles.areaHeader}`}
-                          onClick={() => setSelectedAreaId(area.id)}
-                        >
-                          <span className={styles.rowLabel}>{area.title}</span>
-                          <span className={styles.rowCaret} aria-hidden="true">›</span>
-                        </button>
-                        {(projectsByArea.get(area.id) ?? []).map((project) => (
-                          <button
-                            key={project.id}
-                            type="button"
-                            className={`${styles.row} ${styles.nestedProject}`}
-                            onClick={() => setSelectedProjectId(project.id)}
-                          >
-                            <span className={styles.rowLabel}>{project.title}</span>
-                            <span className={styles.rowCaret} aria-hidden="true">›</span>
-                          </button>
-                        ))}
-                      </div>
-                    ))}
-                  </>
-                )}
+                  </div>
+                ))}
               </div>
             )}
 
