@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0 - 2026-02-22
+- Added projects and areas to the Tasks tab in ContextSheet, below the main filter rows
+- Ungrouped projects listed first, then areas as bold headers with nested indented projects
+- Tapping a project opens ProjectDetailSheet; tapping an area opens new AreaDetailSheet
+- Added AreaDetailSheet — basic sheet with editable title and delete action
+- ContextSheet now subscribes to db.projects, db.areas, and db.tasks with inline CRUD handlers
+
 ## 0.14.0 - 2026-02-22
 - Added tags catalog — tags are now first-class entities persisted in a `tags` RxDB collection and Supabase table, surviving independently of any task or note
 - Added tag edit mode in the Tags sheet — inline rename (blur to save) and silent delete with cascade across all tasks and notes
