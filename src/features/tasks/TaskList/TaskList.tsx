@@ -17,14 +17,6 @@ import styles from './TaskList.module.css';
 
 const nowIso = () => new Date().toISOString();
 
-const FILTER_ORDER: TaskListFilter[] = [
-  'today',
-  'upcoming',
-  'backlog',
-  'someday',
-  'logbook',
-  'trash',
-];
 
 function formatDateLabel(iso: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(iso));
@@ -175,7 +167,6 @@ export function TaskList() {
       isSomeday: boolean;
       isWaiting: boolean;
       waitingNote: string | null;
-      waitingStartedAt: string | null;
       tags: string[];
     }
   ) => {
@@ -195,7 +186,6 @@ export function TaskList() {
       is_someday: updates.isSomeday,
       is_waiting: updates.isWaiting,
       waiting_note: updates.waitingNote,
-      waiting_started_at: updates.waitingStartedAt,
       tags: updates.tags,
       updated_at: nowIso(),
     });
@@ -223,40 +213,52 @@ export function TaskList() {
     const snippet = task.description?.trim() ?? '';
 
     return (
-      <button
+      <div
         key={`${task.id}${dateLabel ?? ''}`}
-        type="button"
         className={`${styles.item}${task.is_next ? ` ${styles.itemNext}` : ''}`}
-        onClick={() => handleOpenTask(task.id)}
       >
-        <div className={styles.itemHeader}>
-          <div className={styles.itemTitle}>{task.title}</div>
-        </div>
-        {snippet ? <div className={styles.itemSnippet}>{snippet}</div> : null}
-        <div className={styles.itemMeta}>
-          {dateLabel ? (
-            <span className={styles.itemDateLabel}>{dateLabel}</span>
-          ) : null}
-          {!task.is_waiting && !task.is_someday && isStartDateToday(task.start_date ?? null) ? (
-            <span className={styles.itemBadge}>Today</span>
-          ) : null}
-          {task.is_waiting ? (
-            <span className={styles.itemWaiting}>Waiting</span>
-          ) : null}
-          {task.is_someday ? (
-            <span className={styles.itemBadge}>Someday</span>
-          ) : null}
-          {task.is_next ? (
-            <span className={styles.itemNextBadge}>Next</span>
-          ) : null}
-          {projectLabel ? (
-            <span className={styles.itemProject}>{projectLabel}</span>
-          ) : null}
-          {task.completed ? (
-            <span className={styles.itemCompleted}>{formatRelativeTime(task.updated_at)}</span>
-          ) : null}
-        </div>
-      </button>
+        <label className={styles.itemCheckboxLabel} aria-label="Mark complete">
+          <input
+            type="checkbox"
+            className={styles.itemCheckbox}
+            checked={task.completed}
+            onChange={(e) => handleToggleComplete(task.id, e.target.checked)}
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.itemContent}
+          onClick={() => handleOpenTask(task.id)}
+        >
+          <div className={styles.itemHeader}>
+            <div className={styles.itemTitle}>{task.title}</div>
+          </div>
+          {snippet ? <div className={styles.itemSnippet}>{snippet}</div> : null}
+          <div className={styles.itemMeta}>
+            {dateLabel ? (
+              <span className={styles.itemDateLabel}>{dateLabel}</span>
+            ) : null}
+            {!task.is_waiting && !task.is_someday && isStartDateToday(task.start_date ?? null) ? (
+              <span className={styles.itemBadge}>Today</span>
+            ) : null}
+            {task.is_waiting ? (
+              <span className={styles.itemWaiting}>Waiting</span>
+            ) : null}
+            {task.is_someday ? (
+              <span className={styles.itemBadge}>Someday</span>
+            ) : null}
+            {task.is_next ? (
+              <span className={styles.itemNextBadge}>Next</span>
+            ) : null}
+            {projectLabel ? (
+              <span className={styles.itemProject}>{projectLabel}</span>
+            ) : null}
+            {task.completed ? (
+              <span className={styles.itemCompleted}>{formatRelativeTime(task.updated_at)}</span>
+            ) : null}
+          </div>
+        </button>
+      </div>
     );
   };
 
@@ -293,21 +295,6 @@ export function TaskList() {
         >
           <PlusIcon />
         </button>
-      </div>
-
-      <div className={styles.filters} role="group" aria-label="Task filters">
-        {FILTER_ORDER.map((value) => (
-          <button
-            key={value}
-            type="button"
-            className={styles.filterButton}
-            data-active={filter === value}
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-          >
-            {value.charAt(0).toUpperCase() + value.slice(1)}
-          </button>
-        ))}
       </div>
 
       {filter === 'backlog' && (
