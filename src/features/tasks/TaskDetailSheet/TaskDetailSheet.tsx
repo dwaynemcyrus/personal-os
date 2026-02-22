@@ -141,16 +141,16 @@ export function TaskDetailSheet({
             />
           </div>
 
-          <label className={styles['task-detail__field']}>
-            <span className={styles['task-detail__label']}>Details</span>
+          <div className={styles['task-detail__field']}>
             <textarea
               className={styles['task-detail__textarea']}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Notes or details"
+              placeholder="Notes"
+              aria-label="Notes"
               rows={4}
             />
-          </label>
+          </div>
 
           <label className={styles['task-detail__field']}>
             <span className={styles['task-detail__label']}>Project</span>
