@@ -139,3 +139,24 @@
   font-size: 16px;
   color: #fcfbf8;
 }
+
+.divider {
+  height: 1px;
+  background: rgba(252, 251, 248, 0.14);
+  margin: var(--space-4) 0 var(--space-2);
+  flex-shrink: 0;
+}
+
+.areaGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.areaHeader {
+  font-weight: var(--font-semibold);
+}
+
+.nestedProject {
+  padding-left: var(--space-4);
+}

@@ -1,0 +1,100 @@
+.area-detail__content {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  padding: calc(var(--space-5) + var(--safe-area-top))
+    var(--space-4)
+    calc(var(--space-32) + 16px + var(--safe-area-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  overflow-y: auto;
+}
+
+.area-detail__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.area-detail__title {
+  font-size: var(--font-xl);
+  font-weight: var(--font-semibold);
+}
+
+.area-detail__close {
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-ink-900);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.area-detail__close:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.area-detail__icon {
+  width: 20px;
+  height: 20px;
+}
+
+.area-detail__field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.area-detail__label {
+  font-size: var(--font-sm);
+  color: var(--color-ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.area-detail__input {
+  min-height: var(--touch-target);
+  border-radius: var(--radius-10);
+  border: 1px solid var(--color-border-300);
+  background: var(--color-white);
+  color: var(--color-ink-900);
+  padding: 0 var(--space-3);
+  font-size: 16px;
+}
+
+.area-detail__input:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.area-detail__actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.area-detail__button {
+  min-height: var(--touch-target);
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-ink-900);
+  color: var(--color-paper);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.area-detail__button:disabled {
+  opacity: var(--opacity-disabled);
+}
+
+.area-detail__button--danger {
+  background: transparent;
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-ink);
+}
