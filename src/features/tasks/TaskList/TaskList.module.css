@@ -242,6 +242,16 @@
   border-left: 2px solid rgba(252, 251, 248, 0.5);
 }
 
+.itemPending {
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+
+.itemPending .itemTitle {
+  text-decoration: line-through;
+  text-decoration-color: rgba(252, 251, 248, 0.5);
+}
+
 .section {
   display: contents;
 }

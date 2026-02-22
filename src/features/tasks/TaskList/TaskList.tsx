@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ProjectDocument, TaskDocument } from '@/lib/db';
@@ -40,6 +40,10 @@ export function TaskList() {
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [showNextOnly, setShowNextOnly] = useState(false);
+
+  // Pending completions: checked immediately, DB write delayed 4s
+  const pendingTimersRef = useRef<Map<string, number>>(new Map());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
   const { stack } = useNavigationState();
   const { pushLayer, popLayer, goBack } = useNavigationActions();
@@ -206,23 +210,52 @@ export function TaskList() {
     await doc.patch({ completed: nextValue, updated_at: nowIso() });
   };
 
+  // Clear all pending timers on unmount
+  useEffect(() => {
+    const timers = pendingTimersRef.current;
+    return () => { timers.forEach((id) => window.clearTimeout(id)); };
+  }, []);
+
+  const handleCheckboxChange = (taskId: string, checked: boolean) => {
+    if (checked) {
+      const timerId = window.setTimeout(async () => {
+        pendingTimersRef.current.delete(taskId);
+        setPendingIds((prev) => { const s = new Set(prev); s.delete(taskId); return s; });
+        await handleToggleComplete(taskId, true);
+      }, 4000);
+      pendingTimersRef.current.set(taskId, timerId);
+      setPendingIds((prev) => new Set([...prev, taskId]));
+    } else {
+      const timerId = pendingTimersRef.current.get(taskId);
+      if (timerId !== undefined) {
+        // Cancel pending completion
+        window.clearTimeout(timerId);
+        pendingTimersRef.current.delete(taskId);
+        setPendingIds((prev) => { const s = new Set(prev); s.delete(taskId); return s; });
+      } else {
+        void handleToggleComplete(taskId, false);
+      }
+    }
+  };
+
   // ─── Render helpers ───────────────────────────────────────────────────────
 
   const renderTaskRow = (task: TaskDocument, dateLabel?: string) => {
     const projectLabel = task.project_id ? projectMap.get(task.project_id) : null;
     const snippet = task.description?.trim() ?? '';
+    const isPending = pendingIds.has(task.id);
 
     return (
       <div
         key={`${task.id}${dateLabel ?? ''}`}
-        className={`${styles.item}${task.is_next ? ` ${styles.itemNext}` : ''}`}
+        className={`${styles.item}${task.is_next ? ` ${styles.itemNext}` : ''}${isPending ? ` ${styles.itemPending}` : ''}`}
       >
         <label className={styles.itemCheckboxLabel} aria-label="Mark complete">
           <input
             type="checkbox"
             className={styles.itemCheckbox}
-            checked={task.completed}
-            onChange={(e) => handleToggleComplete(task.id, e.target.checked)}
+            checked={task.completed || isPending}
+            onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
           />
         </label>
         <button
