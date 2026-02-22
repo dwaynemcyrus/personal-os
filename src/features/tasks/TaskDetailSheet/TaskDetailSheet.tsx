@@ -628,7 +628,7 @@ export function TaskDetailSheet({
                 onBlur={() => void doSave()}
                 placeholder="Notes"
                 aria-label="Notes"
-                rows={4}
+                rows={1}
               />
             </div>
 

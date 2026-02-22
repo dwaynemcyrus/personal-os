@@ -151,7 +151,7 @@
 /* ── Notes textarea ──────────────────────────────────────────────────────── */
 
 .task-detail__textarea {
-  min-height: 120px;
+  min-height: 1.6em;
   border-radius: 12px;
   border: none;
   background: var(--color-ink-900);
