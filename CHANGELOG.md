@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.0 - 2026-02-22
+- Added tags catalog — tags are now first-class entities persisted in a `tags` RxDB collection and Supabase table, surviving independently of any task or note
+- Added tag edit mode in the Tags sheet — inline rename (blur to save) and silent delete with cascade across all tasks and notes
+- Added "New Tag" creates a catalog entry before adding to the task
+- Added Areas — new `areas` collection (RxDB + Supabase) with `area_id` FK on both tasks and projects
+- Added "Move" meta button to task detail sheet replacing the Project select; opens a half-viewport centered sheet
+- Move sheet: pinned search input, grouped view (ungrouped projects first, then areas with nested projects), flat filtered results when searching, "No Project" / "No Area" clear options, checkmark on current selection
+- Task can be assigned to either a project or an area — selecting one clears the other
+- Supabase migrations: `tags` table, `areas` table, `area_id` column on `tasks` and `projects`
+- All `handleSaveTask` / `onSaveTask` signatures updated to include `areaId`
+
 ## 0.13.0 - 2026-02-20
 - Migrated from Next.js to Vite — app is now a pure client-side SPA served as static files
 - Replaced URL-based notes routing (`/notes/[group]/[noteId]`) with stack-based navigation
