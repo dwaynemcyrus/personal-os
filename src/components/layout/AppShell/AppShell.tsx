@@ -86,6 +86,7 @@ export function AppShell({ children }: AppShellProps) {
   const topLayer = stack[stack.length - 1];
   const isRoot = stack.length === 0;
   const isNotesRoute = topLayer?.view.startsWith('note') ?? false;
+  const isTasksRoute = topLayer?.view.startsWith('task') ?? false;
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
   const pageTitle = getPageTitle(topLayer);
 
@@ -238,7 +239,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className={styles['app-shell']}>
         <header
           className={`${styles['app-shell__topbar']} ${
-            isNotesRoute ? styles['app-shell__topbar--hidden'] : ''
+            isNotesRoute || isTasksRoute ? styles['app-shell__topbar--hidden'] : ''
           }`}
         >
           <div className={styles['app-shell__topbar-left']}>
@@ -273,7 +274,7 @@ export function AppShell({ children }: AppShellProps) {
             ) : null}
           </div>
         </header>
-        {!isNotesRoute && (
+        {!isNotesRoute && !isTasksRoute && (
           <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
         )}
 
