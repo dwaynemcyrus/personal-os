@@ -124,6 +124,7 @@ export function TaskDetailSheet({
   const [isWhenSheetOpen, setIsWhenSheetOpen] = useState(false);
   const [isDueSheetOpen, setIsDueSheetOpen] = useState(false);
   const [isMoveSheetOpen, setIsMoveSheetOpen] = useState(false);
+  const notesTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Reset form when task changes
   useEffect(() => {
@@ -141,6 +142,13 @@ export function TaskDetailSheet({
     setShowTagInput(false);
     setIsTagEditMode(false);
   }, [task]);
+
+  useEffect(() => {
+    const element = notesTextareaRef.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, [description, open]);
 
   // Notify AppShell that this sheet is open (hides FAB)
   useEffect(() => {
@@ -622,9 +630,14 @@ export function TaskDetailSheet({
 
             <div className={styles['task-detail__field']}>
               <textarea
+                ref={notesTextareaRef}
                 className={styles['task-detail__textarea']}
                 value={description}
-                onChange={e => setDescription(e.target.value)}
+                onChange={e => {
+                  setDescription(e.target.value);
+                  e.currentTarget.style.height = 'auto';
+                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                }}
                 onBlur={() => void doSave()}
                 placeholder="Notes"
                 aria-label="Notes"
