@@ -117,6 +117,8 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
       title: editTitle.trim() || 'Untitled',
       description: null,
       status: 'backlog',
+      area_id: null,
+      okr_id: null,
       start_date: null,
       due_date: null,
       created_at: timestamp,

@@ -146,6 +146,8 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         title: trimmed,
         description: null,
         status: 'backlog',
+        area_id: null,
+        okr_id: null,
         start_date: null,
         due_date: null,
         created_at: timestamp,
