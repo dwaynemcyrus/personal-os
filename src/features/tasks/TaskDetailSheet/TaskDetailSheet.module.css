@@ -41,7 +41,16 @@
   gap: var(--space-8);
 }
 
-.task-detail__headerMove {
+.task-detail__headerDates {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  max-width: 70%;
+}
+
+.task-detail__headerDateButton {
   min-height: 36px;
   border: none;
   background: transparent;
@@ -49,7 +58,7 @@
   font-size: 13px;
   font-weight: var(--font-medium);
   padding: 0;
-  max-width: 70%;
+  max-width: 100%;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -58,13 +67,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.task-detail__headerMove--set {
+.task-detail__headerDateButton--set {
   color: #fcfbf8;
 }
 
-.task-detail__headerMove:focus-visible {
+.task-detail__headerDateButton:focus-visible {
   outline: 2px solid #fcfbf8;
   outline-offset: 2px;
+}
+
+.task-detail__headerDateArrow {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.64);
+  flex: 0 0 auto;
 }
 
 .task-detail__close {

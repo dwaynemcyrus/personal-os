@@ -265,7 +265,7 @@ export function TaskDetailSheet({
     return null;
   }, [projectId, areaId, projects, areas]);
   const hasMove = Boolean(projectId || areaId);
-  const moveHeaderLabel = moveLabel ?? 'move to...';
+  const moveDisplayLabel = moveLabel ?? 'move to...';
 
   // Meta label values
   const whenLabel = isSomeday
@@ -598,13 +598,23 @@ export function TaskDetailSheet({
           }}
         >
           <header className={styles['task-detail__header']}>
-            <button
-              type="button"
-              className={`${styles['task-detail__headerMove']}${hasMove ? ` ${styles['task-detail__headerMove--set']}` : ''}`}
-              onClick={() => setIsMoveSheetOpen(true)}
-            >
-              {moveHeaderLabel}
-            </button>
+            <div className={styles['task-detail__headerDates']}>
+              <button
+                type="button"
+                className={`${styles['task-detail__headerDateButton']}${hasWhen ? ` ${styles['task-detail__headerDateButton--set']}` : ''}`}
+                onClick={() => setIsWhenSheetOpen(true)}
+              >
+                {hasWhen ? whenLabel : 'When?'}
+              </button>
+              <span className={styles['task-detail__headerDateArrow']} aria-hidden="true">›</span>
+              <button
+                type="button"
+                className={`${styles['task-detail__headerDateButton']}${hasDue ? ` ${styles['task-detail__headerDateButton--set']}` : ''}`}
+                onClick={() => setIsDueSheetOpen(true)}
+              >
+                {hasDue ? dueLabel : 'Due'}
+              </button>
+            </div>
 
             <Dropdown>
               <DropdownTrigger asChild>
@@ -663,18 +673,24 @@ export function TaskDetailSheet({
 
               <button
                 type="button"
-                className={`${styles['task-detail__metaButton']}${hasWhen ? ` ${styles['task-detail__metaButton--set']}` : ''}`}
-                onClick={() => setIsWhenSheetOpen(true)}
+                className={`${styles['task-detail__metaButton']}${hasMove ? ` ${styles['task-detail__metaButton--set']}` : ''}`}
+                onClick={() => setIsMoveSheetOpen(true)}
               >
-                {hasWhen ? whenLabel : 'When?'}
+                {moveDisplayLabel}
               </button>
 
               <button
                 type="button"
-                className={`${styles['task-detail__metaButton']}${hasDue ? ` ${styles['task-detail__metaButton--set']}` : ''}`}
-                onClick={() => setIsDueSheetOpen(true)}
+                className={styles['task-detail__metaButton']}
               >
-                {hasDue ? dueLabel : 'Due'}
+                Priority
+              </button>
+
+              <button
+                type="button"
+                className={styles['task-detail__metaButton']}
+              >
+                Checklist
               </button>
             </div>
 
@@ -708,19 +724,6 @@ export function TaskDetailSheet({
                 ))}
               </div>
             )}
-
-            <label className={styles['task-detail__field']}>
-              <span className={styles['task-detail__label']}>Status</span>
-              <select
-                className={styles['task-detail__input']}
-                value={status}
-                onChange={e => setStatus(e.target.value as 'backlog' | 'next')}
-                onBlur={() => void doSave()}
-              >
-                <option value="backlog">Backlog</option>
-                <option value="next">Next</option>
-              </select>
-            </label>
 
           </div>
         </SheetContent>
