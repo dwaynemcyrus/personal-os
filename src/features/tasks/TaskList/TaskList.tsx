@@ -47,8 +47,6 @@ const formatStatusLabel = (status: TaskDocument['status']) => {
   switch (status) {
     case 'next':
       return 'Next';
-    case 'someday':
-      return 'Someday';
     default:
       return 'Backlog';
   }
@@ -149,8 +147,10 @@ export function TaskList() {
       description: null,
       status: 'backlog',
       completed: false,
+      is_someday: false,
       start_date: null,
       due_date: null,
+      tags: [],
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
@@ -175,7 +175,11 @@ export function TaskList() {
       title: string;
       description: string;
       projectId: string | null;
-      status: 'backlog' | 'someday' | 'next';
+      status: 'backlog' | 'next';
+      startDate: string | null;
+      dueDate: string | null;
+      isSomeday: boolean;
+      tags: string[];
     }
   ) => {
     if (!db) return;
@@ -189,6 +193,10 @@ export function TaskList() {
       description: updates.description.trim() || null,
       project_id: updates.projectId,
       status: updates.status,
+      start_date: updates.startDate,
+      due_date: updates.dueDate,
+      is_someday: updates.isSomeday,
+      tags: updates.tags,
       updated_at: timestamp,
     });
   };
@@ -283,6 +291,9 @@ export function TaskList() {
                   <span className={styles.itemStatus}>
                     {formatStatusLabel(task.status)}
                   </span>
+                  {task.is_someday ? (
+                    <span className={styles.itemStatus}>Someday</span>
+                  ) : null}
                   <span className={styles.itemProject}>{projectLabel}</span>
                   {task.completed ? (
                     <span className={styles.itemCompleted}>Completed</span>

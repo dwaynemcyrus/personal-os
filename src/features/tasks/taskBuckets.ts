@@ -50,7 +50,11 @@ export function matchesTaskFilter(
 
   switch (filter) {
     case 'today':
-      return isActive && dueMs !== null && dueMs <= endOfDayMs;
+      return (
+        isActive &&
+        ((dueMs !== null && dueMs <= endOfDayMs) ||
+          (startMs !== null && startMs <= endOfDayMs))
+      );
     case 'upcoming':
       return (
         isActive &&
@@ -62,7 +66,7 @@ export function matchesTaskFilter(
     case 'backlog':
       return isActive && task.status === 'backlog';
     case 'someday':
-      return isActive && task.status === 'someday';
+      return isActive && task.is_someday;
     case 'logbook':
       return !task.is_trashed && task.completed;
     case 'trash':

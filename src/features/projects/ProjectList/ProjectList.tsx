@@ -190,7 +190,11 @@ export function ProjectList() {
       title: string;
       description: string;
       projectId: string | null;
-      status: 'backlog' | 'someday' | 'next';
+      status: 'backlog' | 'next';
+      startDate: string | null;
+      dueDate: string | null;
+      isSomeday: boolean;
+      tags: string[];
     }
   ) => {
     if (!db) return;
@@ -204,6 +208,10 @@ export function ProjectList() {
       description: updates.description.trim() || null,
       project_id: updates.projectId,
       status: updates.status,
+      start_date: updates.startDate,
+      due_date: updates.dueDate,
+      is_someday: updates.isSomeday,
+      tags: updates.tags,
       updated_at: timestamp,
     });
   };
@@ -232,8 +240,10 @@ export function ProjectList() {
       description: null,
       status: 'backlog',
       completed: false,
+      is_someday: false,
       start_date: null,
       due_date: null,
+      tags: [],
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

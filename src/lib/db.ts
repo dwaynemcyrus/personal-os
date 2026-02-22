@@ -54,9 +54,17 @@ export const projectSchema = z.object({
   okr_id: z.string().uuid().nullable().optional(),
 });
 
-const taskStatuses = ['backlog', 'someday', 'next'] as const;
+const taskStatuses = ['backlog', 'next'] as const;
 
 const coerceTaskStatus = (value: unknown) => {
+  if (value === 'active') return 'next';
+  if (value === 'backlog' || value === 'next') {
+    return value;
+  }
+  return 'backlog';
+};
+
+const coerceLegacyTaskStatus = (value: unknown) => {
   if (value === 'active') return 'next';
   if (value === 'waiting') return 'someday';
   if (value === 'backlog' || value === 'someday' || value === 'next') {
@@ -72,8 +80,10 @@ export const taskSchema = z.object({
   description: z.string().nullable(),
   status: z.enum(taskStatuses),
   completed: z.boolean(),
+  is_someday: z.boolean(),
   start_date: z.string().nullable(),
   due_date: z.string().nullable(),
+  tags: z.array(z.string()).readonly(),
   content: z.string().nullable().optional(),
   priority: z.number().int().min(1).max(4).nullable().optional(),
   depends_on: z.array(z.string().uuid()).readonly().nullable().optional(),
@@ -273,7 +283,7 @@ const projectsRxSchema = {
 };
 
 const tasksRxSchema = {
-  version: 4,
+  version: 5,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -283,8 +293,10 @@ const tasksRxSchema = {
     description: { type: ['string', 'null'] },
     status: { type: 'string', enum: taskStatuses },
     completed: { type: 'boolean' },
+    is_someday: { type: 'boolean' },
     start_date: { type: ['string', 'null'], format: 'date-time' },
     due_date: { type: ['string', 'null'], format: 'date-time' },
+    tags: { type: 'array', items: { type: 'string' } },
     content: { type: ['string', 'null'] },
     priority: { type: ['number', 'null'] },
     depends_on: { type: ['array', 'null'], items: { type: 'string', maxLength: 36 } },
@@ -297,8 +309,10 @@ const tasksRxSchema = {
     'description',
     'status',
     'completed',
+    'is_someday',
     'start_date',
     'due_date',
+    'tags',
     'content',
     'priority',
     'depends_on',
@@ -635,7 +649,7 @@ const tasksMigrationStrategies = {
   1: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
     const migrated = migrateSoftDeleteFields(oldDoc);
     const completed = typeof oldDoc.completed === 'boolean' ? oldDoc.completed : false;
-    const status = completed ? 'backlog' : coerceTaskStatus(oldDoc.status);
+    const status = completed ? 'backlog' : coerceLegacyTaskStatus(oldDoc.status);
 
     return {
       ...migrated,
@@ -646,7 +660,7 @@ const tasksMigrationStrategies = {
   2: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
     const migrated = migrateSoftDeleteFields(oldDoc);
     const completed = typeof oldDoc.completed === 'boolean' ? oldDoc.completed : false;
-    const status = completed ? 'backlog' : coerceTaskStatus(oldDoc.status);
+    const status = completed ? 'backlog' : coerceLegacyTaskStatus(oldDoc.status);
 
     return {
       ...migrated,
@@ -663,10 +677,28 @@ const tasksMigrationStrategies = {
   }),
   4: (oldDoc: Record<string, unknown>) => ({
     ...oldDoc,
-    status: coerceTaskStatus(oldDoc.status),
+    status: coerceLegacyTaskStatus(oldDoc.status),
     start_date:
       typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null,
   }),
+  5: (oldDoc: Record<string, unknown>) => {
+    const status = coerceTaskStatus(oldDoc.status);
+    const legacyStatus = oldDoc.status;
+    const isSomeday =
+      typeof oldDoc.is_someday === 'boolean'
+        ? oldDoc.is_someday
+        : legacyStatus === 'someday' || legacyStatus === 'waiting';
+    const tags = Array.isArray(oldDoc.tags)
+      ? oldDoc.tags.filter((tag): tag is string => typeof tag === 'string')
+      : [];
+
+    return {
+      ...oldDoc,
+      status,
+      is_someday: isSomeday,
+      tags,
+    };
+  },
 };
 
 const projectsMigrationStrategies = {
