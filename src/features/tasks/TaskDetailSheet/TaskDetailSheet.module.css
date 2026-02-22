@@ -5,7 +5,7 @@
   right: 24px;
   width: auto;
   top: 24px;
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  bottom: auto;
   border-radius: var(--radius-16);
   border: 1px solid rgba(252, 251, 248, 0.14);
   background: var(--color-ink-900) !important;
