@@ -10,6 +10,7 @@ import { CalendarPicker } from './CalendarPicker';
 import styles from './TaskDetailSheet.module.css';
 
 const nowIso = () => new Date().toISOString();
+const NOTES_MAX_ROWS = 4;
 
 type TaskDetailSheetProps = {
   open: boolean;
@@ -126,6 +127,30 @@ export function TaskDetailSheet({
   const [isMoveSheetOpen, setIsMoveSheetOpen] = useState(false);
   const notesTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const resizeNotesTextarea = (elementArg?: HTMLTextAreaElement | null) => {
+    const element = elementArg ?? notesTextareaRef.current;
+    if (!element) return;
+
+    element.style.height = 'auto';
+
+    const styles = window.getComputedStyle(element);
+    const lineHeight = Number.parseFloat(styles.lineHeight) || 25.6;
+    const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+    const borderTop = Number.parseFloat(styles.borderTopWidth) || 0;
+    const borderBottom = Number.parseFloat(styles.borderBottomWidth) || 0;
+    const maxHeight =
+      lineHeight * NOTES_MAX_ROWS +
+      paddingTop +
+      paddingBottom +
+      borderTop +
+      borderBottom;
+
+    const nextHeight = Math.min(element.scrollHeight, maxHeight);
+    element.style.height = `${nextHeight}px`;
+    element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  };
+
   // Reset form when task changes
   useEffect(() => {
     if (!task) return;
@@ -144,10 +169,7 @@ export function TaskDetailSheet({
   }, [task]);
 
   useEffect(() => {
-    const element = notesTextareaRef.current;
-    if (!element) return;
-    element.style.height = 'auto';
-    element.style.height = `${element.scrollHeight}px`;
+    resizeNotesTextarea();
   }, [description, open]);
 
   // Notify AppShell that this sheet is open (hides FAB)
@@ -635,8 +657,7 @@ export function TaskDetailSheet({
                 value={description}
                 onChange={e => {
                   setDescription(e.target.value);
-                  e.currentTarget.style.height = 'auto';
-                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                  resizeNotesTextarea(e.currentTarget);
                 }}
                 onBlur={() => void doSave()}
                 placeholder="Notes"
