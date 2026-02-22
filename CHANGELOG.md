@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.16.0 - 2026-02-23
+- Replaced task status model with a scheduling model (Today, Upcoming, Backlog, Someday, Waiting, Logbook) using start/due dates and flags
+- Added When, Due Date, and metadata rows to task detail header; moved scheduling controls out of the body
+- Added completion checkbox to task list items with a 4-second delayed removal, allowing accidental completions to be undone
+- Added "Today" badge to task list rows when `start_date` equals today
+- Removed filter button row and item dividers from task list views for a cleaner layout
+- Removed app-shell topbar from all task views (tasks manage their own header)
+- Fixed extra padding around task content area to match the notes layout
+- Fixed nested Radix sheet dismiss closing the main task detail sheet on outside click
+- Fixed task detail sub-sheet close (When, Due, Tags, Move) no longer propagates to parent sheet
+- Swapped FAB triggers: tap now opens ContextSheet, long-press opens CaptureModal
+- Added "Create new…" dropdown in ContextSheet Tasks tab to create a project or area inline with an auto-focused text input
+- Reduced ContextSheet top/left/right margins from 48px to 24px
+- Fixed area titles in ContextSheet Tasks tab to render at bold (700) weight with a hairline divider above each area group
+- Fixed `db.projects.insert` missing required `area_id` and `okr_id` fields in ContextSheet, InboxWizard, and ProjectList
+- Fixed Supabase 401 errors on hard refresh by guarding sync behind an auth session check; retries automatically when a session becomes available
+
 ## 0.15.0 - 2026-02-22
 - Added projects and areas to the Tasks tab in ContextSheet, below the main filter rows
 - Ungrouped projects listed first, then areas as bold headers with nested indented projects
