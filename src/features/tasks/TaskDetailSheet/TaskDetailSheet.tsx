@@ -53,6 +53,23 @@ export function TaskDetailSheet({
     }
   }, [task]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(
+      new CustomEvent<{ open: boolean }>('task-detail-sheet:open-change', {
+        detail: { open },
+      })
+    );
+
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent<{ open: boolean }>('task-detail-sheet:open-change', {
+          detail: { open: false },
+        })
+      );
+    };
+  }, [open]);
+
   const canSave = useMemo(() => Boolean(title.trim()), [title]);
 
   const handleSave = async () => {
@@ -104,89 +121,85 @@ export function TaskDetailSheet({
           </SheetClose>
         </header>
 
-        <label className={styles['task-detail__field']}>
-          <span className={styles['task-detail__label']}>Completion</span>
-          <div className={styles['task-detail__toggle']}>
+        <div className={styles['task-detail__body']}>
+          <div className={styles['task-detail__topRow']}>
+            <label className={styles['task-detail__completion']} aria-label="Completion">
+              <input
+                className={styles['task-detail__checkbox']}
+                type="checkbox"
+                checked={task.completed}
+                onChange={handleToggleComplete}
+                aria-label="Completion"
+              />
+            </label>
             <input
-              className={styles['task-detail__checkbox']}
-              type="checkbox"
-              checked={task.completed}
-              onChange={handleToggleComplete}
+              className={`${styles['task-detail__input']} ${styles['task-detail__titleInput']}`}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Task title"
+              aria-label="Title"
             />
-            <span className={styles['task-detail__toggle-label']}>
-              {task.completed ? 'Completed' : 'Incomplete'}
-            </span>
           </div>
-        </label>
 
-        <label className={styles['task-detail__field']}>
-          <span className={styles['task-detail__label']}>Title</span>
-          <input
-            className={styles['task-detail__input']}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Task title"
-          />
-        </label>
+          <label className={styles['task-detail__field']}>
+            <span className={styles['task-detail__label']}>Details</span>
+            <textarea
+              className={styles['task-detail__textarea']}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Notes or details"
+              rows={4}
+            />
+          </label>
 
-        <label className={styles['task-detail__field']}>
-          <span className={styles['task-detail__label']}>Details</span>
-          <textarea
-            className={styles['task-detail__textarea']}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Notes or details"
-            rows={4}
-          />
-        </label>
+          <label className={styles['task-detail__field']}>
+            <span className={styles['task-detail__label']}>Project</span>
+            <select
+              className={styles['task-detail__input']}
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              <option value="">No project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label className={styles['task-detail__field']}>
-          <span className={styles['task-detail__label']}>Project</span>
-          <select
-            className={styles['task-detail__input']}
-            value={projectId}
-            onChange={(event) => setProjectId(event.target.value)}
-          >
-            <option value="">No project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.title}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className={styles['task-detail__field']}>
+            <span className={styles['task-detail__label']}>Status</span>
+            <select
+              className={styles['task-detail__input']}
+              value={status}
+              onChange={(event) =>
+                setStatus(event.target.value as 'backlog' | 'someday' | 'next')
+              }
+            >
+              <option value="backlog">Backlog</option>
+              <option value="someday">Someday</option>
+              <option value="next">Next</option>
+            </select>
+          </label>
 
-        <label className={styles['task-detail__field']}>
-          <span className={styles['task-detail__label']}>Status</span>
-          <select
-            className={styles['task-detail__input']}
-            value={status}
-            onChange={(event) =>
-              setStatus(event.target.value as 'backlog' | 'someday' | 'next')
-            }
-          >
-            <option value="backlog">Backlog</option>
-            <option value="someday">Someday</option>
-            <option value="next">Next</option>
-          </select>
-        </label>
-
-        <div className={styles['task-detail__actions']}>
-          <button
-            type="button"
-            className={styles['task-detail__button']}
-            onClick={handleSave}
-            disabled={!canSave}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className={`${styles['task-detail__button']} ${styles['task-detail__button--danger']}`}
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
+          <div className={styles['task-detail__actions']}>
+            <button
+              type="button"
+              className={styles['task-detail__button']}
+              onClick={handleSave}
+              disabled={!canSave}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className={`${styles['task-detail__button']} ${styles['task-detail__button--danger']}`}
+              onClick={handleDelete}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

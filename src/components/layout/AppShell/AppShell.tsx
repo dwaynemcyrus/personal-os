@@ -60,6 +60,7 @@ export function AppShell({ children }: AppShellProps) {
   const { stack } = useNavigationState();
   const { goBack } = useNavigationActions();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [isTaskDetailSheetOpen, setIsTaskDetailSheetOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
@@ -85,6 +86,7 @@ export function AppShell({ children }: AppShellProps) {
   const topLayer = stack[stack.length - 1];
   const isRoot = stack.length === 0;
   const isNotesRoute = topLayer?.view.startsWith('note') ?? false;
+  const isTaskDetailRoute = topLayer?.view === 'task-detail';
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
@@ -195,6 +197,24 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const handleTaskDetailOpenChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      setIsTaskDetailSheetOpen(Boolean(detail?.open));
+    };
+
+    window.addEventListener(
+      'task-detail-sheet:open-change',
+      handleTaskDetailOpenChange
+    );
+    return () => {
+      window.removeEventListener(
+        'task-detail-sheet:open-change',
+        handleTaskDetailOpenChange
+      );
+    };
+  }, []);
+
   // Cmd/Ctrl+K keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -297,7 +317,7 @@ export function AppShell({ children }: AppShellProps) {
       {portalTarget &&
         createPortal(
           <>
-            {!isCommandOpen && (
+            {!isCommandOpen && !isTaskDetailRoute && !isTaskDetailSheetOpen && (
               <button
                 type="button"
                 className={styles['app-shell__fab']}
