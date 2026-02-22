@@ -139,7 +139,7 @@
   border: none;
   background: var(--color-ink-900);
   color: #fcfbf8;
-  padding: 12px 14px;
+  padding: 0 0 0 28px;
   font-size: 16px;
   resize: vertical;
   line-height: 1.6;
