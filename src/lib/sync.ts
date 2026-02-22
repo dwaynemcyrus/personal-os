@@ -193,6 +193,10 @@ const collectionConfig = {
       'trashed_at',
     ],
   },
+  tags: {
+    table: 'tags',
+    fields: ['id', 'name', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
+  },
 } as const satisfies Record<
   CollectionName,
   { table: string; fields: readonly string[] }

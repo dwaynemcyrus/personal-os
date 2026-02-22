@@ -231,6 +231,11 @@ export const okrSchema = z.object({
   progress: z.number().int().min(0).max(100),
 });
 
+export const tagSchema = z.object({
+  ...baseFields,
+  name: z.string(),
+});
+
 const baseProperties = {
   id: { type: 'string', maxLength: 36 },
   created_at: { type: 'string', format: 'date-time' },
@@ -536,6 +541,17 @@ const okrsRxSchema = {
   ],
 };
 
+const tagsRxSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    name: { type: 'string' },
+  },
+  required: [...baseRequired, 'name'],
+};
+
 type LegacySyncTestDocument = {
   id: string;
   content: string;
@@ -786,6 +802,7 @@ export type NoteVersionDocument = z.infer<typeof noteVersionSchema>;
 export type CaptureDocument = z.infer<typeof captureSchema>;
 export type OkrDocument = z.infer<typeof okrSchema>;
 export type OkrTypeValue = (typeof OkrType)[number];
+export type TagDocument = z.infer<typeof tagSchema>;
 
 export type DatabaseCollections = {
   sync_test: RxCollection<SyncTestDocument>;
@@ -800,6 +817,7 @@ export type DatabaseCollections = {
   note_versions: RxCollection<NoteVersionDocument>;
   captures: RxCollection<CaptureDocument>;
   okrs: RxCollection<OkrDocument>;
+  tags: RxCollection<TagDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -860,6 +878,9 @@ export async function getDatabase() {
       },
       okrs: {
         schema: okrsRxSchema,
+      },
+      tags: {
+        schema: tagsRxSchema,
       },
     });
 

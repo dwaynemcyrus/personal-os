@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Sheet,
-  SheetClose,
   SheetContent,
 } from '@/components/ui/Sheet';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument, ProjectDocument, TaskDocument } from '@/lib/db';
+import type { NoteDocument, ProjectDocument, TagDocument, TaskDocument } from '@/lib/db';
+import { CalendarPicker } from './CalendarPicker';
 import styles from './TaskDetailSheet.module.css';
+
+const nowIso = () => new Date().toISOString();
 
 type TaskDetailSheetProps = {
   open: boolean;
@@ -28,6 +31,8 @@ type TaskDetailSheetProps = {
   variant?: 'full' | 'sheet';
 };
 
+// ─── Date helpers ────────────────────────────────────────────────────────────
+
 function toDateInputValue(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
@@ -40,8 +45,7 @@ function fromDateInputValue(value: string): string | null {
   if (!value) return null;
   const [year, month, day] = value.split('-').map(Number);
   if (!year || !month || !day) return null;
-  const date = new Date(year, month - 1, day, 0, 0, 0, 0);
-  return date.toISOString();
+  return new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
 }
 
 function getTodayDateInputValue(): string {
@@ -50,6 +54,15 @@ function getTodayDateInputValue(): string {
   return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 }
 
+function formatMetaDateLabel(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+}
+
+// ─── Tag helpers ─────────────────────────────────────────────────────────────
+
 function normalizeTag(raw: string): string {
   return raw.trim().replace(/^#+/, '').replace(/\s+/g, '-');
 }
@@ -57,7 +70,6 @@ function normalizeTag(raw: string): string {
 function dedupeTags(tags: readonly string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
-
   for (const tag of tags) {
     const normalized = normalizeTag(tag);
     if (!normalized) continue;
@@ -66,45 +78,10 @@ function dedupeTags(tags: readonly string[]): string[] {
     seen.add(key);
     result.push(normalized);
   }
-
   return result;
 }
 
-function buildTagSuggestions(notes: NoteDocument[], tasks: TaskDocument[]): string[] {
-  const map = new Map<string, string>();
-
-  const addTag = (value: string) => {
-    const normalized = normalizeTag(value);
-    if (!normalized) return;
-    const key = normalized.toLowerCase();
-    if (!map.has(key)) map.set(key, normalized);
-  };
-
-  for (const note of notes) {
-    for (const tag of note.properties?.tags ?? []) addTag(tag);
-
-    const matches = (note.content ?? '').matchAll(/#([\w/-]+)/g);
-    for (const match of matches) {
-      if (match[1]) addTag(match[1]);
-    }
-  }
-
-  for (const task of tasks) {
-    for (const tag of task.tags ?? []) addTag(tag);
-  }
-
-  return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
-}
-
-function formatMetaDateLabel(value: string | null, fallback: string): string {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
-}
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function TaskDetailSheet({
   open,
@@ -117,6 +94,8 @@ export function TaskDetailSheet({
   variant = 'sheet',
 }: TaskDetailSheetProps) {
   const { db, isReady } = useDatabase();
+
+  // Form state
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [projectId, setProjectId] = useState(task?.project_id ?? '');
@@ -125,13 +104,21 @@ export function TaskDetailSheet({
   const [dueDateInput, setDueDateInput] = useState(toDateInputValue(task?.due_date ?? null));
   const [isSomeday, setIsSomeday] = useState(task?.is_someday ?? false);
   const [tags, setTags] = useState<string[]>(dedupeTags(task?.tags ?? []));
-  const [tagInput, setTagInput] = useState('');
-  const [allTagSuggestions, setAllTagSuggestions] = useState<string[]>([]);
 
+  // Tag catalog (all non-trashed tags from db.tags)
+  const [tagCatalog, setTagCatalog] = useState<TagDocument[]>([]);
+
+  // Tag sheet state
+  const [tagInput, setTagInput] = useState('');
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [isTagEditMode, setIsTagEditMode] = useState(false);
+
+  // Sub-sheet open state
   const [isTagsSheetOpen, setIsTagsSheetOpen] = useState(false);
   const [isWhenSheetOpen, setIsWhenSheetOpen] = useState(false);
   const [isDueSheetOpen, setIsDueSheetOpen] = useState(false);
 
+  // Reset form when task changes
   useEffect(() => {
     if (!task) return;
     setTitle(task.title ?? '');
@@ -143,143 +130,116 @@ export function TaskDetailSheet({
     setIsSomeday(task.is_someday ?? false);
     setTags(dedupeTags(task.tags ?? []));
     setTagInput('');
+    setShowTagInput(false);
+    setIsTagEditMode(false);
   }, [task]);
 
+  // Notify AppShell that this sheet is open (hides FAB)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(
-      new CustomEvent<{ open: boolean }>('task-detail-sheet:open-change', {
-        detail: { open },
-      })
+      new CustomEvent<{ open: boolean }>('task-detail-sheet:open-change', { detail: { open } })
     );
-
     return () => {
       window.dispatchEvent(
-        new CustomEvent<{ open: boolean }>('task-detail-sheet:open-change', {
-          detail: { open: false },
-        })
+        new CustomEvent<{ open: boolean }>('task-detail-sheet:open-change', { detail: { open: false } })
       );
     };
   }, [open]);
 
+  // Subscribe to the tags catalog
   useEffect(() => {
     if (!db || !isReady) return;
-
-    let latestNotes: NoteDocument[] = [];
-    let latestTasks: TaskDocument[] = [];
-
-    const updateSuggestions = () => {
-      setAllTagSuggestions(buildTagSuggestions(latestNotes, latestTasks));
-    };
-
-    const notesSubscription = db.notes
-      .find({
-        selector: { is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        latestNotes = docs.map((doc) => doc.toJSON() as NoteDocument);
-        updateSuggestions();
-      });
-
-    const tasksSubscription = db.tasks
-      .find({
-        selector: { is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        latestTasks = docs.map((doc) => doc.toJSON() as TaskDocument);
-        updateSuggestions();
-      });
-
-    return () => {
-      notesSubscription.unsubscribe();
-      tasksSubscription.unsubscribe();
-    };
+    const sub = db.tags
+      .find({ selector: { is_trashed: false }, sort: [{ name: 'asc' }] })
+      .$.subscribe(docs => setTagCatalog(docs.map(d => d.toJSON() as TagDocument)));
+    return () => sub.unsubscribe();
   }, [db, isReady]);
+
+  // ─── Derived state ───────────────────────────────────────────────────────
 
   const canSave = useMemo(() => Boolean(title.trim()), [title]);
 
-  const existingTagKeys = useMemo(() => {
-    return new Set(tags.map((tag) => tag.toLowerCase()));
-  }, [tags]);
+  const existingTagKeys = useMemo(
+    () => new Set(tags.map(t => t.toLowerCase())),
+    [tags]
+  );
 
+  // Catalog tag names for suggestions (filtered by input, excluding already-selected)
   const filteredTagSuggestions = useMemo(() => {
     const query = normalizeTag(tagInput).toLowerCase();
+    return tagCatalog
+      .map(t => t.name)
+      .filter(name => !existingTagKeys.has(name.toLowerCase()))
+      .filter(name => (query ? name.toLowerCase().includes(query) : true))
+      .slice(0, 6);
+  }, [tagCatalog, existingTagKeys, tagInput]);
 
-    return allTagSuggestions
-      .filter((tag) => !existingTagKeys.has(tag.toLowerCase()))
-      .filter((tag) => (query ? tag.toLowerCase().includes(query) : true))
-      .slice(0, 8);
-  }, [allTagSuggestions, existingTagKeys, tagInput]);
+  // All tags to show in the toggle list: catalog tags + any legacy task tags not in catalog
+  const tagsListAll = useMemo(() => {
+    const catalogKeys = new Set(tagCatalog.map(t => t.name.toLowerCase()));
+    const legacy = tags.filter(t => !catalogKeys.has(t.toLowerCase()));
+    const allNames = [...tagCatalog.map(t => t.name), ...legacy];
+    return allNames;
+  }, [tagCatalog, tags]);
 
-  const handleAddTag = (rawTag: string) => {
-    const normalized = normalizeTag(rawTag);
-    if (!normalized) return;
-    const key = normalized.toLowerCase();
-    if (existingTagKeys.has(key)) {
-      setTagInput('');
-      return;
-    }
-    setTags((current) => [...current, normalized]);
-    setTagInput('');
+  // Meta label values
+  const whenLabel = isSomeday
+    ? 'Someday'
+    : formatMetaDateLabel(fromDateInputValue(startDateInput));
+  const dueLabel = formatMetaDateLabel(fromDateInputValue(dueDateInput));
+  const hasWhen = isSomeday || Boolean(startDateInput);
+  const hasDue = Boolean(dueDateInput);
+
+  // ─── Auto-save helper ────────────────────────────────────────────────────
+
+  // Serialize saves so concurrent calls don't race on the same RxDB revision
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+
+  const doSave = (opts: {
+    startDate?: string | null;
+    dueDate?: string | null;
+    isSomeday?: boolean;
+    tags?: string[];
+  } = {}): Promise<void> => {
+    if (!task || !title.trim()) return Promise.resolve();
+    // Capture all values at call-time before queuing
+    const resolvedIsSomeday = opts.isSomeday ?? isSomeday;
+    const resolvedStartDate = opts.startDate !== undefined
+      ? opts.startDate
+      : (resolvedIsSomeday ? null : fromDateInputValue(startDateInput));
+    const resolvedDueDate = opts.dueDate !== undefined
+      ? opts.dueDate
+      : fromDateInputValue(dueDateInput);
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      projectId: projectId || null,
+      status,
+      startDate: resolvedStartDate,
+      dueDate: resolvedDueDate,
+      isSomeday: resolvedIsSomeday,
+      tags: dedupeTags(opts.tags ?? tags),
+    };
+    const taskId = task.id;
+    // Chain onto the queue — each save waits for the previous to finish
+    const next = saveQueue.current
+      .then(() => onSave(taskId, payload) ?? Promise.resolve())
+      .catch(() => {});
+    saveQueue.current = next;
+    return next;
   };
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    const key = tagToRemove.toLowerCase();
-    setTags((current) => current.filter((tag) => tag.toLowerCase() !== key));
-  };
+  // ─── Main sheet ──────────────────────────────────────────────────────────
 
-  const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Enter' && event.key !== ',') return;
-    event.preventDefault();
-    handleAddTag(tagInput);
-  };
-
-  const handleWhenToday = () => {
-    setStartDateInput(getTodayDateInputValue());
-    setIsSomeday(false);
-    setIsWhenSheetOpen(false);
-  };
-
-  const handleWhenSomeday = () => {
-    setIsSomeday(true);
-    setStartDateInput('');
-    setIsWhenSheetOpen(false);
-  };
-
-  const handleWhenClear = () => {
-    setStartDateInput('');
-    setIsSomeday(false);
-    setIsWhenSheetOpen(false);
-  };
-
-  const handleDueToday = () => {
-    setDueDateInput(getTodayDateInputValue());
-    setIsDueSheetOpen(false);
-  };
-
-  const handleDueClear = () => {
-    setDueDateInput('');
-    setIsDueSheetOpen(false);
+  const handleMainSheetOpenChange = (open: boolean) => {
+    if (!open) void doSave();
+    onOpenChange(open);
   };
 
   const handleSave = async () => {
-    if (!task || !canSave) return;
-
-    const normalizedTags = dedupeTags(tags);
-    const nextStartDate = isSomeday ? null : fromDateInputValue(startDateInput);
-
-    await onSave(task.id, {
-      title,
-      description,
-      projectId: projectId ? projectId : null,
-      status,
-      startDate: nextStartDate,
-      dueDate: fromDateInputValue(dueDateInput),
-      isSomeday,
-      tags: normalizedTags,
-    });
+    if (!canSave) return;
+    await doSave();
     onOpenChange(false);
   };
 
@@ -294,6 +254,208 @@ export function TaskDetailSheet({
     await onToggleComplete(task.id, event.target.checked);
   };
 
+  // ─── Tags sheet ──────────────────────────────────────────────────────────
+
+  const handleToggleTag = (tagName: string) => {
+    const key = tagName.toLowerCase();
+    if (existingTagKeys.has(key)) {
+      setTags(current => current.filter(t => t.toLowerCase() !== key));
+    } else {
+      setTags(current => [...current, normalizeTag(tagName)]);
+    }
+  };
+
+  const handleAddTagFromInput = async () => {
+    const normalized = normalizeTag(tagInput);
+    if (!normalized) return;
+    // Create catalog entry if it doesn't already exist
+    if (db && isReady) {
+      const existing = tagCatalog.find(t => t.name.toLowerCase() === normalized.toLowerCase());
+      if (!existing) {
+        await db.tags.insert({
+          id: uuidv4(),
+          name: normalized,
+          created_at: nowIso(),
+          updated_at: nowIso(),
+          is_trashed: false,
+          trashed_at: null,
+        });
+      }
+    }
+    if (!existingTagKeys.has(normalized.toLowerCase())) {
+      setTags(current => [...current, normalized]);
+    }
+    setTagInput('');
+    setShowTagInput(false);
+  };
+
+  const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault();
+      void handleAddTagFromInput();
+    }
+    if (event.key === 'Escape') {
+      setTagInput('');
+      setShowTagInput(false);
+    }
+  };
+
+  const handleTagsSheetOpenChange = (open: boolean) => {
+    setIsTagsSheetOpen(open);
+    if (!open) {
+      setIsTagEditMode(false);
+      // Commit any pending typed tag
+      let finalTags = tags;
+      if (tagInput.trim()) {
+        const normalized = normalizeTag(tagInput);
+        if (normalized && !existingTagKeys.has(normalized.toLowerCase())) {
+          finalTags = [...tags, normalized];
+          setTags(finalTags);
+        }
+        setTagInput('');
+      }
+      setShowTagInput(false);
+      void doSave({ tags: finalTags });
+    }
+  };
+
+  // ─── Tag catalog management ───────────────────────────────────────────────
+
+  const handleRenameTag = async (tagDoc: TagDocument, newName: string) => {
+    if (!db || !isReady) return;
+    const normalized = normalizeTag(newName);
+    if (!normalized || normalized.toLowerCase() === tagDoc.name.toLowerCase()) return;
+
+    const doc = await db.tags.findOne(tagDoc.id).exec();
+    if (!doc) return;
+    await doc.patch({ name: normalized, updated_at: nowIso() });
+
+    // Update local task tags
+    setTags(current =>
+      current.map(t => t.toLowerCase() === tagDoc.name.toLowerCase() ? normalized : t)
+    );
+
+    // Cascade to all tasks
+    const allTasks = await db.tasks.find({ selector: { is_trashed: false } }).exec();
+    for (const task of allTasks) {
+      const data = task.toJSON();
+      const oldName = tagDoc.name.toLowerCase();
+      if (!(data.tags as string[]).some((t: string) => t.toLowerCase() === oldName)) continue;
+      await task.patch({
+        tags: (data.tags as string[]).map((t: string) =>
+          t.toLowerCase() === oldName ? normalized : t
+        ),
+        updated_at: nowIso(),
+      });
+    }
+
+    // Cascade to all notes
+    const allNotes = await db.notes.find({ selector: { is_trashed: false } }).exec();
+    for (const note of allNotes) {
+      const data = note.toJSON() as NoteDocument;
+      const noteTags: string[] = data.properties?.tags ?? [];
+      const oldName = tagDoc.name.toLowerCase();
+      if (!noteTags.some(t => t.toLowerCase() === oldName)) continue;
+      await note.patch({
+        properties: {
+          ...data.properties,
+          tags: noteTags.map(t => t.toLowerCase() === oldName ? normalized : t),
+        },
+        updated_at: nowIso(),
+      });
+    }
+  };
+
+  const handleDeleteTag = async (tagDoc: TagDocument) => {
+    if (!db || !isReady) return;
+
+    const doc = await db.tags.findOne(tagDoc.id).exec();
+    if (!doc) return;
+    await doc.patch({ is_trashed: true, trashed_at: nowIso(), updated_at: nowIso() });
+
+    // Remove from local task tags
+    setTags(current => current.filter(t => t.toLowerCase() !== tagDoc.name.toLowerCase()));
+
+    // Cascade to all tasks
+    const allTasks = await db.tasks.find({ selector: { is_trashed: false } }).exec();
+    for (const task of allTasks) {
+      const data = task.toJSON();
+      const oldName = tagDoc.name.toLowerCase();
+      if (!(data.tags as string[]).some((t: string) => t.toLowerCase() === oldName)) continue;
+      await task.patch({
+        tags: (data.tags as string[]).filter((t: string) => t.toLowerCase() !== oldName),
+        updated_at: nowIso(),
+      });
+    }
+
+    // Cascade to all notes
+    const allNotes = await db.notes.find({ selector: { is_trashed: false } }).exec();
+    for (const note of allNotes) {
+      const data = note.toJSON() as NoteDocument;
+      const noteTags: string[] = data.properties?.tags ?? [];
+      const oldName = tagDoc.name.toLowerCase();
+      if (!noteTags.some(t => t.toLowerCase() === oldName)) continue;
+      await note.patch({
+        properties: {
+          ...data.properties,
+          tags: noteTags.filter(t => t.toLowerCase() !== oldName),
+        },
+        updated_at: nowIso(),
+      });
+    }
+  };
+
+  // ─── When sheet ──────────────────────────────────────────────────────────
+
+  const handleWhenToday = async () => {
+    const today = getTodayDateInputValue();
+    setStartDateInput(today);
+    setIsSomeday(false);
+    setIsWhenSheetOpen(false);
+    await doSave({ startDate: fromDateInputValue(today), isSomeday: false });
+  };
+
+  const handleWhenSomeday = async () => {
+    setIsSomeday(true);
+    setStartDateInput('');
+    setIsWhenSheetOpen(false);
+    await doSave({ startDate: null, isSomeday: true });
+  };
+
+  const handleWhenClear = async () => {
+    setStartDateInput('');
+    setIsSomeday(false);
+    setIsWhenSheetOpen(false);
+    await doSave({ startDate: null, isSomeday: false });
+  };
+
+  const handleWhenSheetOpenChange = (open: boolean) => {
+    setIsWhenSheetOpen(open);
+    if (!open) void doSave();
+  };
+
+  // ─── Due sheet ───────────────────────────────────────────────────────────
+
+  const handleDueToday = async () => {
+    const today = getTodayDateInputValue();
+    setDueDateInput(today);
+    setIsDueSheetOpen(false);
+    await doSave({ dueDate: fromDateInputValue(today) });
+  };
+
+  const handleDueClear = async () => {
+    setDueDateInput('');
+    setIsDueSheetOpen(false);
+    await doSave({ dueDate: null });
+  };
+
+  const handleDueSheetOpenChange = (open: boolean) => {
+    setIsDueSheetOpen(open);
+    if (!open) void doSave();
+  };
+
+  // ─── Render ──────────────────────────────────────────────────────────────
+
   if (!task) return null;
 
   const contentClassName =
@@ -301,29 +463,30 @@ export function TaskDetailSheet({
       ? `${styles['task-detail__content']} ${styles['task-detail__content--sheet']}`
       : styles['task-detail__content'];
 
-  const whenLabel = isSomeday
-    ? 'Someday'
-    : formatMetaDateLabel(isSomeday ? null : fromDateInputValue(startDateInput), 'When?');
-  const dueLabel = formatMetaDateLabel(fromDateInputValue(dueDateInput), 'Due');
-
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      {/* ── Main sheet ── */}
+      <Sheet open={open} onOpenChange={handleMainSheetOpenChange}>
         <SheetContent
           side="bottom"
           className={contentClassName}
           aria-label="Task details"
+          onPointerDownOutside={(e) => {
+            // Prevent the main sheet from closing when a sub-sheet overlay is tapped
+            if (isTagsSheetOpen || isWhenSheetOpen || isDueSheetOpen) {
+              e.preventDefault();
+            }
+          }}
         >
           <header className={styles['task-detail__header']}>
-            <SheetClose asChild>
-              <button
-                type="button"
-                className={styles['task-detail__close']}
-                aria-label="Close task"
-              >
-                <CloseIcon />
-              </button>
-            </SheetClose>
+            <button
+              type="button"
+              className={styles['task-detail__close']}
+              aria-label="Close task"
+              onClick={() => handleMainSheetOpenChange(false)}
+            >
+              <CloseIcon />
+            </button>
           </header>
 
           <div className={styles['task-detail__body']}>
@@ -340,40 +503,37 @@ export function TaskDetailSheet({
               <input
                 className={`${styles['task-detail__input']} ${styles['task-detail__titleInput']}`}
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={e => setTitle(e.target.value)}
+                onBlur={() => void doSave()}
                 placeholder="Task title"
                 aria-label="Title"
               />
             </div>
 
+            {/* Meta row: shows label when empty, value replaces label when set */}
             <div className={styles['task-detail__metaRow']}>
               <button
                 type="button"
                 className={styles['task-detail__metaButton']}
                 onClick={() => setIsTagsSheetOpen(true)}
               >
-                <span>Tags</span>
-                <span className={styles['task-detail__metaValue']}>
-                  {tags.length > 0 ? String(tags.length) : 'None'}
-                </span>
+                Tags
               </button>
 
               <button
                 type="button"
-                className={styles['task-detail__metaButton']}
+                className={`${styles['task-detail__metaButton']}${hasWhen ? ` ${styles['task-detail__metaButton--set']}` : ''}`}
                 onClick={() => setIsWhenSheetOpen(true)}
               >
-                <span>When?</span>
-                <span className={styles['task-detail__metaValue']}>{whenLabel}</span>
+                {hasWhen ? whenLabel : 'When?'}
               </button>
 
               <button
                 type="button"
-                className={styles['task-detail__metaButton']}
+                className={`${styles['task-detail__metaButton']}${hasDue ? ` ${styles['task-detail__metaButton--set']}` : ''}`}
                 onClick={() => setIsDueSheetOpen(true)}
               >
-                <span>Due</span>
-                <span className={styles['task-detail__metaValue']}>{dueLabel}</span>
+                {hasDue ? dueLabel : 'Due'}
               </button>
             </div>
 
@@ -381,22 +541,40 @@ export function TaskDetailSheet({
               <textarea
                 className={styles['task-detail__textarea']}
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={e => setDescription(e.target.value)}
+                onBlur={() => void doSave()}
                 placeholder="Notes"
                 aria-label="Notes"
                 rows={4}
               />
             </div>
 
+            {/* Tag pills row — tapping any pill opens the tags sheet */}
+            {tags.length > 0 && (
+              <div className={styles['task-detail__tagPills']}>
+                {tags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={styles['task-detail__tagPill']}
+                    onClick={() => setIsTagsSheetOpen(true)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <label className={styles['task-detail__field']}>
               <span className={styles['task-detail__label']}>Project</span>
               <select
                 className={styles['task-detail__input']}
                 value={projectId}
-                onChange={(event) => setProjectId(event.target.value)}
+                onChange={e => setProjectId(e.target.value)}
+                onBlur={() => void doSave()}
               >
                 <option value="">No project</option>
-                {projects.map((project) => (
+                {projects.map(project => (
                   <option key={project.id} value={project.id}>
                     {project.title}
                   </option>
@@ -409,9 +587,8 @@ export function TaskDetailSheet({
               <select
                 className={styles['task-detail__input']}
                 value={status}
-                onChange={(event) =>
-                  setStatus(event.target.value as 'backlog' | 'next')
-                }
+                onChange={e => setStatus(e.target.value as 'backlog' | 'next')}
+                onBlur={() => void doSave()}
               >
                 <option value="backlog">Backlog</option>
                 <option value="next">Next</option>
@@ -439,71 +616,131 @@ export function TaskDetailSheet({
         </SheetContent>
       </Sheet>
 
-      <Sheet open={isTagsSheetOpen} onOpenChange={setIsTagsSheetOpen}>
+      {/* ── Tags sheet ── */}
+      <Sheet open={isTagsSheetOpen} onOpenChange={handleTagsSheetOpenChange}>
         <SheetContent
           side="bottom"
           className={styles['task-detail__metaSheet']}
           aria-label="Task tags"
         >
           <div className={styles['task-detail__metaSheetHeader']}>
-            <div className={styles['task-detail__metaSheetTitle']}>Tags</div>
+            <span className={styles['task-detail__metaSheetTitle']}>Tags</span>
+            <button
+              type="button"
+              className={styles['task-detail__metaSheetEditBtn']}
+              onClick={() => setIsTagEditMode(m => !m)}
+            >
+              {isTagEditMode ? 'Done' : 'Edit'}
+            </button>
           </div>
 
           <div className={styles['task-detail__metaSheetContent']}>
-            <input
-              type="text"
-              className={styles['task-detail__metaInput']}
-              value={tagInput}
-              onChange={(event) => setTagInput(event.target.value)}
-              onKeyDown={handleTagInputKeyDown}
-              placeholder="Add a tag"
-              autoFocus
-            />
-
-            {filteredTagSuggestions.length > 0 ? (
-              <div className={styles['task-detail__tagSuggestionList']}>
-                {filteredTagSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    className={styles['task-detail__tagSuggestion']}
-                    onClick={() => handleAddTag(suggestion)}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+            {!isTagEditMode && showTagInput ? (
+              <div className={styles['task-detail__newTagRow']}>
+                <input
+                  type="text"
+                  className={styles['task-detail__metaInput']}
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={handleTagInputKeyDown}
+                  placeholder="Tag name"
+                  autoFocus
+                />
+                {filteredTagSuggestions.length > 0 && (
+                  <div className={styles['task-detail__tagSuggestions']}>
+                    {filteredTagSuggestions.map(suggestion => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        className={styles['task-detail__tagSuggestion']}
+                        onClick={() => {
+                          setTags(current => {
+                            const key = suggestion.toLowerCase();
+                            if (current.some(t => t.toLowerCase() === key)) return current;
+                            return [...current, suggestion];
+                          });
+                          setTagInput('');
+                          setShowTagInput(false);
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : null}
 
-            {tags.length > 0 ? (
-              <div className={styles['task-detail__tagList']}>
-                {tags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={styles['task-detail__tagChip']}
-                    onClick={() => handleRemoveTag(tag)}
-                  >
-                    <span>{tag}</span>
-                    <span aria-hidden="true">×</span>
-                  </button>
-                ))}
-              </div>
+            {isTagEditMode ? (
+              /* Edit mode: catalog tags with rename input + delete button */
+              tagCatalog.length > 0 ? (
+                <div className={styles['task-detail__tagList']}>
+                  {tagCatalog.map(tagDoc => (
+                    <EditableTagRow
+                      key={tagDoc.id}
+                      tagDoc={tagDoc}
+                      onRename={handleRenameTag}
+                      onDelete={handleDeleteTag}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className={styles['task-detail__metaEmpty']}>No tags in catalog yet.</p>
+              )
             ) : (
-              <p className={styles['task-detail__metaEmpty']}>No tags yet.</p>
+              /* Normal mode: toggle list */
+              tagsListAll.length > 0 ? (
+                <div className={styles['task-detail__tagList']}>
+                  {tagsListAll.map(tagName => {
+                    const selected = existingTagKeys.has(tagName.toLowerCase());
+                    return (
+                      <button
+                        key={tagName}
+                        type="button"
+                        className={`${styles['task-detail__tagListItem']}${selected ? ` ${styles['task-detail__tagListItem--selected']}` : ''}`}
+                        onClick={() => handleToggleTag(tagName)}
+                      >
+                        <TagIcon />
+                        <span className={styles['task-detail__tagListName']}>{tagName}</span>
+                        {selected && <CheckIcon />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                !showTagInput && (
+                  <p className={styles['task-detail__metaEmpty']}>No tags yet.</p>
+                )
+              )
             )}
           </div>
+
+          {!isTagEditMode && (
+            <div className={styles['task-detail__metaSheetFooter']}>
+              <button
+                type="button"
+                className={styles['task-detail__newTagBtn']}
+                onClick={() => {
+                  setShowTagInput(true);
+                  setTagInput('');
+                }}
+              >
+                New Tag
+              </button>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 
-      <Sheet open={isWhenSheetOpen} onOpenChange={setIsWhenSheetOpen}>
+      {/* ── When sheet ── */}
+      <Sheet open={isWhenSheetOpen} onOpenChange={handleWhenSheetOpenChange}>
         <SheetContent
           side="bottom"
           className={styles['task-detail__metaSheet']}
           aria-label="Task start date"
         >
           <div className={styles['task-detail__metaSheetHeader']}>
-            <div className={styles['task-detail__metaSheetTitle']}>When?</div>
+            <span className={styles['task-detail__metaSheetTitle']}>When?</span>
           </div>
 
           <div className={styles['task-detail__metaSheetContent']}>
@@ -514,32 +751,33 @@ export function TaskDetailSheet({
               <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenSomeday}>
                 Someday
               </button>
-              <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenClear}>
-                Clear
-              </button>
+              {hasWhen && (
+                <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenClear}>
+                  Clear
+                </button>
+              )}
             </div>
 
-            <input
-              type="date"
-              className={styles['task-detail__metaInput']}
+            <CalendarPicker
               value={startDateInput}
-              onChange={(event) => {
-                setStartDateInput(event.target.value);
-                if (event.target.value) setIsSomeday(false);
+              onChange={v => {
+                setStartDateInput(v);
+                setIsSomeday(false);
               }}
             />
           </div>
         </SheetContent>
       </Sheet>
 
-      <Sheet open={isDueSheetOpen} onOpenChange={setIsDueSheetOpen}>
+      {/* ── Due sheet ── */}
+      <Sheet open={isDueSheetOpen} onOpenChange={handleDueSheetOpenChange}>
         <SheetContent
           side="bottom"
           className={styles['task-detail__metaSheet']}
           aria-label="Task due date"
         >
           <div className={styles['task-detail__metaSheetHeader']}>
-            <div className={styles['task-detail__metaSheetTitle']}>Due</div>
+            <span className={styles['task-detail__metaSheetTitle']}>Due</span>
           </div>
 
           <div className={styles['task-detail__metaSheetContent']}>
@@ -547,16 +785,16 @@ export function TaskDetailSheet({
               <button type="button" className={styles['task-detail__metaAction']} onClick={handleDueToday}>
                 Today
               </button>
-              <button type="button" className={styles['task-detail__metaAction']} onClick={handleDueClear}>
-                Clear
-              </button>
+              {hasDue && (
+                <button type="button" className={styles['task-detail__metaAction']} onClick={handleDueClear}>
+                  Clear
+                </button>
+              )}
             </div>
 
-            <input
-              type="date"
-              className={styles['task-detail__metaInput']}
+            <CalendarPicker
               value={dueDateInput}
-              onChange={(event) => setDueDateInput(event.target.value)}
+              onChange={v => setDueDateInput(v)}
             />
           </div>
         </SheetContent>
@@ -565,20 +803,128 @@ export function TaskDetailSheet({
   );
 }
 
+// ─── Editable tag row (edit mode) ─────────────────────────────────────────────
+
+type EditableTagRowProps = {
+  tagDoc: TagDocument;
+  onRename: (tagDoc: TagDocument, newName: string) => Promise<void>;
+  onDelete: (tagDoc: TagDocument) => Promise<void>;
+};
+
+function EditableTagRow({ tagDoc, onRename, onDelete }: EditableTagRowProps) {
+  const [name, setName] = useState(tagDoc.name);
+
+  // Sync if catalog changes externally
+  useEffect(() => { setName(tagDoc.name); }, [tagDoc.name]);
+
+  const handleBlur = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setName(tagDoc.name); // revert to original if cleared
+    } else if (trimmed !== tagDoc.name) {
+      void onRename(tagDoc, trimmed);
+    }
+  };
+
+  return (
+    <div className={styles['task-detail__tagEditRow']}>
+      <TagIcon />
+      <input
+        type="text"
+        className={styles['task-detail__tagNameInput']}
+        value={name}
+        onChange={e => setName(e.target.value)}
+        onBlur={handleBlur}
+        aria-label={`Rename tag ${tagDoc.name}`}
+      />
+      <button
+        type="button"
+        className={styles['task-detail__tagDeleteBtn']}
+        aria-label={`Delete tag ${tagDoc.name}`}
+        onClick={() => void onDelete(tagDoc)}
+      >
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
 function CloseIcon() {
   return (
-    <svg
-      className={styles['task-detail__icon']}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path
         d="M18 6L6 18M6 6l12 12"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TagIcon() {
+  return (
+    <svg
+      className={styles['task-detail__tagListIcon']}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+    >
+      <path
+        d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="7" y1="7" x2="7.01" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      className={styles['task-detail__tagListCheck']}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M20 6L9 17l-5-5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none">
+      <polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M19 6l-1 14H6L5 6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 11v6M14 11v6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
       />
     </svg>
   );
