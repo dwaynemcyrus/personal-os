@@ -11,9 +11,7 @@ export function NoteDetailPage({ noteId }: NoteDetailPageProps) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.sheet}>
-        <NoteEditor noteId={noteId} onClose={goBack} />
-      </div>
+      <NoteEditor noteId={noteId} onClose={goBack} />
     </div>
   );
 }

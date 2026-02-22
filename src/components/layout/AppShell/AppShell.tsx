@@ -85,7 +85,6 @@ export function AppShell({ children }: AppShellProps) {
   const topLayer = stack[stack.length - 1];
   const isRoot = stack.length === 0;
   const isNotesRoute = topLayer?.view.startsWith('note') ?? false;
-  const isNoteDetailRoute = topLayer?.view === 'note-detail';
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
@@ -298,7 +297,7 @@ export function AppShell({ children }: AppShellProps) {
       {portalTarget &&
         createPortal(
           <>
-            {!isCommandOpen && !isNoteDetailRoute && (
+            {!isCommandOpen && (
               <button
                 type="button"
                 className={styles['app-shell__fab']}
