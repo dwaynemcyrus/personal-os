@@ -112,7 +112,7 @@ export function AppShell({ children }: AppShellProps) {
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      setIsContextSheetOpen(true);
+      setIsCommandOpen(true);
     }, LONG_PRESS_MS);
   };
 
@@ -135,7 +135,7 @@ export function AppShell({ children }: AppShellProps) {
       setIsContextSheetOpen(false);
       return;
     }
-    setIsCommandOpen(true);
+    setIsContextSheetOpen(true);
   };
 
   // --- Touch event handlers (mobile fallback) ---
@@ -155,7 +155,7 @@ export function AppShell({ children }: AppShellProps) {
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      setIsContextSheetOpen(true);
+      setIsCommandOpen(true);
     }, LONG_PRESS_MS);
   };
 
