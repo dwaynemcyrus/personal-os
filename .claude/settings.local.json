@@ -70,7 +70,8 @@
       "Bash(timeout 15 npm run dev:*)",
       "Bash(/Users/cyrus/Code/personal-os/vercel.json:*)",
       "Bash(git fetch:*)",
-      "Bash(/Users/cyrus/Code/personal-os/src/lib/supabase.ts:*)"
+      "Bash(/Users/cyrus/Code/personal-os/src/lib/supabase.ts:*)",
+      "Bash(new…\" flow for projects and areas, tighter margins, and bold area group:*)"
     ]
   }
 }
