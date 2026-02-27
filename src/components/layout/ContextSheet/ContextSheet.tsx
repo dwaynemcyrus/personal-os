@@ -194,6 +194,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       status: 'backlog' | 'next' | 'active' | 'hold';
       startDate: string | null;
       dueDate: string | null;
+      areaId: string | null;
     }
   ) => {
     if (!db) return;
@@ -207,6 +208,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       status: updates.status,
       start_date: updates.startDate,
       due_date: updates.dueDate,
+      area_id: updates.areaId,
       updated_at: nowIso(),
     });
   };

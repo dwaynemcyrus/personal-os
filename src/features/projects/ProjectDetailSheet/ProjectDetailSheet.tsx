@@ -1,16 +1,53 @@
-
-
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { sortByDeadline } from '@/features/tasks/taskBuckets';
+import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTitle,
-} from '@/components/ui/Sheet';
-import type { ProjectDocument, TaskDocument } from '@/lib/db';
+  Dropdown,
+  DropdownCheckboxItem,
+  DropdownContent,
+  DropdownItem,
+  DropdownSeparator,
+  DropdownTrigger,
+} from '@/components/ui/Dropdown';
+import { useDatabase } from '@/hooks/useDatabase';
+import type { AreaDocument, ProjectDocument, TaskDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
+import { CalendarPicker } from '@/features/tasks/TaskDetailSheet/CalendarPicker';
 import styles from './ProjectDetailSheet.module.css';
+
+const NOTES_MAX_ROWS = 4;
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+function toDateInputValue(iso: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
+function fromDateInputValue(value: string): string | null {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
+}
+
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
+function formatMetaDateLabel(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ProjectDetailSheetProps = {
   open: boolean;
@@ -18,47 +55,47 @@ type ProjectDetailSheetProps = {
   project: ProjectDocument | null;
   projects: ProjectDocument[];
   tasks: TaskDocument[];
-  onSave: (projectId: string, updates: {
-    title: string;
-    description: string;
-    status: 'backlog' | 'next' | 'active' | 'hold';
-    startDate: string | null;
-    dueDate: string | null;
-  }) => Promise<void> | void;
+  onSave: (
+    projectId: string,
+    updates: {
+      title: string;
+      description: string;
+      status: 'backlog' | 'next' | 'active' | 'hold';
+      startDate: string | null;
+      dueDate: string | null;
+      areaId: string | null;
+    }
+  ) => Promise<void> | void;
   onDelete: (projectId: string) => Promise<void> | void;
   onToggleTaskComplete: (taskId: string, completed: boolean) => Promise<void> | void;
-  onSaveTask: (taskId: string, updates: {
-    title: string;
-    description: string;
-    projectId: string | null;
-    areaId: string | null;
-    isNext: boolean;
-    startDate: string | null;
-    dueDate: string | null;
-    isSomeday: boolean;
-    isWaiting: boolean;
-    waitingNote: string | null;
-    tags: string[];
-  }) => Promise<void> | void;
+  onSaveTask: (
+    taskId: string,
+    updates: {
+      title: string;
+      description: string;
+      projectId: string | null;
+      areaId: string | null;
+      isNext: boolean;
+      startDate: string | null;
+      dueDate: string | null;
+      isSomeday: boolean;
+      isWaiting: boolean;
+      waitingNote: string | null;
+      tags: string[];
+    }
+  ) => Promise<void> | void;
   onDeleteTask: (taskId: string) => Promise<void> | void;
   onCreateTask: (projectId: string, title: string) => Promise<void> | void;
 };
 
-const toInputDateTime = (iso: string | null) => {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-};
+const STATUS_OPTIONS = [
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'next', label: 'Next' },
+  { value: 'active', label: 'Active' },
+  { value: 'hold', label: 'Hold' },
+] as const;
 
-const fromInputDateTime = (value: string) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
-};
-
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ProjectDetailSheet({
   open,
@@ -73,36 +110,65 @@ export function ProjectDetailSheet({
   onDeleteTask,
   onCreateTask,
 }: ProjectDetailSheetProps) {
+  const { db, isReady } = useDatabase();
+  const [areas, setAreas] = useState<AreaDocument[]>([]);
+
+  // Form state
   const [title, setTitle] = useState(project?.title ?? '');
   const [description, setDescription] = useState(project?.description ?? '');
   const [status, setStatus] = useState<'backlog' | 'next' | 'active' | 'hold'>(
     project?.status ?? 'backlog'
   );
-  const [startDate, setStartDate] = useState(
-    toInputDateTime(project?.start_date ?? null)
-  );
-  const [dueDate, setDueDate] = useState(
-    toInputDateTime(project?.due_date ?? null)
-  );
+  const [startDateInput, setStartDateInput] = useState(toDateInputValue(project?.start_date ?? null));
+  const [dueDateInput, setDueDateInput] = useState(toDateInputValue(project?.due_date ?? null));
+  const [areaId, setAreaId] = useState(project?.area_id ?? '');
+
+  // Task state
   const [taskTitle, setTaskTitle] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
 
-  const canSave = useMemo(() => Boolean(title.trim()), [title]);
+  // Sub-sheet open state
+  const [isStartSheetOpen, setIsStartSheetOpen] = useState(false);
+  const [isDueSheetOpen, setIsDueSheetOpen] = useState(false);
+  const [isMoveSheetOpen, setIsMoveSheetOpen] = useState(false);
+  const subSheetJustClosedRef = useRef(false);
+
+  const notesTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const sub = db.areas
+      .find({ selector: { is_trashed: false }, sort: [{ title: 'asc' }, { id: 'asc' }] })
+      .$.subscribe((docs) => setAreas(docs.map((d) => d.toJSON() as AreaDocument)));
+    return () => sub.unsubscribe();
+  }, [db, isReady]);
+
+  useEffect(() => {
+    if (!project) return;
+    setTitle(project.title ?? '');
+    setDescription(project.description ?? '');
+    setStatus(project.status ?? 'backlog');
+    setStartDateInput(toDateInputValue(project.start_date ?? null));
+    setDueDateInput(toDateInputValue(project.due_date ?? null));
+    setAreaId(project.area_id ?? '');
+  }, [project]);
+
+  useEffect(() => {
+    resizeNotesTextarea();
+  }, [description, open]);
+
+  // ─── Task derived state ───────────────────────────────────────────────────
 
   const projectTasks = useMemo(() => {
     if (!project) return [];
-    return [...tasks
-      .filter((task) => task.project_id === project.id)]
-      .sort(sortByDeadline);
+    return [...tasks.filter((t) => t.project_id === project.id)].sort(sortByDeadline);
   }, [project, tasks]);
 
-  // is_next floats to top within active non-someday tasks
   const activeTasks = useMemo(() => {
     const base = projectTasks.filter((t) => !t.completed && !t.is_someday);
-    const next = base.filter((t) => t.is_next);
-    const rest = base.filter((t) => !t.is_next);
-    return [...next, ...rest];
+    return [...base.filter((t) => t.is_next), ...base.filter((t) => !t.is_next)];
   }, [projectTasks]);
 
   const somedayTasks = projectTasks.filter((t) => !t.completed && t.is_someday);
@@ -110,26 +176,81 @@ export function ProjectDetailSheet({
   const hiddenCount = somedayTasks.length + completedTasks.length;
 
   const selectedTask = useMemo(
-    () => tasks.find((task) => task.id === selectedTaskId) ?? null,
+    () => tasks.find((t) => t.id === selectedTaskId) ?? null,
     [selectedTaskId, tasks]
   );
 
-  const handleSave = async () => {
-    if (!project || !canSave) return;
-    await onSave(project.id, {
-      title,
-      description,
-      status,
-      startDate: fromInputDateTime(startDate),
-      dueDate: fromInputDateTime(dueDate),
-    });
-    onOpenChange(false);
+  // ─── Derived labels ───────────────────────────────────────────────────────
+
+  const areaLabel = useMemo(
+    () => areas.find((a) => a.id === areaId)?.title ?? null,
+    [areas, areaId]
+  );
+  const startLabel = formatMetaDateLabel(fromDateInputValue(startDateInput));
+  const dueLabel = formatMetaDateLabel(fromDateInputValue(dueDateInput));
+  const hasStart = Boolean(startDateInput);
+  const hasDue = Boolean(dueDateInput);
+  const hasArea = Boolean(areaId);
+
+  // ─── Textarea resize ──────────────────────────────────────────────────────
+
+  const resizeNotesTextarea = (element?: HTMLTextAreaElement | null) => {
+    const el = element ?? notesTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const cs = window.getComputedStyle(el);
+    const lineHeight = Number.parseFloat(cs.lineHeight) || 25.6;
+    const pt = Number.parseFloat(cs.paddingTop) || 0;
+    const pb = Number.parseFloat(cs.paddingBottom) || 0;
+    const bt = Number.parseFloat(cs.borderTopWidth) || 0;
+    const bb = Number.parseFloat(cs.borderBottomWidth) || 0;
+    const maxH = lineHeight * NOTES_MAX_ROWS + pt + pb + bt + bb;
+    const nextH = Math.min(el.scrollHeight, maxH);
+    el.style.height = `${nextH}px`;
+    el.style.overflowY = el.scrollHeight > maxH ? 'auto' : 'hidden';
+  };
+
+  // ─── Auto-save ────────────────────────────────────────────────────────────
+
+  const doSave = (opts: {
+    status?: 'backlog' | 'next' | 'active' | 'hold';
+    startDate?: string | null;
+    dueDate?: string | null;
+    areaId?: string | null;
+  } = {}): Promise<void> => {
+    if (!project || !title.trim()) return Promise.resolve();
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      status: opts.status ?? status,
+      startDate: opts.startDate !== undefined ? opts.startDate : fromDateInputValue(startDateInput),
+      dueDate: opts.dueDate !== undefined ? opts.dueDate : fromDateInputValue(dueDateInput),
+      areaId: opts.areaId !== undefined ? opts.areaId : (areaId || null),
+    };
+    const projectId = project.id;
+    const next = saveQueue.current
+      .then(() => onSave(projectId, payload) ?? Promise.resolve())
+      .catch(() => {});
+    saveQueue.current = next;
+    return next;
+  };
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
+
+  const handleMainSheetOpenChange = (open: boolean) => {
+    if (!open) void doSave();
+    onOpenChange(open);
   };
 
   const handleDelete = async () => {
     if (!project) return;
     await onDelete(project.id);
     onOpenChange(false);
+  };
+
+  const handleStatusSelect = async (newStatus: 'backlog' | 'next' | 'active' | 'hold') => {
+    setStatus(newStatus);
+    await doSave({ status: newStatus });
   };
 
   const handleQuickAdd = async (event: FormEvent<HTMLFormElement>) => {
@@ -141,249 +262,330 @@ export function ProjectDetailSheet({
     setTaskTitle('');
   };
 
+  // Start date handlers
+  const handleStartSheetOpenChange = (open: boolean) => {
+    setIsStartSheetOpen(open);
+    if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
+      void doSave();
+    }
+  };
+
+  const handleStartToday = async () => {
+    const today = getTodayDateInputValue();
+    setStartDateInput(today);
+    setIsStartSheetOpen(false);
+    await doSave({ startDate: fromDateInputValue(today) });
+  };
+
+  const handleStartClear = async () => {
+    setStartDateInput('');
+    setIsStartSheetOpen(false);
+    await doSave({ startDate: null });
+  };
+
+  // Due date handlers
+  const handleDueSheetOpenChange = (open: boolean) => {
+    setIsDueSheetOpen(open);
+    if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
+      void doSave();
+    }
+  };
+
+  const handleDueToday = async () => {
+    const today = getTodayDateInputValue();
+    setDueDateInput(today);
+    setIsDueSheetOpen(false);
+    await doSave({ dueDate: fromDateInputValue(today) });
+  };
+
+  const handleDueClear = async () => {
+    setDueDateInput('');
+    setIsDueSheetOpen(false);
+    await doSave({ dueDate: null });
+  };
+
+  // Move handlers
+  const handleMoveSheetOpenChange = (open: boolean) => {
+    setIsMoveSheetOpen(open);
+    if (!open) {
+      subSheetJustClosedRef.current = true;
+      queueMicrotask(() => { subSheetJustClosedRef.current = false; });
+      void doSave();
+    }
+  };
+
+  const handleMoveSelectArea = async (id: string) => {
+    setAreaId(id);
+    setIsMoveSheetOpen(false);
+    await doSave({ areaId: id });
+  };
+
+  const handleMoveClearArea = async () => {
+    setAreaId('');
+    setIsMoveSheetOpen(false);
+    await doSave({ areaId: null });
+  };
+
   if (!project) return null;
 
+  const isAnySubSheetOpen = isStartSheetOpen || isDueSheetOpen || isMoveSheetOpen;
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className={styles['project-detail__content']}
-        aria-label="Project details"
-      >
-        <header className={styles['project-detail__header']}>
-          <SheetTitle className={styles['project-detail__title']}>
-            Project
-          </SheetTitle>
-          <SheetClose asChild>
-            <button
-              type="button"
-              className={styles['project-detail__close']}
-              aria-label="Close project"
-            >
-              <CloseIcon />
-            </button>
-          </SheetClose>
-        </header>
-
-        <label className={styles['project-detail__field']}>
-          <span className={styles['project-detail__label']}>Title</span>
-          <input
-            className={styles['project-detail__input']}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Project title"
-          />
-        </label>
-
-        <label className={styles['project-detail__field']}>
-          <span className={styles['project-detail__label']}>Description</span>
-          <textarea
-            className={styles['project-detail__textarea']}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Project description"
-            rows={4}
-          />
-        </label>
-
-        <label className={styles['project-detail__field']}>
-          <span className={styles['project-detail__label']}>Status</span>
-          <select
-            className={styles['project-detail__input']}
-            value={status}
-            onChange={(event) =>
-              setStatus(event.target.value as 'backlog' | 'next' | 'active' | 'hold')
-            }
-          >
-            <option value="backlog">Backlog</option>
-            <option value="next">Next</option>
-            <option value="active">Active</option>
-            <option value="hold">Hold</option>
-          </select>
-        </label>
-
-        <div className={styles['project-detail__row']}>
-          <label className={styles['project-detail__field']}>
-            <span className={styles['project-detail__label']}>Start</span>
-            <div className={styles['project-detail__input-row']}>
-              <input
-                className={styles['project-detail__input']}
-                type="datetime-local"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-              />
+    <>
+      {/* ── Main sheet ── */}
+      <Sheet open={open} onOpenChange={handleMainSheetOpenChange}>
+        <SheetContent
+          side="right"
+          className={styles.content}
+          aria-label="Project details"
+          onPointerDownOutside={(e) => {
+            if (isAnySubSheetOpen || subSheetJustClosedRef.current) e.preventDefault();
+          }}
+        >
+          <header className={styles.header}>
+            <div className={styles.headerDates}>
               <button
                 type="button"
-                className={styles['project-detail__clear']}
-                onClick={() => setStartDate('')}
-                disabled={!startDate}
+                className={`${styles.headerDateBtn}${hasStart ? ` ${styles['headerDateBtn--set']}` : ''}`}
+                onClick={() => setIsStartSheetOpen(true)}
               >
-                Clear
+                {hasStart ? startLabel : 'Start'}
               </button>
-            </div>
-          </label>
-          <label className={styles['project-detail__field']}>
-            <span className={styles['project-detail__label']}>Due</span>
-            <div className={styles['project-detail__input-row']}>
-              <input
-                className={styles['project-detail__input']}
-                type="datetime-local"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-              />
+              <span className={styles.headerDateArrow} aria-hidden="true">›</span>
               <button
                 type="button"
-                className={styles['project-detail__clear']}
-                onClick={() => setDueDate('')}
-                disabled={!dueDate}
+                className={`${styles.headerDateBtn}${hasDue ? ` ${styles['headerDateBtn--set']}` : ''}`}
+                onClick={() => setIsDueSheetOpen(true)}
               >
-                Clear
+                {hasDue ? dueLabel : 'Due'}
               </button>
             </div>
-          </label>
-        </div>
 
-        <section className={styles['project-detail__tasks']}>
-          <div className={styles['project-detail__section-title']}>Tasks</div>
-          <form className={styles['project-detail__composer']} onSubmit={handleQuickAdd}>
-            <input
-              className={styles['project-detail__composer-input']}
-              type="text"
-              placeholder="Add a task"
-              value={taskTitle}
-              onChange={(event) => setTaskTitle(event.target.value)}
-            />
-            <button
-              className={styles['project-detail__composer-button']}
-              type="submit"
-            >
-              Add
-            </button>
-          </form>
-          {activeTasks.length === 0 ? (
-            <p className={styles['project-detail__empty']}>
-              No tasks for this project yet.
-            </p>
-          ) : (
-            <div className={styles['project-detail__list']}>
-              {activeTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={styles['project-detail__item']}
-                  onClick={() => setSelectedTaskId(task.id)}
-                >
-                  <span className={styles['project-detail__item-toggle']}>
-                    <input
-                      className={styles['project-detail__item-checkbox']}
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={(event) =>
-                        onToggleTaskComplete(task.id, event.target.checked)
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Mark ${task.title} as completed`}
-                    />
-                  </span>
-                  <div className={styles['project-detail__item-title']}>
-                    {task.title}
-                  </div>
+            <Dropdown>
+              <DropdownTrigger asChild>
+                <button type="button" className={styles.moreBtn} aria-label="Project actions">
+                  <MoreIcon />
                 </button>
-              ))}
-            </div>
-          )}
+              </DropdownTrigger>
+              <DropdownContent align="end" sideOffset={8}>
+                {STATUS_OPTIONS.map(({ value, label }) => (
+                  <DropdownCheckboxItem
+                    key={value}
+                    checked={status === value}
+                    onCheckedChange={() => void handleStatusSelect(value)}
+                  >
+                    {label}
+                  </DropdownCheckboxItem>
+                ))}
+                <DropdownSeparator />
+                <DropdownItem onSelect={() => setIsMoveSheetOpen(true)}>
+                  {hasArea ? `Area: ${areaLabel}` : 'Move to Area'}
+                </DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem data-variant="danger" onSelect={() => void handleDelete()}>
+                  Delete
+                </DropdownItem>
+              </DropdownContent>
+            </Dropdown>
+          </header>
 
-          {hiddenCount > 0 && (
-            <div className={styles['project-detail__completed']}>
-              <button
-                type="button"
-                className={styles['project-detail__hidden-toggle']}
-                onClick={() => setShowHidden((v) => !v)}
-              >
-                {showHidden ? `Hide ${hiddenCount} item${hiddenCount !== 1 ? 's' : ''}` : `Show ${hiddenCount} item${hiddenCount !== 1 ? 's' : ''}`}
-              </button>
+          <div className={styles.body}>
+            <input
+              className={styles.titleInput}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => void doSave()}
+              placeholder="Project title"
+              aria-label="Title"
+            />
 
-              {showHidden && (
-                <div className={styles['project-detail__list']}>
-                  {somedayTasks.map((task) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      className={styles['project-detail__item']}
-                      onClick={() => setSelectedTaskId(task.id)}
-                    >
-                      <span className={styles['project-detail__item-toggle']}>
-                        <input
-                          className={styles['project-detail__item-checkbox']}
-                          type="checkbox"
-                          checked={false}
-                          onChange={() => {}}
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={`Open ${task.title}`}
-                        />
-                      </span>
-                      <div className={styles['project-detail__item-title']}>
-                        {task.title}
-                        <span className={styles['project-detail__item-badge']}> Someday</span>
-                      </div>
-                    </button>
-                  ))}
-                  {completedTasks.map((task) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      className={styles['project-detail__item']}
-                      onClick={() => setSelectedTaskId(task.id)}
-                    >
-                      <span className={styles['project-detail__item-toggle']}>
-                        <input
-                          className={styles['project-detail__item-checkbox']}
-                          type="checkbox"
-                          checked={task.completed}
-                          onChange={(event) =>
-                            onToggleTaskComplete(task.id, event.target.checked)
-                          }
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={`Mark ${task.title} as active`}
-                        />
-                      </span>
-                      <div className={styles['project-detail__item-title']}>
-                        {task.title}
-                      </div>
-                    </button>
-                  ))}
+            <textarea
+              ref={notesTextareaRef}
+              className={styles.notesTextarea}
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                resizeNotesTextarea(e.currentTarget);
+              }}
+              onBlur={() => void doSave()}
+              placeholder="Notes"
+              aria-label="Notes"
+              rows={1}
+              wrap="soft"
+            />
+
+            <section className={styles.tasksSection}>
+              <p className={styles.sectionLabel}>Tasks</p>
+              <form className={styles.composer} onSubmit={handleQuickAdd}>
+                <input
+                  className={styles.composerInput}
+                  type="text"
+                  placeholder="New task"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                />
+              </form>
+
+              {activeTasks.length === 0 && hiddenCount === 0 && (
+                <p className={styles.empty}>No tasks yet.</p>
+              )}
+
+              {activeTasks.map((task) => (
+                <div key={task.id} className={styles.taskRow}>
+                  <label className={styles.taskCheckLabel} aria-label="Mark complete">
+                    <input
+                      type="checkbox"
+                      className={styles.taskCheckbox}
+                      checked={task.completed}
+                      onChange={(e) => void onToggleTaskComplete(task.id, e.target.checked)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.taskContent}
+                    onClick={() => setSelectedTaskId(task.id)}
+                  >
+                    <span className={styles.taskTitle}>{task.title}</span>
+                    {task.is_next && <span className={styles.taskBadge}>Next</span>}
+                  </button>
                 </div>
+              ))}
+
+              {hiddenCount > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className={styles.hiddenToggle}
+                    onClick={() => setShowHidden((v) => !v)}
+                  >
+                    {showHidden
+                      ? `Hide ${hiddenCount} item${hiddenCount !== 1 ? 's' : ''}`
+                      : `Show ${hiddenCount} more`}
+                  </button>
+                  {showHidden && (
+                    <>
+                      {somedayTasks.map((task) => (
+                        <div key={task.id} className={styles.taskRow}>
+                          <label className={styles.taskCheckLabel}>
+                            <input type="checkbox" className={styles.taskCheckbox} checked={false} onChange={() => {}} />
+                          </label>
+                          <button type="button" className={styles.taskContent} onClick={() => setSelectedTaskId(task.id)}>
+                            <span className={styles.taskTitle}>{task.title}</span>
+                            <span className={styles.taskBadge}>Someday</span>
+                          </button>
+                        </div>
+                      ))}
+                      {completedTasks.map((task) => (
+                        <div key={task.id} className={`${styles.taskRow} ${styles['taskRow--completed']}`}>
+                          <label className={styles.taskCheckLabel}>
+                            <input
+                              type="checkbox"
+                              className={styles.taskCheckbox}
+                              checked={true}
+                              onChange={(e) => void onToggleTaskComplete(task.id, e.target.checked)}
+                            />
+                          </label>
+                          <button type="button" className={styles.taskContent} onClick={() => setSelectedTaskId(task.id)}>
+                            <span className={styles.taskTitle}>{task.title}</span>
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
+              )}
+            </section>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Start date sheet ── */}
+      <Sheet open={isStartSheetOpen} onOpenChange={handleStartSheetOpenChange}>
+        <SheetContent side="bottom" className={styles.metaSheet} aria-label="Project start date">
+          <div className={styles.metaSheetHeader}>
+            <span className={styles.metaSheetTitle}>Start</span>
+          </div>
+          <div className={styles.metaSheetContent}>
+            <div className={styles.metaActions}>
+              <button type="button" className={styles.metaAction} onClick={handleStartToday}>
+                Today
+              </button>
+              {hasStart && (
+                <button type="button" className={styles.metaAction} onClick={handleStartClear}>
+                  Clear
+                </button>
               )}
             </div>
-          )}
-        </section>
+            <CalendarPicker value={startDateInput} onChange={(v) => setStartDateInput(v)} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
-        <div className={styles['project-detail__actions']}>
-          <button
-            type="button"
-            className={styles['project-detail__button']}
-            onClick={handleSave}
-            disabled={!canSave}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className={`${styles['project-detail__button']} ${styles['project-detail__button--danger']}`}
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
-        </div>
-      </SheetContent>
+      {/* ── Due date sheet ── */}
+      <Sheet open={isDueSheetOpen} onOpenChange={handleDueSheetOpenChange}>
+        <SheetContent side="bottom" className={styles.metaSheet} aria-label="Project due date">
+          <div className={styles.metaSheetHeader}>
+            <span className={styles.metaSheetTitle}>Due</span>
+          </div>
+          <div className={styles.metaSheetContent}>
+            <div className={styles.metaActions}>
+              <button type="button" className={styles.metaAction} onClick={handleDueToday}>
+                Today
+              </button>
+              {hasDue && (
+                <button type="button" className={styles.metaAction} onClick={handleDueClear}>
+                  Clear
+                </button>
+              )}
+            </div>
+            <CalendarPicker value={dueDateInput} onChange={(v) => setDueDateInput(v)} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
+      {/* ── Move to Area sheet ── */}
+      <Sheet open={isMoveSheetOpen} onOpenChange={handleMoveSheetOpenChange}>
+        <SheetContent side="bottom" className={styles.metaSheet} aria-label="Move to area">
+          <div className={styles.metaSheetHeader}>
+            <span className={styles.metaSheetTitle}>Move to Area</span>
+          </div>
+          <div className={styles.moveList}>
+            {hasArea && (
+              <button type="button" className={styles.moveItem} onClick={() => void handleMoveClearArea()}>
+                <ClearIcon />
+                <span className={styles.moveItemName}>No Area</span>
+              </button>
+            )}
+            {areas.length === 0 ? (
+              <p className={styles.metaEmpty}>No areas yet.</p>
+            ) : (
+              areas.map((area) => (
+                <button
+                  key={area.id}
+                  type="button"
+                  className={`${styles.moveItem}${areaId === area.id ? ` ${styles['moveItem--selected']}` : ''}`}
+                  onClick={() => void handleMoveSelectArea(area.id)}
+                >
+                  <AreaIcon />
+                  <span className={styles.moveItemName}>{area.title}</span>
+                  {areaId === area.id && <CheckIcon />}
+                </button>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Task detail sheet ── */}
       {selectedTask ? (
         <TaskDetailSheet
           key={selectedTask.id}
           open={Boolean(selectedTask)}
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) setSelectedTaskId(null);
-          }}
+          onOpenChange={(nextOpen) => { if (!nextOpen) setSelectedTaskId(null); }}
           task={selectedTask}
           projects={projects}
           onSave={onSaveTask}
@@ -391,25 +593,43 @@ export function ProjectDetailSheet({
           onToggleComplete={onToggleTaskComplete}
         />
       ) : null}
-    </Sheet>
+    </>
   );
 }
 
-function CloseIcon() {
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
+function MoreIcon() {
   return (
-    <svg
-      className={styles['project-detail__icon']}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M18 6L6 18M6 6l12 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none">
+      <circle cx="5" cy="12" r="1.75" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.75" fill="currentColor" />
+      <circle cx="19" cy="12" r="1.75" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AreaIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
