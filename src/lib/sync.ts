@@ -1,5 +1,7 @@
 import { RxChangeEvent, RxCollection, RxDatabase } from 'rxdb';
+import { replicateSupabase } from 'rxdb/plugins/replication-supabase';
 import { supabase } from './supabase';
+import { getDeviceId } from './device';
 import { DatabaseCollections } from './db';
 
 type BaseSyncDocument = {
@@ -16,10 +18,6 @@ type CollectionName = keyof DatabaseCollections;
 type AnyCollection = DatabaseCollections[CollectionName];
 
 const collectionConfig = {
-  sync_test: {
-    table: 'sync_test',
-    fields: ['id', 'content', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
-  },
   projects: {
     table: 'projects',
     fields: [
@@ -30,10 +28,13 @@ const collectionConfig = {
       'start_date',
       'due_date',
       'area_id',
+      'okr_id',
       'created_at',
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   tasks: {
@@ -53,10 +54,16 @@ const collectionConfig = {
       'start_date',
       'due_date',
       'tags',
+      'content',
+      'priority',
+      'depends_on',
+      'okr_id',
       'created_at',
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   notes: {
@@ -73,6 +80,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   habits: {
@@ -81,10 +90,18 @@ const collectionConfig = {
       'id',
       'title',
       'description',
+      'frequency',
+      'target',
+      'active',
+      'okr_id',
+      'streak',
+      'last_completed_at',
       'created_at',
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   habit_completions: {
@@ -97,6 +114,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   time_entries: {
@@ -115,6 +134,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   note_links: {
@@ -131,6 +152,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   templates: {
@@ -146,6 +169,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   note_versions: {
@@ -162,6 +187,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   captures: {
@@ -178,6 +205,8 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   okrs: {
@@ -196,15 +225,35 @@ const collectionConfig = {
       'updated_at',
       'is_trashed',
       'trashed_at',
+      'owner',
+      'device_id',
     ],
   },
   tags: {
     table: 'tags',
-    fields: ['id', 'name', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
+    fields: [
+      'id',
+      'name',
+      'created_at',
+      'updated_at',
+      'is_trashed',
+      'trashed_at',
+      'owner',
+      'device_id',
+    ],
   },
   areas: {
     table: 'areas',
-    fields: ['id', 'title', 'created_at', 'updated_at', 'is_trashed', 'trashed_at'],
+    fields: [
+      'id',
+      'title',
+      'created_at',
+      'updated_at',
+      'is_trashed',
+      'trashed_at',
+      'owner',
+      'device_id',
+    ],
   },
 } as const satisfies Record<
   CollectionName,
@@ -214,17 +263,12 @@ const collectionConfig = {
 const collectionNames = Object.keys(collectionConfig) as CollectionName[];
 
 let setupPromise: Promise<void> | null = null;
-let syncInterval: NodeJS.Timeout | null = null;
 const syncQueueByCollection = new Map<CollectionName, Set<string>>();
-const syncInProgress = new Set<CollectionName>();
-let onlineListenerAttached = false;
-let visibilityListenerAttached = false;
 const remoteUpdateByCollection = new Map<
   CollectionName,
   Map<string, { updatedAt: string; ts: number }>
 >();
-const REMOTE_SUPPRESSION_MS = 2000;
-const ACTIVE_PULL_INTERVAL_MS = 5000;
+const REMOTE_SUPPRESSION_MS = 3000;
 
 function getQueue(name: CollectionName) {
   const existing = syncQueueByCollection.get(name);
@@ -262,17 +306,6 @@ function isRecentRemoteUpdate(
   return marker.updatedAt === updatedAt;
 }
 
-function startSyncInterval(db: RxDatabase<DatabaseCollections>) {
-  if (syncInterval) clearInterval(syncInterval);
-  syncInterval = setInterval(() => pullAll(db), ACTIVE_PULL_INTERVAL_MS);
-}
-
-function stopSyncInterval() {
-  if (!syncInterval) return;
-  clearInterval(syncInterval);
-  syncInterval = null;
-}
-
 function buildPayload<T extends Record<string, unknown>>(
   doc: T,
   fields: readonly string[]
@@ -284,34 +317,8 @@ function buildPayload<T extends Record<string, unknown>>(
   return payload;
 }
 
-function isRemoteNewer(remoteUpdatedAt: string, localUpdatedAt: string) {
-  const remoteTime = Date.parse(remoteUpdatedAt);
-  const localTime = Date.parse(localUpdatedAt);
-
-  if (Number.isNaN(remoteTime)) return false;
-  if (Number.isNaN(localTime)) return true;
-
-  return remoteTime > localTime;
-}
-
-function normalizeValue(value: unknown) {
-  return value === undefined ? null : value;
-}
-
-function hasMeaningfulDiff(
-  remote: SyncDocument,
-  local: SyncDocument,
-  fields: readonly string[]
-) {
-  for (const field of fields) {
-    if (field === 'updated_at') continue;
-    const remoteValue = normalizeValue(remote[field]);
-    const localValue = normalizeValue(local[field]);
-    if (!Object.is(remoteValue, localValue)) {
-      return true;
-    }
-  }
-  return false;
+function asSyncCollection(collection: AnyCollection) {
+  return collection as unknown as RxCollection<SyncDocument>;
 }
 
 export async function setupSync(db: RxDatabase<DatabaseCollections>) {
@@ -334,21 +341,43 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
       return;
     }
 
-    // Pull from all collections in parallel for faster initial load
-    await Promise.all(
-      collectionNames.map(async (name) => {
-        const collection = asSyncCollection(db[name]);
-        await pullFromSupabase(collection, name);
-      })
-    );
+    const ownerId = session.user.id;
 
-    // Setup subscriptions and background tasks (non-blocking)
     for (const name of collectionNames) {
       const collection = asSyncCollection(db[name]);
+      const { table, fields } = collectionConfig[name];
 
-      // Cleanup and push in background
-      cleanupInvalidUUIDs(collection).then(() => pushAllToSupabase(collection, name));
+      // Plugin: handles pull with Realtime, checkpoint-based incremental sync,
+      // and multi-tab leader election (waitForLeadership: true by default).
+      // Push is omitted because the plugin's conflict detection throws on array/object
+      // fields (tags, depends_on, properties). Manual push below handles this correctly.
+      replicateSupabase({
+        replicationIdentifier: `personalos-${name}`,
+        collection,
+        client: supabase,
+        tableName: table,
+        modifiedField: 'updated_at',
+        deletedField: 'deleted',
+        live: true,
+        retryTime: 5000,
+        pull: {
+          batchSize: 50,
+          modifier: (doc) => {
+            // Mark as recently pulled so the push subscription below skips it,
+            // preventing an echo loop back to Supabase.
+            const docId = doc.id as string | undefined;
+            const updatedAt = doc.updated_at as string | undefined;
+            if (docId && updatedAt) {
+              markRemoteUpdate(name, docId, updatedAt);
+            }
+            return doc;
+          },
+        },
+      });
 
+      // Manual push: handles all local writes → Supabase upsert.
+      // Uses upsert instead of the plugin's optimistic-lock UPDATE because array
+      // fields (tags, depends_on, properties) would cause a JS throw in addDocEqualityToQuery.
       collection.$.subscribe(async (changeEvent: RxChangeEvent<SyncDocument>) => {
         const docId = changeEvent.documentData?.id as string | undefined;
         if (!docId) return;
@@ -357,13 +386,17 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
 
         const queue = getQueue(name);
         if (queue.has(docId)) return;
-
         queue.add(docId);
+
         try {
           if (changeEvent.operation === 'DELETE') {
-            await markTrashedInSupabase(docId, name);
+            await markTrashedInSupabase(docId, table);
           } else {
-            await pushToSupabase(changeEvent.documentData, name);
+            await pushToSupabase(changeEvent.documentData, name, ownerId, fields);
+          }
+        } catch (error) {
+          if (error instanceof Error && !error.message.includes('Failed to fetch')) {
+            console.error(`Push error [${name}]:`, error);
           }
         } finally {
           queue.delete(docId);
@@ -371,32 +404,17 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
       });
     }
 
+    // On reconnect, flush any queued local changes to Supabase.
     if (typeof window !== 'undefined') {
-      if (document.visibilityState === 'visible') {
-        startSyncInterval(db);
-      } else {
-        stopSyncInterval();
-      }
-    } else {
-      startSyncInterval(db);
-    }
-
-    if (typeof window !== 'undefined' && !onlineListenerAttached) {
-      onlineListenerAttached = true;
       window.addEventListener('online', async () => {
-        await pushAll(db);
-        await pullAll(db);
-      });
-    }
-
-    if (typeof window !== 'undefined' && !visibilityListenerAttached) {
-      visibilityListenerAttached = true;
-      window.addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'visible') {
-          startSyncInterval(db);
-          await pullAll(db);
-        } else {
-          stopSyncInterval();
+        for (const name of collectionNames) {
+          const collection = asSyncCollection(db[name]);
+          const { table, fields } = collectionConfig[name];
+          const allDocs = await collection.find().exec();
+          for (const doc of allDocs) {
+            const docData = doc.toJSON();
+            await pushToSupabase(docData, name, ownerId, fields);
+          }
         }
       });
     }
@@ -405,162 +423,42 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
   return setupPromise;
 }
 
-async function pullAll(db: RxDatabase<DatabaseCollections>) {
-  await Promise.all(
-    collectionNames.map((name) => pullFromSupabase(asSyncCollection(db[name]), name))
-  );
-}
-
-async function pushAll(db: RxDatabase<DatabaseCollections>) {
-  for (const name of collectionNames) {
-    await pushAllToSupabase(asSyncCollection(db[name]), name);
-  }
-}
-
-function asSyncCollection(collection: AnyCollection) {
-  return collection as unknown as RxCollection<SyncDocument>;
-}
-
-async function cleanupInvalidUUIDs(collection: RxCollection<SyncDocument>) {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  const allDocs = await collection.find().exec();
-  for (const doc of allDocs) {
-    const data = doc.toJSON();
-    if (!uuidRegex.test(data.id)) {
-      await doc.remove();
-    }
-  }
-}
-
-async function pullFromSupabase(
-  collection: RxCollection<SyncDocument>,
-  name: CollectionName
-) {
-  try {
-    const { table, fields } = collectionConfig[name];
-    const { data, error } = await supabase.from(table).select('*');
-
-    if (error) throw error;
-
-    for (const item of data || []) {
-      const row = item as SyncDocument;
-      const docId = row.id;
-      const queue = getQueue(name);
-
-      queue.add(docId);
-      try {
-        await applyRemoteDoc(collection, name, row, fields);
-      } finally {
-        queue.delete(docId);
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error && !error.message.includes('Failed to fetch')) {
-      console.error('Pull error:', error);
-    }
-  }
-}
-
-// Applies a remote row to the local collection, retrying once on CONFLICT.
-// A CONFLICT means the local doc was written between our findOne and patch
-// calls. On retry we re-fetch the latest revision; if local is now newer we
-// skip, otherwise we apply with the fresh reference.
-async function applyRemoteDoc(
-  collection: RxCollection<SyncDocument>,
-  name: CollectionName,
-  row: SyncDocument,
-  fields: readonly string[],
-  attempt = 0
-) {
-  const docId = row.id;
-  const exists = await collection.findOne(docId).exec();
-  if (!exists) {
-    markRemoteUpdate(name, docId, row.updated_at);
-    await collection.insert(row);
-    return;
-  }
-
-  const localData = exists.toJSON();
-  if (!isRemoteNewer(row.updated_at, localData.updated_at)) return;
-  if (!hasMeaningfulDiff(row, localData, fields)) return;
-
-  try {
-    markRemoteUpdate(name, docId, row.updated_at);
-    await exists.patch(row);
-  } catch (e) {
-    // Local doc was updated between findOne and patch — retry once with a
-    // fresh reference. If local is now newer the isRemoteNewer guard above
-    // will bail out cleanly.
-    if (attempt === 0 && e instanceof Error && e.message.includes('CONFLICT')) {
-      await applyRemoteDoc(collection, name, row, fields, 1);
-    } else {
-      throw e;
-    }
-  }
-}
-
-async function pushAllToSupabase(
-  collection: RxCollection<SyncDocument>,
-  name: CollectionName
-) {
-  if (syncInProgress.has(name)) return;
-  syncInProgress.add(name);
-
-  try {
-    const allDocs = await collection.find().exec();
-    if (allDocs.length === 0) return;
-
-    for (const doc of allDocs) {
-      const docData = doc.toJSON();
-      const queue = getQueue(name);
-
-      queue.add(docData.id);
-      try {
-        await pushToSupabase(docData, name);
-      } finally {
-        queue.delete(docData.id);
-      }
-    }
-  } catch (error) {
-    console.error('Push all error:', error);
-  } finally {
-    syncInProgress.delete(name);
-  }
-}
-
 async function pushToSupabase(
   doc: Record<string, unknown>,
-  name: CollectionName
+  name: CollectionName,
+  ownerId: string,
+  fields: readonly string[]
 ) {
   try {
-    const { table, fields } = collectionConfig[name];
-    const payload = buildPayload(doc, fields);
+    const { table } = collectionConfig[name];
+    const payload = {
+      ...buildPayload(doc, fields),
+      owner: ownerId,
+      device_id: getDeviceId(),
+      revision: ((doc.sync_rev as number) ?? 0) + 1,
+      deleted: false,
+    };
 
     const { error } = await supabase.from(table).upsert(payload);
     if (error) throw error;
   } catch (error) {
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
-      console.error('Push error:', error);
+      console.error(`Push error [${name}]:`, error);
     }
   }
 }
 
-async function markTrashedInSupabase(id: string, name: CollectionName) {
+async function markTrashedInSupabase(id: string, table: string) {
   try {
-    const { table } = collectionConfig[name];
     const timestamp = new Date().toISOString();
-
     const { error } = await supabase
       .from(table)
       .update({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp })
       .eq('id', id);
-
     if (error) throw error;
   } catch (error) {
     if (error instanceof Error && !error.message.includes('Failed to fetch')) {
-      console.error('Delete error:', error);
+      console.error('Trash error:', error);
     }
   }
 }
