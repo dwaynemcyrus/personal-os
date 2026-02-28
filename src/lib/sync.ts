@@ -442,7 +442,10 @@ async function pushToSupabase(
     const { error } = await supabase.from(table).upsert(payload);
     if (error) throw error;
   } catch (error) {
-    if (error instanceof Error && !error.message.includes('Failed to fetch')) {
+    const msg = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? String(error);
+    if (!msg.includes('Failed to fetch')) {
       console.error(`Push error [${name}]:`, error);
     }
   }
@@ -457,7 +460,10 @@ async function markTrashedInSupabase(id: string, table: string) {
       .eq('id', id);
     if (error) throw error;
   } catch (error) {
-    if (error instanceof Error && !error.message.includes('Failed to fetch')) {
+    const msg = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? String(error);
+    if (!msg.includes('Failed to fetch')) {
       console.error('Trash error:', error);
     }
   }
