@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.17.0 - 2026-02-28
+- Migrated sync from custom polling to the official RxDB Supabase Replication Plugin (`replicateSupabase`) with Realtime push, checkpoint-based pull, and automatic multi-tab leader election
+- Added `owner`, `device_id`, `sync_rev`, and `deleted` fields to all 13 RxDB schemas and Supabase tables via migration
+- Added `src/lib/device.ts` — stable device UUID persisted in localStorage
+- Manual push kept for array/object fields (`tags`, `depends_on`, `properties`) due to plugin conflict; echo suppression prevents push-back loops
+- Added `AuthProvider` wrapping the entire app — resolves session on load, renders `LoginView` when unauthenticated, exposes `signOut` via context
+- Added `LoginView` — email/password sign-in screen using design tokens (`--gradient-login`, `--shadow-login`); fixes iOS PWA data-not-loading issue caused by isolated storage context
+- Fixed PWA manifest conflict — removed manual `<link rel="manifest">` from `index.html` so VitePWA manages it exclusively; added `sizes="180x180"` to apple-touch-icon; added `purpose: 'any'` to manifest icons
+- Added RLS policies to all 13 tables (`authenticated_all: FOR ALL TO authenticated USING (true)`) — previously captures, okrs, tags, and areas had RLS enabled with no policies, silently blocking all operations
+- Fixed `CaptureModal` — now writes to the `captures` table (`source: 'quick'`, `result_type: 'note'`) before creating the inbox note; captures are fully tracked going forward
+- Fixed Today's Note race condition — `handleNowNote` re-queries the DB immediately before insert, preventing duplicate daily notes when sync and user action overlap
+- Redesigned `ProjectDetailSheet` layout and styles
+- Renamed reserved RxDB field `revision` to `sync_rev` in local schema; Supabase column remains `revision`
+- Removed reserved RxDB field `deleted` from local schema; pushed explicitly as `false` in Supabase upsert payload
+
 ## 0.16.0 - 2026-02-23
 - Replaced task status model with a scheduling model (Today, Upcoming, Backlog, Someday, Waiting, Logbook) using start/due dates and flags
 - Added When, Due Date, and metadata rows to task detail header; moved scheduling controls out of the body
