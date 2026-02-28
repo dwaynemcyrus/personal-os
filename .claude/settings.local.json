@@ -71,7 +71,9 @@
       "Bash(/Users/cyrus/Code/personal-os/vercel.json:*)",
       "Bash(git fetch:*)",
       "Bash(/Users/cyrus/Code/personal-os/src/lib/supabase.ts:*)",
-      "Bash(new…\" flow for projects and areas, tighter margins, and bold area group:*)"
+      "Bash(new…\" flow for projects and areas, tighter margins, and bold area group:*)",
+      "Bash(python3 -c \" from PIL import Image img = Image.open\\(''/Users/cyrus/Code/personal-os/public/apple-touch-icon.png''\\) print\\(''apple-touch-icon:'', img.size\\) img2 = Image.open\\(''/Users/cyrus/Code/personal-os/public/icon-192x192.png''\\) print\\(''icon-192:'', img2.size\\) img3 = Image.open\\(''/Users/cyrus/Code/personal-os/public/icon-512x512.png''\\) print\\(''icon-512:'', img3.size\\) \")",
+      "Bash(identify /Users/cyrus/Code/personal-os/public/*.png)"
     ]
   }
 }
