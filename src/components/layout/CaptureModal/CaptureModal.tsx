@@ -119,9 +119,25 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
 
   const handleSave = useCallback(async () => {
     if (!text.trim() || !db) return;
+    const captureId = uuidv4();
     const noteId = uuidv4();
     const timestamp = new Date().toISOString();
     const trimmedText = text.trim();
+
+    await db.captures.insert({
+      id: captureId,
+      body: trimmedText,
+      source: 'quick',
+      processed: true,
+      processed_at: timestamp,
+      result_type: 'note',
+      result_id: noteId,
+      created_at: timestamp,
+      updated_at: timestamp,
+      is_trashed: false,
+      trashed_at: null,
+    });
+
     await db.notes.insert({
       id: noteId,
       title: extractTitleFromFirstLine(trimmedText),
@@ -135,6 +151,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       is_trashed: false,
       trashed_at: null,
     });
+
     setText('');
     setSelectedIndex(null);
     if (!rapidCapture) onOpenChange(false);

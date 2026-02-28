@@ -80,8 +80,13 @@ function NowView() {
 
   const handleNowNote = async () => {
     if (!db) return;
-    if (nowNote) {
-      pushLayer({ view: 'note-detail', noteId: nowNote.id });
+    // Re-query immediately before insert — handles the race where sync pulls
+    // the note between the reactive state firing (null) and the user tapping.
+    const existing = nowNote ?? await db.notes.findOne({
+      selector: { note_type: nowNoteType, is_trashed: false },
+    }).exec();
+    if (existing) {
+      pushLayer({ view: 'note-detail', noteId: existing.id });
     } else {
       const noteId = uuidv4();
       const timestamp = new Date().toISOString();

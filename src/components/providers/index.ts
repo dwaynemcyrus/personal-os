@@ -5,3 +5,4 @@
  */
 
 export * from './NavigationProvider';
+export * from './AuthProvider';
