@@ -205,7 +205,10 @@ export const timeEntrySchema = z.object({
 });
 
 const captureSources = ['quick', 'voice', 'email'] as const;
-const captureResultTypes = ['note', 'task', 'project', 'discarded'] as const;
+const captureResultTypes = ['note', 'task', 'project', 'source', 'discarded'] as const;
+
+export const contentTypes = ['article', 'book', 'video', 'podcast', 'other'] as const;
+export const readStatuses = ['inbox', 'reading', 'read'] as const;
 
 export const captureSchema = z.object({
   ...baseFields,
@@ -215,6 +218,14 @@ export const captureSchema = z.object({
   processed_at: z.string().nullable(),
   result_type: z.enum(captureResultTypes).nullable(),
   result_id: z.string().uuid().nullable(),
+});
+
+export const sourceSchema = z.object({
+  ...baseFields,
+  url: z.string(),
+  title: z.string().nullable(),
+  content_type: z.enum(contentTypes),
+  read_status: z.enum(readStatuses),
 });
 
 export const OkrType = ['yearly', '12week', 'objective', 'key_result'] as const;
@@ -572,6 +583,20 @@ const areasRxSchema = {
   required: [...baseRequired, 'title'],
 };
 
+const sourcesRxSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    ...baseProperties,
+    url: { type: 'string' },
+    title: { type: ['string', 'null'] },
+    content_type: { type: 'string', enum: contentTypes },
+    read_status: { type: 'string', enum: readStatuses },
+  },
+  required: [...baseRequired, 'url', 'title', 'content_type', 'read_status'],
+};
+
 type LegacySoftDeleteFields = {
   is_deleted?: boolean;
   deleted_at?: string | null;
@@ -856,6 +881,9 @@ export type OkrDocument = z.infer<typeof okrSchema>;
 export type OkrTypeValue = (typeof OkrType)[number];
 export type TagDocument = z.infer<typeof tagSchema>;
 export type AreaDocument = z.infer<typeof areaSchema>;
+export type SourceDocument = z.infer<typeof sourceSchema>;
+export type ContentType = (typeof contentTypes)[number];
+export type ReadStatus = (typeof readStatuses)[number];
 
 export type DatabaseCollections = {
   projects: RxCollection<ProjectDocument>;
@@ -871,6 +899,7 @@ export type DatabaseCollections = {
   okrs: RxCollection<OkrDocument>;
   tags: RxCollection<TagDocument>;
   areas: RxCollection<AreaDocument>;
+  sources: RxCollection<SourceDocument>;
 };
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
@@ -938,6 +967,9 @@ export async function getDatabase() {
       areas: {
         schema: areasRxSchema,
         migrationStrategies: areasMigrationStrategies,
+      },
+      sources: {
+        schema: sourcesRxSchema,
       },
     });
 

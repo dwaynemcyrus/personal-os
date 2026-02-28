@@ -255,6 +255,22 @@ const collectionConfig = {
       'device_id',
     ],
   },
+  sources: {
+    table: 'sources',
+    fields: [
+      'id',
+      'url',
+      'title',
+      'content_type',
+      'read_status',
+      'created_at',
+      'updated_at',
+      'is_trashed',
+      'trashed_at',
+      'owner',
+      'device_id',
+    ],
+  },
 } as const satisfies Record<
   CollectionName,
   { table: string; fields: readonly string[] }

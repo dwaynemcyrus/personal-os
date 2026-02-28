@@ -109,6 +109,32 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     advanceToNext();
   };
 
+  const handleConvertToSource = async () => {
+    if (!db || !currentNote) return;
+    const timestamp = new Date().toISOString();
+    await db.sources.insert({
+      id: uuidv4(),
+      url: currentNote.content?.trim() ?? '',
+      title: editTitle.trim() || null,
+      content_type: 'article',
+      read_status: 'inbox',
+      created_at: timestamp,
+      updated_at: timestamp,
+      is_trashed: false,
+      trashed_at: null,
+    });
+    const doc = await db.notes.findOne(currentNote.id).exec();
+    if (doc) {
+      await doc.patch({
+        is_trashed: true,
+        trashed_at: timestamp,
+        inbox_at: null,
+        updated_at: timestamp,
+      });
+    }
+    advanceToNext();
+  };
+
   const handleConvertToProject = async () => {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
@@ -247,6 +273,13 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
             onClick={handleConvertToProject}
           >
             To Project
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={handleConvertToSource}
+          >
+            To Source
           </button>
           <button
             type="button"

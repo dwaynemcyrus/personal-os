@@ -14,9 +14,10 @@ import type { NoteGroup } from '@/features/notes/hooks/useGroupedNotes';
 import { useTaskBucketCounts } from '@/features/tasks/hooks/useTaskBucketCounts';
 import type { TaskListFilter } from '@/features/tasks/taskBuckets';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { AreaDocument, ProjectDocument, TaskDocument } from '@/lib/db';
+import type { AreaDocument, ProjectDocument, SourceDocument, TaskDocument } from '@/lib/db';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
 import { AreaDetailSheet } from '@/features/projects/AreaDetailSheet/AreaDetailSheet';
+import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDetailSheet';
 import styles from './ContextSheet.module.css';
 
 const nowIso = () => new Date().toISOString();
@@ -26,7 +27,7 @@ type ContextSheetProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-type Tab = 'notes' | 'tasks' | 'plans';
+type Tab = 'notes' | 'tasks' | 'plans' | 'sources';
 
 type NoteGroupRow = {
   id: NoteGroup;
@@ -67,8 +68,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [areas, setAreas] = useState<AreaDocument[]>([]);
   const [tasks, setTasks] = useState<TaskDocument[]>([]);
+  const [sources, setSources] = useState<SourceDocument[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null);
   const [createTitle, setCreateTitle] = useState('');
   const submittingRef = useRef(false);
@@ -99,6 +102,16 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     const sub = db.tasks
       .find({ selector: { is_trashed: false } })
       .$.subscribe((docs) => setTasks(docs.map((d) => d.toJSON())));
+
+    return () => sub.unsubscribe();
+  }, [db, isReady]);
+
+  useEffect(() => {
+    if (!db || !isReady) return;
+
+    const sub = db.sources
+      .find({ selector: { is_trashed: false }, sort: [{ updated_at: 'desc' }] })
+      .$.subscribe((docs) => setSources(docs.map((d) => d.toJSON() as SourceDocument)));
 
     return () => sub.unsubscribe();
   }, [db, isReady]);
@@ -319,6 +332,34 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
   };
 
+  const handleSaveSource = async (updates: Partial<SourceDocument>) => {
+    if (!db || !selectedSourceId) return;
+    const doc = await db.sources.findOne(selectedSourceId).exec();
+    if (!doc) return;
+    await doc.patch({ ...updates, updated_at: nowIso() });
+  };
+
+  const handleDeleteSource = async () => {
+    if (!db || !selectedSourceId) return;
+    const doc = await db.sources.findOne(selectedSourceId).exec();
+    if (!doc) return;
+    const timestamp = nowIso();
+    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    setSelectedSourceId(null);
+  };
+
+  const selectedSource = useMemo(
+    () => sources.find((s) => s.id === selectedSourceId) ?? null,
+    [sources, selectedSourceId]
+  );
+
+  const sourcesByStatus = useMemo(() => {
+    const inbox = sources.filter((s) => s.read_status === 'inbox');
+    const reading = sources.filter((s) => s.read_status === 'reading');
+    const read = sources.filter((s) => s.read_status === 'read');
+    return { inbox, reading, read };
+  }, [sources]);
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -453,10 +494,77 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                 </button>
               </div>
             )}
+
+            {activeTab === 'sources' && (
+              <div className={styles.list}>
+                {sources.length === 0 && (
+                  <span className={styles.rowLabel} style={{ opacity: 0.5 }}>
+                    No sources yet
+                  </span>
+                )}
+                {sourcesByStatus.inbox.length > 0 && (
+                  <>
+                    <span className={styles.createLabel}>Inbox</span>
+                    {sourcesByStatus.inbox.map((source) => (
+                      <button
+                        key={source.id}
+                        type="button"
+                        className={styles.row}
+                        onClick={() => setSelectedSourceId(source.id)}
+                      >
+                        <span className={styles.rowLabel}>
+                          {source.title || source.url}
+                        </span>
+                        <span className={styles.rowSoon}>{source.content_type}</span>
+                        <span className={styles.rowCaret} aria-hidden="true">›</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {sourcesByStatus.reading.length > 0 && (
+                  <>
+                    <span className={styles.createLabel}>Reading</span>
+                    {sourcesByStatus.reading.map((source) => (
+                      <button
+                        key={source.id}
+                        type="button"
+                        className={styles.row}
+                        onClick={() => setSelectedSourceId(source.id)}
+                      >
+                        <span className={styles.rowLabel}>
+                          {source.title || source.url}
+                        </span>
+                        <span className={styles.rowSoon}>{source.content_type}</span>
+                        <span className={styles.rowCaret} aria-hidden="true">›</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {sourcesByStatus.read.length > 0 && (
+                  <>
+                    <span className={styles.createLabel}>Read</span>
+                    {sourcesByStatus.read.map((source) => (
+                      <button
+                        key={source.id}
+                        type="button"
+                        className={styles.row}
+                        onClick={() => setSelectedSourceId(source.id)}
+                      >
+                        <span className={styles.rowLabel}>
+                          {source.title || source.url}
+                        </span>
+                        <span className={styles.rowSoon}>{source.content_type}</span>
+                        <span className={styles.rowCaret} aria-hidden="true">›</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className={styles.tabs}>
-            {(['tasks', 'plans', 'notes'] as Tab[]).map((tab) => (
+            {(['tasks', 'plans', 'notes', 'sources'] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -495,6 +603,17 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
           area={selectedArea}
           onSave={handleSaveArea}
           onDelete={handleDeleteArea}
+        />
+      ) : null}
+
+      {selectedSource ? (
+        <SourceDetailSheet
+          key={selectedSource.id}
+          open={Boolean(selectedSource)}
+          onOpenChange={(next) => { if (!next) setSelectedSourceId(null); }}
+          source={selectedSource}
+          onSave={handleSaveSource}
+          onDelete={handleDeleteSource}
         />
       ) : null}
     </>
