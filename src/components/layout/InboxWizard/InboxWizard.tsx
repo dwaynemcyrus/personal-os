@@ -15,6 +15,7 @@ type InboxWizardProps = {
 export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const { db, isReady } = useDatabase();
   const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
+  const [trashedCaptures, setTrashedCaptures] = useState<NoteDocument[]>([]);
   const [editTitle, setEditTitle] = useState('');
 
   // Subscribe to inbox notes
@@ -34,6 +35,20 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         }
         const note = nextNotes[0];
         setEditTitle(extractNoteTitle(note.content, note.title));
+      });
+    return () => subscription.unsubscribe();
+  }, [db, isReady]);
+
+  // Subscribe to trashed captures
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const subscription = db.notes
+      .find({
+        selector: { note_type: 'capture', is_trashed: true },
+        sort: [{ trashed_at: 'desc' }, { id: 'asc' }],
+      })
+      .$.subscribe((docs) => {
+        setTrashedCaptures(docs.map((doc) => doc.toJSON() as NoteDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
@@ -65,6 +80,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     await doc.patch({
       title: editTitle.trim() || 'Untitled',
       inbox_at: null,
+      note_type: null,
       updated_at: new Date().toISOString(),
     });
     advanceToNext();
@@ -212,6 +228,20 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
               Done
             </button>
           </div>
+          {trashedCaptures.length > 0 && (
+            <div className={styles.trashSection}>
+              <span className={styles.trashSectionTitle}>Inbox Trash</span>
+              <div className={styles.trashList}>
+                {trashedCaptures.map((note) => (
+                  <div key={note.id} className={styles.trashItem}>
+                    <span className={styles.trashItemContent}>
+                      {note.content?.trim() || '(empty)'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

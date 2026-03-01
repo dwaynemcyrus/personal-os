@@ -39,8 +39,8 @@ export function useGroupedNotes(group: NoteGroup): {
       group === 'trash'
         ? { is_trashed: true }
         : group === 'pinned'
-          ? { is_pinned: true, is_trashed: false }
-          : { is_trashed: false };
+          ? { is_pinned: true, is_trashed: false, inbox_at: null }
+          : { is_trashed: false, inbox_at: null };
 
     const subscription = db.notes
       .find({
@@ -50,7 +50,10 @@ export function useGroupedNotes(group: NoteGroup): {
       .$.subscribe((docs) => {
         let result = docs.map((doc) => doc.toJSON() as NoteDocument);
 
-        if (group === 'today') {
+        // Exclude trashed captures from the notes trash view
+        if (group === 'trash') {
+          result = result.filter((n) => n.note_type !== 'capture');
+        } else if (group === 'today') {
           result = result.filter(isTodayNote);
         } else if (group === 'todo') {
           result = result.filter(isTodoNote);

@@ -32,9 +32,9 @@ export function useNoteGroupCounts(): GroupCounts {
   useEffect(() => {
     if (!db || !isReady) return;
 
-    // Subscribe to all non-trashed notes for most counts
+    // Subscribe to all non-trashed, non-capture notes for most counts
     const subActive = db.notes
-      .find({ selector: { is_trashed: false } })
+      .find({ selector: { is_trashed: false, inbox_at: null } })
       .$.subscribe((docs) => {
         const notes = docs.map((d) => d.toJSON() as NoteDocument);
         setCounts((prev) => ({
@@ -47,11 +47,12 @@ export function useNoteGroupCounts(): GroupCounts {
         }));
       });
 
-    // Subscribe to trashed notes
+    // Subscribe to trashed notes, excluding captures (they live in InboxWizard trash)
     const subTrash = db.notes
       .find({ selector: { is_trashed: true } })
       .$.subscribe((docs) => {
-        setCounts((prev) => ({ ...prev, trash: docs.length }));
+        const count = docs.filter((d) => d.note_type !== 'capture').length;
+        setCounts((prev) => ({ ...prev, trash: count }));
       });
 
     return () => {
