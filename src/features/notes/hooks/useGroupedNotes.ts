@@ -39,8 +39,8 @@ export function useGroupedNotes(group: NoteGroup): {
       group === 'trash'
         ? { is_trashed: true }
         : group === 'pinned'
-          ? { is_pinned: true, is_trashed: false, inbox_at: null }
-          : { is_trashed: false, inbox_at: null };
+          ? { is_pinned: true, is_trashed: false, inbox_at: null, note_type: null }
+          : { is_trashed: false, inbox_at: null, note_type: null };
 
     const subscription = db.notes
       .find({

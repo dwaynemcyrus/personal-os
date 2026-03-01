@@ -115,12 +115,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     });
     const doc = await db.notes.findOne(currentNote.id).exec();
     if (doc) {
-      await doc.patch({
-        is_trashed: true,
-        trashed_at: timestamp,
-        inbox_at: null,
-        updated_at: timestamp,
-      });
+      await doc.patch({ inbox_at: null, updated_at: timestamp });
     }
     advanceToNext();
   };
@@ -141,12 +136,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     });
     const doc = await db.notes.findOne(currentNote.id).exec();
     if (doc) {
-      await doc.patch({
-        is_trashed: true,
-        trashed_at: timestamp,
-        inbox_at: null,
-        updated_at: timestamp,
-      });
+      await doc.patch({ inbox_at: null, updated_at: timestamp });
     }
     advanceToNext();
   };
@@ -170,12 +160,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     });
     const doc = await db.notes.findOne(currentNote.id).exec();
     if (doc) {
-      await doc.patch({
-        is_trashed: true,
-        trashed_at: timestamp,
-        inbox_at: null,
-        updated_at: timestamp,
-      });
+      await doc.patch({ inbox_at: null, updated_at: timestamp });
     }
     advanceToNext();
   };

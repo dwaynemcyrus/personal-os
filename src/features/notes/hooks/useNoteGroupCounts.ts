@@ -34,7 +34,7 @@ export function useNoteGroupCounts(): GroupCounts {
 
     // Subscribe to all non-trashed, non-capture notes for most counts
     const subActive = db.notes
-      .find({ selector: { is_trashed: false, inbox_at: null } })
+      .find({ selector: { is_trashed: false, inbox_at: null, note_type: null } })
       .$.subscribe((docs) => {
         const notes = docs.map((d) => d.toJSON() as NoteDocument);
         setCounts((prev) => ({
