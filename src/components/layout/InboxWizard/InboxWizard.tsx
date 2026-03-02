@@ -73,24 +73,46 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     // Keep currentIndex the same — the processed item will be removed from the list.
   };
 
+  const markCaptureProcessed = async (
+    noteId: string,
+    resultType: 'note' | 'task' | 'project' | 'source' | 'discarded',
+    resultId: string | null,
+    timestamp: string,
+  ) => {
+    if (!db) return;
+    const capture = await db.captures.findOne({ selector: { result_id: noteId } }).exec();
+    if (capture) {
+      await capture.patch({
+        processed: true,
+        processed_at: timestamp,
+        result_type: resultType,
+        result_id: resultId,
+        updated_at: timestamp,
+      });
+    }
+  };
+
   const handleKeep = async () => {
     if (!db || !currentNote) return;
+    const timestamp = new Date().toISOString();
     const doc = await db.notes.findOne(currentNote.id).exec();
     if (!doc) return;
     await doc.patch({
       title: editTitle.trim() || 'Untitled',
       inbox_at: null,
       note_type: null,
-      updated_at: new Date().toISOString(),
+      updated_at: timestamp,
     });
+    await markCaptureProcessed(currentNote.id, 'note', currentNote.id, timestamp);
     advanceToNext();
   };
 
   const handleConvertToTask = async () => {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
+    const taskId = uuidv4();
     await db.tasks.insert({
-      id: uuidv4(),
+      id: taskId,
       project_id: null,
       area_id: null,
       title: editTitle.trim() || 'Untitled',
@@ -117,14 +139,16 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     if (doc) {
       await doc.patch({ inbox_at: null, updated_at: timestamp });
     }
+    await markCaptureProcessed(currentNote.id, 'task', taskId, timestamp);
     advanceToNext();
   };
 
   const handleConvertToSource = async () => {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
+    const sourceId = uuidv4();
     await db.sources.insert({
-      id: uuidv4(),
+      id: sourceId,
       url: currentNote.content?.trim() ?? '',
       title: editTitle.trim() || null,
       content_type: 'article',
@@ -138,14 +162,16 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     if (doc) {
       await doc.patch({ inbox_at: null, updated_at: timestamp });
     }
+    await markCaptureProcessed(currentNote.id, 'source', sourceId, timestamp);
     advanceToNext();
   };
 
   const handleConvertToProject = async () => {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
+    const projectId = uuidv4();
     await db.projects.insert({
-      id: uuidv4(),
+      id: projectId,
       title: editTitle.trim() || 'Untitled',
       description: null,
       status: 'backlog',
@@ -162,6 +188,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     if (doc) {
       await doc.patch({ inbox_at: null, updated_at: timestamp });
     }
+    await markCaptureProcessed(currentNote.id, 'project', projectId, timestamp);
     advanceToNext();
   };
 
@@ -177,6 +204,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         updated_at: timestamp,
       });
     }
+    await markCaptureProcessed(currentNote.id, 'discarded', null, timestamp);
     advanceToNext();
   };
 
