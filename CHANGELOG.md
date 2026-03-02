@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0 - 2026-03-02
+- Fixed captures incorrectly appearing in Notes views (All, Today, Pinned, Context Sheet) — queries now filter on `inbox_at: null` and `note_type: null` to exclude inbox items
+- Fixed `CaptureModal` immediately marking captures as `processed: true` — captures now start as `processed: false` with no result until the user acts in InboxWizard
+- Fixed `InboxWizard` never updating the captures table — each action (Keep, To Task, To Project, To Source, Trash) now patches the corresponding capture record with `processed: true`, `result_type`, `result_id`, and `processed_at`
+- Fixed critical sync regression on fresh databases — `replicateSupabase` pull modifier now strips Supabase-only columns (`owner`, `device_id`, `revision`) before documents reach `wrappedValidateZSchemaStorage`, which was silently rejecting all pulled rows and leaving production databases empty
+- Added Settings button (gear icon) to home screen header — opens a sheet with a **Refresh & Sync** action that clears SW caches, deletes local RxDB IndexedDB databases, unregisters the service worker, and reloads; designed for iOS PWA recovery
+
 ## 0.17.0 - 2026-02-28
 - Migrated sync from custom polling to the official RxDB Supabase Replication Plugin (`replicateSupabase`) with Realtime push, checkpoint-based pull, and automatic multi-tab leader election
 - Added `owner`, `device_id`, `sync_rev`, and `deleted` fields to all 13 RxDB schemas and Supabase tables via migration
