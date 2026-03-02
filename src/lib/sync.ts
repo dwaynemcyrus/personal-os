@@ -386,7 +386,13 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
             if (docId && updatedAt) {
               markRemoteUpdate(name, docId, updatedAt);
             }
-            return doc;
+            // Strip Supabase-only columns that aren't in the RxDB schema.
+            // wrappedValidateZSchemaStorage rejects unknown fields, so leaving
+            // owner/device_id/revision in causes silent validation failures on
+            // fresh databases where all data must come through the pull.
+            // Keep `deleted` — the plugin needs it to map to _deleted.
+            const { owner: _o, device_id: _d, revision: _r, ...rxDoc } = doc as Record<string, unknown>;
+            return rxDoc;
           },
         },
       });
