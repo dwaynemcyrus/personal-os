@@ -8,11 +8,11 @@ import styles from './NotesDesktopShell.module.css';
 export function NotesDesktopShell() {
   const { stack } = useNavigationState();
 
-  const notesListLayer = stack.find(
+  const notesListLayer = stack.findLast(
     (l) => l.view === 'notes-list'
   ) as { view: 'notes-list'; group: NoteGroup } | undefined;
 
-  const noteDetailLayer = stack.find(
+  const noteDetailLayer = stack.findLast(
     (l) => l.view === 'note-detail'
   ) as { view: 'note-detail'; noteId: string } | undefined;
 
