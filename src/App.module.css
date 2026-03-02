@@ -4,6 +4,63 @@
   align-content: start;
 }
 
+.homeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.homeSettingsButton {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 0;
+  margin-right: -8px;
+}
+
+.homeSettingsButton:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: var(--radius-pill);
+}
+
+.settingsSection {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.settingsSectionLabel {
+  font-size: 11px;
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+}
+
+.settingsRow {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-base);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: fit-content;
+}
+
+.settingsRow:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
 .homeNowGroup {
   display: grid;
   gap: 4px;
