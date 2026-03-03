@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
-import { isTodayNote, isTodoNote } from '../noteUtils';
+import { isTodayNote } from '../noteUtils';
 
 export type NoteGroup = 'all' | 'todo' | 'today' | 'locked' | 'pinned' | 'trash';
+
+function getTodayIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
 
 export function useGroupedNotes(group: NoteGroup): {
   notes: ItemDocument[];
@@ -22,12 +28,18 @@ export function useGroupedNotes(group: NoteGroup): {
       return;
     }
 
+    const baseActive = { type: 'note' as const, is_trashed: false, inbox_at: null };
+
     const selector =
       group === 'trash'
-        ? ({ type: 'note' as const, is_trashed: true })
+        ? { type: 'note' as const, is_trashed: true }
         : group === 'pinned'
-          ? ({ type: 'note' as const, is_pinned: true, is_trashed: false, inbox_at: null })
-          : ({ type: 'note' as const, is_trashed: false, inbox_at: null });
+          ? { type: 'note' as const, is_pinned: true, is_trashed: false, inbox_at: null }
+          : group === 'today'
+            ? { ...baseActive, updated_at: { $gte: getTodayIso() } }
+            : group === 'todo'
+              ? { ...baseActive, content: { $regex: '- \\[ \\]' } }
+              : baseActive;
 
     const subscription = db.items
       .find({
@@ -37,10 +49,9 @@ export function useGroupedNotes(group: NoteGroup): {
       .$.subscribe((docs) => {
         let result = docs.map((doc) => doc.toJSON() as ItemDocument);
 
+        // 'today' pre-filter narrows by updated_at but also needs created_at check
         if (group === 'today') {
           result = result.filter(isTodayNote);
-        } else if (group === 'todo') {
-          result = result.filter(isTodoNote);
         }
 
         setNotes(result);
