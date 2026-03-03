@@ -216,7 +216,7 @@ const itemsRxSchema = {
   type: 'object',
   properties: {
     ...baseProperties,
-    type: { type: 'string', maxLength: 20 },
+    type: { type: 'string', maxLength: 20, enum: itemTypes },
     parent_id: { type: ['string', 'null'], maxLength: 36 },
 
     // Common
@@ -224,8 +224,8 @@ const itemsRxSchema = {
     content: { type: ['string', 'null'] },
     tags: { type: 'array', items: { type: 'string' } },
     is_pinned: { type: 'boolean' },
-    item_status: { type: 'string' },
-    priority: { type: ['string', 'null'] },
+    item_status: { type: 'string', enum: itemStatuses },
+    priority: { type: ['string', 'null'], enum: [...itemPriorities, null] },
 
     // Scheduling
     due_date: { type: ['string', 'null'] },
@@ -244,8 +244,8 @@ const itemsRxSchema = {
 
     // Source
     url: { type: ['string', 'null'] },
-    content_type: { type: ['string', 'null'] },
-    read_status: { type: ['string', 'null'] },
+    content_type: { type: ['string', 'null'], enum: [...contentTypes, null] },
+    read_status: { type: ['string', 'null'], enum: [...readStatuses, null] },
 
     // OKR / planning
     period_start: { type: ['string', 'null'] },
@@ -253,7 +253,7 @@ const itemsRxSchema = {
     progress: { type: ['number', 'null'] },
 
     // Habit
-    frequency: { type: ['string', 'null'] },
+    frequency: { type: ['string', 'null'], enum: [...habitFrequencies, null] },
     target: { type: ['number', 'null'] },
     active: { type: ['boolean', 'null'] },
     streak: { type: ['number', 'null'] },
@@ -261,7 +261,7 @@ const itemsRxSchema = {
 
     // Capture
     body: { type: ['string', 'null'] },
-    capture_source: { type: ['string', 'null'] },
+    capture_source: { type: ['string', 'null'], enum: [...captureSources, null] },
     processed: { type: 'boolean' },
     processed_at: { type: ['string', 'null'] },
     result_type: { type: ['string', 'null'] },

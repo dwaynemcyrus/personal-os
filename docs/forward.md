@@ -31,12 +31,7 @@
 
 ---
 
-### 2.2 RxDB `items` schema lacks enum validation for common string fields
-`src/lib/db.ts:229–230`
-
-`item_status`, `priority`, `type`, `capture_source`, `content_type`, `read_status`, and `frequency` are stored as plain `{ type: 'string' }` in the RxDB JSON schema. `item_versions.created_by` and `time_entries.entry_type` do have enum arrays. The inconsistency means invalid values can be written to IndexedDB and only caught by Zod at the app layer.
-
-**Fix:** Add `enum` arrays to these fields in the RxDB JSON schema to mirror the Zod constraints.
+### ~~2.2 RxDB `items` schema lacks enum validation for common string fields~~ ✓ fixed
 
 ---
 
