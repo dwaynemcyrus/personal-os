@@ -18,84 +18,49 @@ type CollectionName = keyof DatabaseCollections;
 type AnyCollection = DatabaseCollections[CollectionName];
 
 const collectionConfig = {
-  projects: {
-    table: 'projects',
+  items: {
+    table: 'items',
     fields: [
       'id',
+      'type',
+      'parent_id',
       'title',
-      'description',
-      'status',
-      'start_date',
+      'content',
+      'tags',
+      'is_pinned',
+      'item_status',
+      'priority',
       'due_date',
-      'area_id',
-      'okr_id',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  tasks: {
-    table: 'tasks',
-    fields: [
-      'id',
-      'project_id',
-      'area_id',
-      'title',
-      'description',
+      'start_date',
       'completed',
-      'is_someday',
       'is_next',
+      'is_someday',
       'is_waiting',
       'waiting_note',
       'waiting_started_at',
-      'start_date',
-      'due_date',
-      'tags',
-      'content',
-      'priority',
       'depends_on',
-      'okr_id',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  notes: {
-    table: 'notes',
-    fields: [
-      'id',
-      'title',
-      'content',
       'inbox_at',
-      'note_type',
-      'is_pinned',
-      'properties',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  habits: {
-    table: 'habits',
-    fields: [
-      'id',
-      'title',
-      'description',
+      'subtype',
+      'url',
+      'content_type',
+      'read_status',
+      'period_start',
+      'period_end',
+      'progress',
       'frequency',
       'target',
       'active',
-      'okr_id',
       'streak',
       'last_completed_at',
+      'body',
+      'capture_source',
+      'processed',
+      'processed_at',
+      'result_type',
+      'result_id',
+      'description',
+      'category',
+      'sort_order',
       'created_at',
       'updated_at',
       'is_trashed',
@@ -104,42 +69,8 @@ const collectionConfig = {
       'device_id',
     ],
   },
-  habit_completions: {
-    table: 'habit_completions',
-    fields: [
-      'id',
-      'habit_id',
-      'completed_date',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  time_entries: {
-    table: 'time_entries',
-    fields: [
-      'id',
-      'task_id',
-      'entry_type',
-      'label',
-      'label_normalized',
-      'session_id',
-      'started_at',
-      'stopped_at',
-      'duration_seconds',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  note_links: {
-    table: 'note_links',
+  item_links: {
+    table: 'item_links',
     fields: [
       'id',
       'source_id',
@@ -156,28 +87,11 @@ const collectionConfig = {
       'device_id',
     ],
   },
-  templates: {
-    table: 'templates',
+  item_versions: {
+    table: 'item_versions',
     fields: [
       'id',
-      'title',
-      'content',
-      'description',
-      'category',
-      'sort_order',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  note_versions: {
-    table: 'note_versions',
-    fields: [
-      'id',
-      'note_id',
+      'item_id',
       'content',
       'properties',
       'version_number',
@@ -191,36 +105,18 @@ const collectionConfig = {
       'device_id',
     ],
   },
-  captures: {
-    table: 'captures',
+  time_entries: {
+    table: 'time_entries',
     fields: [
       'id',
-      'body',
-      'source',
-      'processed',
-      'processed_at',
-      'result_type',
-      'result_id',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  okrs: {
-    table: 'okrs',
-    fields: [
-      'id',
-      'title',
-      'description',
-      'type',
-      'parent_id',
-      'period_start',
-      'period_end',
-      'status',
-      'progress',
+      'item_id',
+      'session_id',
+      'entry_type',
+      'label',
+      'label_normalized',
+      'started_at',
+      'stopped_at',
+      'duration_seconds',
       'created_at',
       'updated_at',
       'is_trashed',
@@ -234,35 +130,6 @@ const collectionConfig = {
     fields: [
       'id',
       'name',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  areas: {
-    table: 'areas',
-    fields: [
-      'id',
-      'title',
-      'created_at',
-      'updated_at',
-      'is_trashed',
-      'trashed_at',
-      'owner',
-      'device_id',
-    ],
-  },
-  sources: {
-    table: 'sources',
-    fields: [
-      'id',
-      'url',
-      'title',
-      'content_type',
-      'read_status',
       'created_at',
       'updated_at',
       'is_trashed',
@@ -341,12 +208,9 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
   if (setupPromise) return setupPromise;
 
   setupPromise = (async () => {
-    // Wait for a valid auth session before syncing. On hard refresh, Supabase
-    // restores the session from localStorage asynchronously — without this guard,
-    // the first sync attempt would be unauthenticated (401 on tables with RLS).
+    // Wait for a valid auth session before syncing.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      // Reset so setupSync can be called again once auth is available.
       setupPromise = null;
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
         if (newSession && !setupPromise) {
@@ -363,10 +227,6 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
       const collection = asSyncCollection(db[name]);
       const { table, fields } = collectionConfig[name];
 
-      // Plugin: handles pull with Realtime, checkpoint-based incremental sync,
-      // and multi-tab leader election (waitForLeadership: true by default).
-      // Push is omitted because the plugin's conflict detection throws on array/object
-      // fields (tags, depends_on, properties). Manual push below handles this correctly.
       replicateSupabase({
         replicationIdentifier: `personalos-${name}`,
         collection,
@@ -379,27 +239,18 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
         pull: {
           batchSize: 50,
           modifier: (doc) => {
-            // Mark as recently pulled so the push subscription below skips it,
-            // preventing an echo loop back to Supabase.
             const docId = doc.id as string | undefined;
             const updatedAt = doc.updated_at as string | undefined;
             if (docId && updatedAt) {
               markRemoteUpdate(name, docId, updatedAt);
             }
-            // Strip Supabase-only columns that aren't in the RxDB schema.
-            // wrappedValidateZSchemaStorage rejects unknown fields, so leaving
-            // owner/device_id/revision in causes silent validation failures on
-            // fresh databases where all data must come through the pull.
-            // Keep `deleted` — the plugin needs it to map to _deleted.
+            // Strip Supabase-only columns not in RxDB schema.
             const { owner: _o, device_id: _d, revision: _r, ...rxDoc } = doc as Record<string, unknown>;
-            return rxDoc;
+            return rxDoc as typeof doc;
           },
         },
       });
 
-      // Manual push: handles all local writes → Supabase upsert.
-      // Uses upsert instead of the plugin's optimistic-lock UPDATE because array
-      // fields (tags, depends_on, properties) would cause a JS throw in addDocEqualityToQuery.
       collection.$.subscribe(async (changeEvent: RxChangeEvent<SyncDocument>) => {
         const docId = changeEvent.documentData?.id as string | undefined;
         if (!docId) return;
@@ -411,11 +262,7 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
         queue.add(docId);
 
         try {
-          if (changeEvent.operation === 'DELETE') {
-            await markTrashedInSupabase(docId, table);
-          } else {
-            await pushToSupabase(changeEvent.documentData, name, ownerId, fields);
-          }
+          await pushToSupabase(changeEvent.documentData, name, ownerId, fields);
         } catch (error) {
           if (error instanceof Error && !error.message.includes('Failed to fetch')) {
             console.error(`Push error [${name}]:`, error);
@@ -426,7 +273,6 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
       });
     }
 
-    // On reconnect, flush any queued local changes to Supabase.
     if (typeof window !== 'undefined') {
       window.addEventListener('online', async () => {
         for (const name of collectionNames) {
@@ -469,24 +315,6 @@ async function pushToSupabase(
       : (error as { message?: string })?.message ?? String(error);
     if (!msg.includes('Failed to fetch')) {
       console.error(`Push error [${name}]:`, error);
-    }
-  }
-}
-
-async function markTrashedInSupabase(id: string, table: string) {
-  try {
-    const timestamp = new Date().toISOString();
-    const { error } = await supabase
-      .from(table)
-      .update({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp })
-      .eq('id', id);
-    if (error) throw error;
-  } catch (error) {
-    const msg = error instanceof Error
-      ? error.message
-      : (error as { message?: string })?.message ?? String(error);
-    if (!msg.includes('Failed to fetch')) {
-      console.error('Trash error:', error);
     }
   }
 }
