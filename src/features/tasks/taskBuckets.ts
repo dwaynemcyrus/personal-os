@@ -61,11 +61,14 @@ export function sortByDeadline(a: ItemDocument, b: ItemDocument): number {
 
 // ─── Filter ───────────────────────────────────────────────────────────────────
 
+type Window = { startOfDayMs: number; endOfDayMs: number };
+
 export function matchesTaskFilter(
   task: ItemDocument,
-  filter: TaskListFilter
+  filter: TaskListFilter,
+  window?: Window
 ): boolean {
-  const { startOfDayMs, endOfDayMs } = getWindow();
+  const { startOfDayMs, endOfDayMs } = window ?? getWindow();
   const dueMs = parseMs(task.due_date);
   const startMs = parseMs(task.start_date);
   const active = !task.is_trashed && !task.completed;
@@ -187,14 +190,15 @@ export function getTodaySections(tasks: ItemDocument[]): TodaySections {
 
 export function getTaskBucketCounts(tasks: ItemDocument[]): TaskBucketCounts {
   const counts: TaskBucketCounts = { ...EMPTY_COUNTS };
+  const win = getWindow();
 
   for (const task of tasks) {
-    if (matchesTaskFilter(task, 'today')) counts.today += 1;
-    if (matchesTaskFilter(task, 'upcoming')) counts.upcoming += 1;
-    if (matchesTaskFilter(task, 'backlog')) counts.backlog += 1;
-    if (matchesTaskFilter(task, 'someday')) counts.someday += 1;
-    if (matchesTaskFilter(task, 'logbook')) counts.logbook += 1;
-    if (matchesTaskFilter(task, 'trash')) counts.trash += 1;
+    if (matchesTaskFilter(task, 'today', win)) counts.today += 1;
+    if (matchesTaskFilter(task, 'upcoming', win)) counts.upcoming += 1;
+    if (matchesTaskFilter(task, 'backlog', win)) counts.backlog += 1;
+    if (matchesTaskFilter(task, 'someday', win)) counts.someday += 1;
+    if (matchesTaskFilter(task, 'logbook', win)) counts.logbook += 1;
+    if (matchesTaskFilter(task, 'trash', win)) counts.trash += 1;
   }
 
   return counts;
