@@ -60,7 +60,6 @@ const baseFields = {
   // Sync fields
   owner: z.string().uuid().nullable().optional(),
   device_id: z.string().nullable().optional(),
-  sync_rev: z.number().int().nonnegative().nullable().optional(),
 };
 
 export const itemSchema = z.object({
@@ -201,7 +200,6 @@ const baseProperties = {
   trashed_at: { type: ['string', 'null'], format: 'date-time' },
   owner: { type: ['string', 'null'], maxLength: 36 },
   device_id: { type: ['string', 'null'] },
-  sync_rev: { type: ['number', 'null'] },
 } as const;
 
 const baseRequired = [
@@ -388,7 +386,6 @@ function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
     ...oldDoc,
     owner: null,
     device_id: null,
-    sync_rev: 0,
   };
 }
 

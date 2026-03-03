@@ -15,12 +15,7 @@
 
 ---
 
-### 1.3 `sync_rev` is never updated after a push
-`src/lib/sync.ts:310`
-
-`pushToSupabase` sends `revision: (doc.sync_rev ?? 0) + 1` to Supabase. But `sync_rev` on the local RxDB doc is never patched after a successful push, so every subsequent push for the same doc sends `revision: 1`. The revision counter is meaningless and conflict detection based on it will fail.
-
-**Fix:** After a successful upsert, patch `sync_rev` on the local doc, or remove the revision field entirely if it isn't used for conflict resolution.
+### ~~1.3 `sync_rev` is never updated after a push~~ ✓ fixed (field removed)
 
 ---
 

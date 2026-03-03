@@ -303,7 +303,6 @@ async function pushToSupabase(
       ...buildPayload(doc, fields),
       owner: ownerId,
       device_id: getDeviceId(),
-      revision: ((doc.sync_rev as number) ?? 0) + 1,
       deleted: false,
     };
 
