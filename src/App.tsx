@@ -13,6 +13,7 @@ import { CloseIcon, GearIcon } from '@/components/ui/icons';
 import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
 import { TaskList } from '@/features/tasks/TaskList/TaskList';
+import { PlansView } from '@/features/plans/PlansView';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
 import type { NavigationLayer } from '@/lib/navigation/types';
@@ -36,14 +37,6 @@ function NotesShell() {
   return <NotesMobileShell />;
 }
 
-function PlansView() {
-  return (
-    <section className={styles.placeholder}>
-      <h1 className={styles.placeholderTitle}>Plans</h1>
-      <p className={styles.placeholderBody}>Plans view coming soon.</p>
-    </section>
-  );
-}
 
 function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
   const { db, isReady } = useDatabase();
