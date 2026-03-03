@@ -8,6 +8,7 @@ import {
   SheetTitle,
   SheetClose,
 } from '@/components/ui/Sheet';
+import { CloseIcon } from '@/components/ui/icons';
 import styles from './FocusSheet.module.css';
 import type {
   EntryType,
@@ -126,7 +127,7 @@ export function FocusSheet({
               className={styles['focus-sheet__close']}
               aria-label="Close focus sheet"
             >
-              <CloseIcon />
+              <CloseIcon className={styles['focus-sheet__icon']} />
             </button>
           </SheetClose>
         </header>
@@ -292,22 +293,6 @@ export function FocusSheet({
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={styles['focus-sheet__icon']}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M6 6l12 12" />
-      <path d="M18 6l-12 12" />
-    </svg>
-  );
-}
 
 function normalizeLabel(value: string) {
   return value.trim().toLowerCase();

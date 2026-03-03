@@ -10,6 +10,7 @@ import {
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
 import { replaceTemplateVariables } from '@/lib/templates';
+import { CloseIcon } from '@/components/ui/icons';
 import styles from './TemplatePicker.module.css';
 
 type TemplatePickerProps = {
@@ -93,7 +94,7 @@ export function TemplatePicker({
               className={styles.close}
               aria-label="Close templates"
             >
-              <CloseIcon />
+              <CloseIcon className={styles.icon} />
             </button>
           </SheetClose>
         </header>
@@ -162,18 +163,3 @@ function formatCategoryLabel(category: string): string {
     .join(' ');
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.icon}
-    >
-      <path d="M6 6l12 12M18 6l-12 12" />
-    </svg>
-  );
-}

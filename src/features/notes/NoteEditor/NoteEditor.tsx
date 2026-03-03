@@ -23,6 +23,7 @@ import {
 } from '@/lib/markdown/frontmatter';
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
+import { BackIcon } from '@/components/ui/icons';
 import styles from './NoteEditor.module.css';
 const SAVE_DEBOUNCE_MS = 1000;
 const TITLE_REVEAL_SCROLL_PX = 64;
@@ -194,7 +195,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               aria-label="Go back"
               onClick={handleClose}
             >
-              <BackIcon />
+              <BackIcon className={styles.actionIcon} />
             </button>
             <div
               className={styles.headerTitle}
@@ -279,23 +280,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   );
 }
 
-function BackIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={styles.actionIcon}
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
 
 function MoreIcon() {
   return (

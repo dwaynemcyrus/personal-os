@@ -16,6 +16,7 @@ import { ToastHost } from '@/components/ui/Toast';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import type { NavigationLayer } from '@/lib/navigation/types';
+import { BackIcon } from '@/components/ui/icons';
 import styles from './AppShell.module.css';
 
 type AppShellProps = {
@@ -250,7 +251,7 @@ export function AppShell({ children }: AppShellProps) {
                 onClick={handleBack}
                 aria-label="Go back"
               >
-                <BackIcon />
+                <BackIcon className={styles['app-shell__icon']} />
               </button>
             )}
           </div>
@@ -350,22 +351,6 @@ export function AppShell({ children }: AppShellProps) {
   );
 }
 
-function BackIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={styles['app-shell__icon']}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
 
 function FabIcon() {
   return (

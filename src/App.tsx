@@ -8,6 +8,7 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
+import { CloseIcon, GearIcon } from '@/components/ui/icons';
 import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
 import { TaskList } from '@/features/tasks/TaskList/TaskList';
@@ -292,7 +293,7 @@ function NowView() {
                 className={styles.workbenchClose}
                 aria-label="Close workbench"
               >
-                <CloseIcon />
+                <CloseIcon className={styles.workbenchCloseIcon} />
               </button>
             </SheetClose>
           </header>
@@ -338,7 +339,7 @@ function NowView() {
             <SheetTitle className={styles.workbenchSheetTitle}>Settings</SheetTitle>
             <SheetClose asChild>
               <button type="button" className={styles.workbenchClose} aria-label="Close settings">
-                <CloseIcon />
+                <CloseIcon className={styles.workbenchCloseIcon} />
               </button>
             </SheetClose>
           </header>
@@ -359,40 +360,6 @@ function NowView() {
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.workbenchCloseIcon}
-    >
-      <path d="M6 6l12 12M18 6l-12 12" />
-    </svg>
-  );
-}
-
-function GearIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      width="18"
-      height="18"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
 
 function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
   if (!topLayer) {

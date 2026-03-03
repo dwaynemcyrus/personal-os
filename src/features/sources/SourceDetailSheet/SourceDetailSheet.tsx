@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/Sheet';
 import type { ContentType, ReadStatus, ItemDocument } from '@/lib/db';
 import { contentTypes, readStatuses } from '@/lib/db';
+import { CloseIcon } from '@/components/ui/icons';
 import styles from './SourceDetailSheet.module.css';
 
 type SourceDetailSheetProps = {
@@ -88,7 +89,7 @@ export function SourceDetailSheet({
               className={styles.closeButton}
               aria-label="Close source"
             >
-              <CloseIcon />
+              <CloseIcon className={styles.icon} />
             </button>
           </SheetClose>
         </header>
@@ -183,24 +184,6 @@ export function SourceDetailSheet({
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      className={styles.icon}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M18 6L6 18M6 6l12 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function EditIcon() {
   return (
