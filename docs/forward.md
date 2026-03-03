@@ -39,12 +39,7 @@
 
 ---
 
-### 2.4 `trashed_at` is required but semantically optional
-`src/lib/db.ts:207–213`
-
-`trashed_at` is in `baseRequired`, forcing every insert to supply `trashed_at: null`. Logically, a newly created doc is not trashed and shouldn't need this field at all. Making it required-but-null creates noise in every insert call.
-
-**Fix:** Remove `trashed_at` from `baseRequired`; it is already nullable and can default to absent.
+### ~~2.4 `trashed_at` is required but semantically optional~~ ✓ fixed
 
 ---
 

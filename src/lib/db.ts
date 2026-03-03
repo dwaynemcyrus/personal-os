@@ -56,7 +56,7 @@ const baseFields = {
   created_at: z.string(),
   updated_at: z.string(),
   is_trashed: z.boolean(),
-  trashed_at: z.string().nullable(),
+  trashed_at: z.string().nullable().optional(),
   // Sync fields
   owner: z.string().uuid().nullable().optional(),
   device_id: z.string().nullable().optional(),
@@ -207,7 +207,6 @@ const baseRequired = [
   'created_at',
   'updated_at',
   'is_trashed',
-  'trashed_at',
 ] as const;
 
 const itemsRxSchema = {
