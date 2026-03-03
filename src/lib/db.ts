@@ -194,8 +194,8 @@ export const tagSchema = z.object({
 
 const baseProperties = {
   id: { type: 'string', maxLength: 36 },
-  created_at: { type: 'string', format: 'date-time' },
-  updated_at: { type: 'string', format: 'date-time' },
+  created_at: { type: 'string', format: 'date-time', maxLength: 32 },
+  updated_at: { type: 'string', format: 'date-time', maxLength: 32 },
   is_trashed: { type: 'boolean' },
   trashed_at: { type: ['string', 'null'], format: 'date-time' },
   owner: { type: ['string', 'null'], maxLength: 36 },
@@ -238,7 +238,7 @@ const itemsRxSchema = {
     depends_on: { type: ['array', 'null'], items: { type: 'string', maxLength: 36 } },
 
     // Note
-    inbox_at: { type: ['string', 'null'] },
+    inbox_at: { type: ['string', 'null'], maxLength: 32 },
     subtype: { type: ['string', 'null'] },
 
     // Source
@@ -286,6 +286,8 @@ const itemsRxSchema = {
   indexes: [
     'type',
     ['type', 'is_trashed'],
+    ['type', 'is_trashed', 'updated_at'],
+    ['type', 'is_trashed', 'inbox_at'],
   ],
 };
 
@@ -365,6 +367,7 @@ const timeEntriesRxSchema = {
     'stopped_at',
     'duration_seconds',
   ],
+  indexes: ['item_id'],
 };
 
 const tagsRxSchema = {

@@ -43,25 +43,11 @@
 
 ---
 
-### 2.5 `tags` table not updated in new migration
-`supabase/migrations/20260302000000_items_table.sql`
-
-The migration drops all old domain tables and creates new ones, but `tags` is described as "kept as independent catalog" with no changes applied. The sync code includes `tags` in `collectionNames` and expects the `deleted` column to exist (used by `deletedField: 'deleted'`). If the previous migration (`20260227000000_sync_v2_fields.sql`) didn't add this column, syncing tags will fail. Realtime for `tags` is also not enabled in the new migration.
-
-**Fix:** Verify the tags table has `deleted boolean NOT NULL DEFAULT false` and is added to the Realtime publication.
+### ~~2.5 `tags` table not updated in new migration~~ ✓ not an issue (`20260227000000_sync_v2_fields.sql` already handles it)
 
 ---
 
-### 2.6 Missing RxDB indexes for common query patterns
-`src/lib/db.ts:289–293`
-
-The only indexes on `items` are `type` and `['type', 'is_trashed']`. Several high-frequency queries have no index support:
-
-- `inbox_at: { $ne: null }` — used by inbox, NowView, InboxWizard
-- `is_pinned: true` — used by workbench subscription and notes list sort
-- `item_id` in `item_versions` and `time_entries` — these collections have no indexes at all
-
-**Fix:** Add indexes: `['type', 'is_trashed', 'inbox_at']` for inbox queries; `item_id` on `item_versions` (already declared) and `time_entries`.
+### ~~2.6 Missing RxDB indexes for common query patterns~~ ✓ fixed
 
 ---
 
