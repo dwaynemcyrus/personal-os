@@ -181,11 +181,9 @@ export async function countVersions(
   db: RxDatabase<DatabaseCollections>,
   noteId: string
 ): Promise<number> {
-  const versions = await db.item_versions
-    .find({
+  return db.item_versions
+    .count({
       selector: { item_id: noteId, is_trashed: false },
     })
     .exec();
-
-  return versions.length;
 }
