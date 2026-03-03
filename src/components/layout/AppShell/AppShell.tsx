@@ -21,6 +21,8 @@ import styles from './AppShell.module.css';
 
 type AppShellProps = {
   children: React.ReactNode;
+  isInboxOpen: boolean;
+  onInboxOpenChange: (open: boolean) => void;
 };
 
 const LONG_PRESS_MS = 500;
@@ -57,13 +59,12 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
   }
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellProps) {
   const { stack } = useNavigationState();
   const { goBack } = useNavigationActions();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isTaskDetailSheetOpen, setIsTaskDetailSheetOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
-  const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
 
   const longPressTimerRef = useRef<number | undefined>(undefined);
@@ -188,16 +189,6 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, []);
 
-  useEffect(() => {
-    const handleOpenInbox = () => {
-      setIsInboxOpen(true);
-    };
-
-    window.addEventListener('inbox-wizard:open', handleOpenInbox);
-    return () => {
-      window.removeEventListener('inbox-wizard:open', handleOpenInbox);
-    };
-  }, []);
 
   useEffect(() => {
     const handleTaskDetailOpenChange = (event: Event) => {
@@ -339,7 +330,7 @@ export function AppShell({ children }: AppShellProps) {
             )}
 
             <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
-            <InboxWizard open={isInboxOpen} onOpenChange={setIsInboxOpen} />
+            <InboxWizard open={isInboxOpen} onOpenChange={onInboxOpenChange} />
             <ContextSheet
               open={isContextSheetOpen}
               onOpenChange={setIsContextSheetOpen}

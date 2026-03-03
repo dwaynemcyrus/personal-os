@@ -55,7 +55,7 @@ function PlansView() {
   );
 }
 
-function NowView() {
+function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
@@ -85,9 +85,6 @@ function NowView() {
     window.location.reload();
   };
 
-  const handleOpenInbox = () => {
-    window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
-  };
 
   const today = useTodayDate();
   const nowLabel = today.toLocaleDateString('en-US', {
@@ -252,7 +249,7 @@ function NowView() {
       <button
         type="button"
         className={styles.homeInboxLink}
-        onClick={handleOpenInbox}
+        onClick={onOpenInbox}
         aria-label="Process inbox"
       >
         <span className={styles.homeInboxTitle}>Process inbox</span>
@@ -361,9 +358,15 @@ function NowView() {
 }
 
 
-function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
+function ActiveView({
+  topLayer,
+  onOpenInbox,
+}: {
+  topLayer: NavigationLayer | undefined;
+  onOpenInbox: () => void;
+}) {
   if (!topLayer) {
-    return <NowView />;
+    return <NowView onOpenInbox={onOpenInbox} />;
   }
 
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') {
@@ -378,16 +381,17 @@ function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
     return <PlansView />;
   }
 
-  return <NowView />;
+  return <NowView onOpenInbox={onOpenInbox} />;
 }
 
 export function App() {
   const { stack } = useNavigationState();
   const topLayer = stack[stack.length - 1];
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
 
   return (
-    <AppShell>
-      <ActiveView topLayer={topLayer} />
+    <AppShell isInboxOpen={isInboxOpen} onInboxOpenChange={setIsInboxOpen}>
+      <ActiveView topLayer={topLayer} onOpenInbox={() => setIsInboxOpen(true)} />
     </AppShell>
   );
 }
