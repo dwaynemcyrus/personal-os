@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  // Still resolving — render nothing to avoid flash
-  if (session === undefined) return null;
+  // Still resolving — render dark shell to avoid off-white flash
+  if (session === undefined) return <div style={{ height: '100dvh', background: '#282828' }} />;
 
   if (!session) return <LoginView />;
 
