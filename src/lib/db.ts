@@ -389,18 +389,6 @@ function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
   };
 }
 
-const itemsMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const itemLinksMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const itemVersionsMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
 const timeEntriesMigrationStrategies = {
   // Versions 1–4 handled old task_id schema; all data is discarded on fresh installs.
   // Version 5 renames task_id → item_id and adds sync v2 fields.
@@ -463,15 +451,12 @@ export async function getDatabase() {
     await db.addCollections({
       items: {
         schema: itemsRxSchema,
-        migrationStrategies: itemsMigrationStrategies,
       },
       item_links: {
         schema: itemLinksRxSchema,
-        migrationStrategies: itemLinksMigrationStrategies,
       },
       item_versions: {
         schema: itemVersionsRxSchema,
-        migrationStrategies: itemVersionsMigrationStrategies,
       },
       time_entries: {
         schema: timeEntriesRxSchema,

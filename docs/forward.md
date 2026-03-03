@@ -35,18 +35,7 @@
 
 ---
 
-### 2.3 Migration strategy for `items` collection is dead code
-`src/lib/db.ts:395–397`
-
-```ts
-const itemsMigrationStrategies = {
-  1: (oldDoc) => migrateSyncV2Fields(oldDoc),
-};
-```
-
-The `items` collection is brand-new in this branch — there is no pre-existing version 0 to migrate from. This strategy will never execute and is misleading.
-
-**Fix:** Remove `itemsMigrationStrategies` and the `migrationStrategies` key from the `items` collection definition.
+### ~~2.3 Migration strategy for `items` collection is dead code~~ ✓ fixed
 
 ---
 
