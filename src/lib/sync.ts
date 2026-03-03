@@ -146,6 +146,8 @@ const collectionConfig = {
 const collectionNames = Object.keys(collectionConfig) as CollectionName[];
 
 let setupPromise: Promise<void> | null = null;
+let lastSyncedAt: string | null = null;
+let onlineHandler: (() => void) | null = null;
 const syncQueueByCollection = new Map<CollectionName, Set<string>>();
 const remoteUpdateByCollection = new Map<
   CollectionName,
@@ -274,17 +276,24 @@ export async function setupSync(db: RxDatabase<DatabaseCollections>) {
     }
 
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', async () => {
+      if (onlineHandler) {
+        window.removeEventListener('online', onlineHandler);
+      }
+      onlineHandler = async () => {
+        const since = lastSyncedAt;
+        const now = new Date().toISOString();
         for (const name of collectionNames) {
           const collection = asSyncCollection(db[name]);
-          const { table, fields } = collectionConfig[name];
-          const allDocs = await collection.find().exec();
-          for (const doc of allDocs) {
-            const docData = doc.toJSON();
-            await pushToSupabase(docData, name, ownerId, fields);
+          const { fields } = collectionConfig[name];
+          const selector = since ? { updated_at: { $gte: since } } : {};
+          const docs = await collection.find({ selector }).exec();
+          for (const doc of docs) {
+            await pushToSupabase(doc.toJSON(), name, ownerId, fields);
           }
         }
-      });
+        lastSyncedAt = now;
+      };
+      window.addEventListener('online', onlineHandler);
     }
   })();
 
