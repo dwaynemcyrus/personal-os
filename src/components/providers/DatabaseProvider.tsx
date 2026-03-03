@@ -3,6 +3,7 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from '@/lib/db';
 import { getDatabase } from '@/lib/db';
 import { setupSync } from '@/lib/sync';
+import { initNoteTitleCache } from '@/lib/noteLinks';
 
 type DatabaseContextValue = {
   db: RxDatabase<DatabaseCollections> | null;
@@ -20,6 +21,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let teardownCache: (() => void) | null = null;
 
     async function init() {
       const database = await getDatabase();
@@ -27,11 +29,13 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       setDb(database);
       setIsReady(true);
       setupSync(database).catch(console.error);
+      teardownCache = initNoteTitleCache(database);
     }
 
     init();
     return () => {
       mounted = false;
+      teardownCache?.();
     };
   }, []);
 

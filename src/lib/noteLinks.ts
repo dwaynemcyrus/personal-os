@@ -8,8 +8,29 @@ import { v4 as uuidv4 } from 'uuid';
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from './db';
 import { parseWikiLinks } from './markdown/wikilinks';
-
 import { nowIso } from './time';
+
+// ── Title cache ────────────────────────────────────────────────────────────────
+// Populated once and invalidated whenever any note changes, so syncNoteLinks
+// doesn't fetch all notes on every save.
+
+let noteTitleCache: Map<string, string> | null = null;
+
+export function initNoteTitleCache(db: RxDatabase<DatabaseCollections>): () => void {
+  const subscription = db.items
+    .find({ selector: { type: 'note', is_trashed: false } })
+    .$.subscribe((docs) => {
+      noteTitleCache = new Map(docs.map((d) => [(d.title ?? '').toLowerCase(), d.id]));
+    });
+  return () => subscription.unsubscribe();
+}
+
+async function getNoteTitleMap(db: RxDatabase<DatabaseCollections>): Promise<Map<string, string>> {
+  if (noteTitleCache) return noteTitleCache;
+  const docs = await db.items.find({ selector: { type: 'note', is_trashed: false } }).exec();
+  noteTitleCache = new Map(docs.map((d) => [(d.title ?? '').toLowerCase(), d.id]));
+  return noteTitleCache;
+}
 
 /**
  * Extract and save wiki-links from a note's content
@@ -27,17 +48,7 @@ export async function syncNoteLinks(
   content: string
 ): Promise<void> {
   const links = parseWikiLinks(content);
-
-  // Get all existing notes for link resolution
-  const allNotes = await db.items
-    .find({ selector: { type: 'note', is_trashed: false } })
-    .exec();
-
-  // Create a map of lowercase title -> note id
-  const notesByTitle = new Map<string, string>();
-  for (const doc of allNotes) {
-    notesByTitle.set((doc.title ?? '').toLowerCase(), doc.id);
-  }
+  const notesByTitle = await getNoteTitleMap(db);
 
   // Get existing links for this source note
   const existingLinks = await db.item_links
