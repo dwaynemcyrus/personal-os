@@ -287,7 +287,6 @@ const itemsRxSchema = {
     'type',
     ['type', 'is_trashed'],
     ['type', 'is_trashed', 'updated_at'],
-    ['type', 'is_trashed', 'inbox_at'],
   ],
 };
 
