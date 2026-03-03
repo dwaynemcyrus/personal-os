@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppShell } from '@/components/layout/AppShell';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import {
   Sheet,
@@ -28,17 +29,6 @@ function useTodayDate() {
   return today;
 }
 
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return isDesktop;
-}
 
 function NotesShell() {
   const isDesktop = useIsDesktop();
