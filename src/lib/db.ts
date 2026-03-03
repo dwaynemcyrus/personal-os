@@ -366,7 +366,6 @@ const timeEntriesRxSchema = {
     'stopped_at',
     'duration_seconds',
   ],
-  indexes: ['item_id'],
 };
 
 const tagsRxSchema = {
