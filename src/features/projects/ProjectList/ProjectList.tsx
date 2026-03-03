@@ -2,11 +2,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { ProjectDocument, TaskDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
 import styles from './ProjectList.module.css';
 
-type ProjectFilter = 'all' | 'backlog' | 'next' | 'active' | 'hold';
+type ProjectFilter = 'all' | 'backlog' | 'active' | 'someday' | 'archived';
 
 const nowIso = () => new Date().toISOString();
 
@@ -17,9 +17,9 @@ const getTime = (value: string | null) => {
   return date.getTime();
 };
 
-const sortProjects = (a: ProjectDocument, b: ProjectDocument) => {
-  const aDue = getTime(a.due_date);
-  const bDue = getTime(b.due_date);
+const sortProjects = (a: ItemDocument, b: ItemDocument) => {
+  const aDue = getTime(a.due_date ?? null);
+  const bDue = getTime(b.due_date ?? null);
 
   if (aDue !== null && bDue !== null && aDue !== bDue) {
     return aDue - bDue;
@@ -38,8 +38,8 @@ const sortProjects = (a: ProjectDocument, b: ProjectDocument) => {
 
 export function ProjectList() {
   const { db, isReady } = useDatabase();
-  const [projects, setProjects] = useState<ProjectDocument[]>([]);
-  const [tasks, setTasks] = useState<TaskDocument[]>([]);
+  const [projects, setProjects] = useState<ItemDocument[]>([]);
+  const [tasks, setTasks] = useState<ItemDocument[]>([]);
   const [filter, setFilter] = useState<ProjectFilter>('all');
   const [titleInput, setTitleInput] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -47,13 +47,13 @@ export function ProjectList() {
   useEffect(() => {
     if (!db || !isReady) return;
 
-    const subscription = db.projects
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false },
+        selector: { type: 'project', is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setProjects(docs.map((doc) => doc.toJSON()));
+        setProjects(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
 
     return () => subscription.unsubscribe();
@@ -62,13 +62,13 @@ export function ProjectList() {
   useEffect(() => {
     if (!db || !isReady) return;
 
-    const subscription = db.tasks
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false },
+        selector: { type: 'task', is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setTasks(docs.map((doc) => doc.toJSON()));
+        setTasks(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
 
     return () => subscription.unsubscribe();
@@ -78,8 +78,8 @@ export function ProjectList() {
     const counts = new Map<string, number>();
     tasks.forEach((task) => {
       if (task.completed) return;
-      if (!task.project_id) return;
-      counts.set(task.project_id, (counts.get(task.project_id) ?? 0) + 1);
+      if (!task.parent_id) return;
+      counts.set(task.parent_id, (counts.get(task.parent_id) ?? 0) + 1);
     });
     return counts;
   }, [tasks]);
@@ -96,7 +96,7 @@ export function ProjectList() {
 
   const filteredProjects = useMemo(() => {
     if (filter === 'all') return sortedProjects;
-    return sortedProjects.filter((project) => project.status === filter);
+    return sortedProjects.filter((project) => project.item_status === filter);
   }, [filter, sortedProjects]);
 
   const createProject = async () => {
@@ -105,13 +105,19 @@ export function ProjectList() {
     if (!trimmed) return;
 
     const timestamp = nowIso();
-    await db.projects.insert({
+    await db.items.insert({
       id: uuidv4(),
+      type: 'project',
+      parent_id: null,
       title: trimmed,
-      description: null,
-      status: 'backlog',
-      area_id: null,
-      okr_id: null,
+      content: null,
+      item_status: 'backlog',
+      is_pinned: false,
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       start_date: null,
       due_date: null,
       created_at: timestamp,
@@ -141,33 +147,33 @@ export function ProjectList() {
     projectId: string,
     updates: {
       title: string;
-      description: string;
-      status: 'backlog' | 'next' | 'active' | 'hold';
+      content: string;
+      item_status: 'backlog' | 'active' | 'someday' | 'archived';
       startDate: string | null;
       dueDate: string | null;
-      areaId: string | null;
+      parentId: string | null;
     }
   ) => {
     if (!db) return;
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    const doc = await db.projects.findOne(projectId).exec();
+    const doc = await db.items.findOne(projectId).exec();
     if (!doc) return;
     const timestamp = nowIso();
     await doc.patch({
       title: trimmedTitle,
-      description: updates.description.trim() || null,
-      status: updates.status,
+      content: updates.content.trim() || null,
+      item_status: updates.item_status,
       start_date: updates.startDate,
       due_date: updates.dueDate,
-      area_id: updates.areaId,
+      parent_id: updates.parentId,
       updated_at: timestamp,
     });
   };
 
   const handleDeleteProject = async (projectId: string) => {
     if (!db) return;
-    const doc = await db.projects.findOne(projectId).exec();
+    const doc = await db.items.findOne(projectId).exec();
     if (!doc) return;
     const timestamp = nowIso();
     await doc.patch({
@@ -179,7 +185,7 @@ export function ProjectList() {
 
   const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
     if (!db) return;
-    const doc = await db.tasks.findOne(taskId).exec();
+    const doc = await db.items.findOne(taskId).exec();
     if (!doc) return;
     const timestamp = nowIso();
     await doc.patch({
@@ -193,8 +199,7 @@ export function ProjectList() {
     updates: {
       title: string;
       description: string;
-      projectId: string | null;
-      areaId: string | null;
+      parentId: string | null;
       isNext: boolean;
       startDate: string | null;
       dueDate: string | null;
@@ -207,13 +212,12 @@ export function ProjectList() {
     if (!db) return;
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    const doc = await db.tasks.findOne(taskId).exec();
+    const doc = await db.items.findOne(taskId).exec();
     if (!doc) return;
     await doc.patch({
       title: trimmedTitle,
-      description: updates.description.trim() || null,
-      project_id: updates.projectId,
-      area_id: updates.areaId,
+      content: updates.description.trim() || null,
+      parent_id: updates.parentId,
       is_next: updates.isNext,
       start_date: updates.startDate,
       due_date: updates.dueDate,
@@ -227,7 +231,7 @@ export function ProjectList() {
 
   const handleDeleteTask = async (taskId: string) => {
     if (!db) return;
-    const doc = await db.tasks.findOne(taskId).exec();
+    const doc = await db.items.findOne(taskId).exec();
     if (!doc) return;
     const timestamp = nowIso();
     await doc.patch({
@@ -242,12 +246,14 @@ export function ProjectList() {
     const trimmed = title.trim();
     if (!trimmed) return;
     const timestamp = nowIso();
-    await db.tasks.insert({
+    await db.items.insert({
       id: uuidv4(),
-      project_id: projectId,
-      area_id: null,
+      type: 'task',
+      parent_id: projectId,
       title: trimmed,
-      description: null,
+      content: null,
+      item_status: 'backlog',
+      is_pinned: false,
       completed: false,
       is_someday: false,
       is_next: false,
@@ -257,10 +263,9 @@ export function ProjectList() {
       start_date: null,
       due_date: null,
       tags: [],
-      content: null,
       priority: null,
       depends_on: null,
-      okr_id: null,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
@@ -284,7 +289,7 @@ export function ProjectList() {
       </form>
 
       <div className={styles.filters} role="tablist" aria-label="Project filters">
-        {(['all', 'next', 'backlog', 'active', 'hold'] as const).map(
+        {(['all', 'active', 'backlog', 'someday', 'archived'] as const).map(
           (value) => (
             <button
               key={value}
@@ -313,7 +318,7 @@ export function ProjectList() {
             >
               <div className={styles.itemTitle}>{project.title}</div>
               <div className={styles.itemMeta}>
-                <span className={styles.itemStatus}>{project.status}</span>
+                <span className={styles.itemStatus}>{project.item_status}</span>
                 <span>{activeTaskCounts.get(project.id) ?? 0} open tasks</span>
               </div>
             </button>

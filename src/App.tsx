@@ -12,7 +12,7 @@ import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
 import { TaskList } from '@/features/tasks/TaskList/TaskList';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
 
@@ -90,15 +90,15 @@ function NowView() {
   const nowNoteType = `daily:${nowIso}`;
   const nowTitle = `daily_${nowIso}`;
 
-  const [nowNote, setNowNote] = useState<NoteDocument | null>(null);
+  const [nowNote, setNowNote] = useState<ItemDocument | null>(null);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .findOne({
-        selector: { note_type: nowNoteType, is_trashed: false },
+        selector: { type: 'note', subtype: nowNoteType, is_trashed: false },
       })
       .$.subscribe((doc) => {
-        setNowNote(doc ? (doc.toJSON() as NoteDocument) : null);
+        setNowNote(doc ? (doc.toJSON() as ItemDocument) : null);
       });
     return () => subscription.unsubscribe();
   }, [db, isReady, nowNoteType]);
@@ -107,22 +107,29 @@ function NowView() {
     if (!db) return;
     // Re-query immediately before insert — handles the race where sync pulls
     // the note between the reactive state firing (null) and the user tapping.
-    const existing = nowNote ?? await db.notes.findOne({
-      selector: { note_type: nowNoteType, is_trashed: false },
+    const existing = nowNote ?? await db.items.findOne({
+      selector: { type: 'note', subtype: nowNoteType, is_trashed: false },
     }).exec();
     if (existing) {
       pushLayer({ view: 'note-detail', noteId: existing.id });
     } else {
       const noteId = uuidv4();
       const timestamp = new Date().toISOString();
-      await db.notes.insert({
+      await db.items.insert({
         id: noteId,
+        type: 'note',
+        parent_id: null,
         title: nowTitle,
         content: `# ${nowTitle}\n`,
         inbox_at: null,
-        note_type: nowNoteType,
+        subtype: nowNoteType,
         is_pinned: false,
-        properties: null,
+        item_status: 'active',
+        completed: false,
+        is_next: false,
+        is_someday: false,
+        is_waiting: false,
+        processed: false,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,
@@ -132,29 +139,29 @@ function NowView() {
     }
   };
 
-  const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
+  const [inboxNotes, setInboxNotes] = useState<ItemDocument[]>([]);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { inbox_at: { $ne: null }, is_trashed: false },
+        selector: { type: 'note', inbox_at: { $ne: null }, is_trashed: false },
       })
       .$.subscribe((docs) => {
-        setInboxNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
+        setInboxNotes(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
-  const [workbenchNotes, setWorkbenchNotes] = useState<NoteDocument[]>([]);
+  const [workbenchNotes, setWorkbenchNotes] = useState<ItemDocument[]>([]);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { is_pinned: true, is_trashed: false },
+        selector: { type: 'note', is_pinned: true, is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setWorkbenchNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
+        setWorkbenchNotes(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);

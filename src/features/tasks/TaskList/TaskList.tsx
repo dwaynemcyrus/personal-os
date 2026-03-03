@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { ProjectDocument, TaskDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import { formatRelativeTime } from '@/features/notes/noteUtils';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -17,12 +17,11 @@ import styles from './TaskList.module.css';
 
 const nowIso = () => new Date().toISOString();
 
-
 function formatDateLabel(iso: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(iso));
 }
 
-function isStartDateToday(iso: string | null): boolean {
+function isStartDateToday(iso: string | null | undefined): boolean {
   if (!iso) return false;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return false;
@@ -37,11 +36,10 @@ function isStartDateToday(iso: string | null): boolean {
 
 export function TaskList() {
   const { db, isReady } = useDatabase();
-  const [tasks, setTasks] = useState<TaskDocument[]>([]);
-  const [projects, setProjects] = useState<ProjectDocument[]>([]);
+  const [tasks, setTasks] = useState<ItemDocument[]>([]);
+  const [projects, setProjects] = useState<ItemDocument[]>([]);
   const [showNextOnly, setShowNextOnly] = useState(false);
 
-  // Pending completions: checked immediately, DB write delayed 4s
   const pendingTimersRef = useRef<Map<string, number>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
@@ -68,26 +66,26 @@ export function TaskList() {
 
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.tasks
-      .find({ sort: [{ updated_at: 'desc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setTasks(docs.map((doc) => doc.toJSON())));
+    const subscription = db.items
+      .find({ selector: { type: 'task' }, sort: [{ updated_at: 'desc' }, { id: 'asc' }] })
+      .$.subscribe((docs) => setTasks(docs.map((doc) => doc.toJSON() as ItemDocument)));
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.projects
-      .find({ selector: { is_trashed: false }, sort: [{ updated_at: 'desc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setProjects(docs.map((doc) => doc.toJSON())));
+    const subscription = db.items
+      .find({ selector: { type: 'project', is_trashed: false }, sort: [{ updated_at: 'desc' }, { id: 'asc' }] })
+      .$.subscribe((docs) => setProjects(docs.map((doc) => doc.toJSON() as ItemDocument)));
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
   const projectMap = useMemo(
-    () => new Map(projects.map((p) => [p.id, p.title])),
+    () => new Map(projects.map((p) => [p.id, p.title ?? ''])),
     [projects]
   );
   const projectOptions = useMemo(
-    () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
+    () => [...projects].sort((a, b) => (a.title ?? '').localeCompare(b.title ?? '')),
     [projects]
   );
 
@@ -123,25 +121,25 @@ export function TaskList() {
     if (!db) return;
     const timestamp = nowIso();
     const taskId = uuidv4();
-    await db.tasks.insert({
+    await db.items.insert({
       id: taskId,
-      project_id: null,
-      area_id: null,
+      type: 'task',
+      parent_id: null,
       title: 'Untitled task',
-      description: null,
+      content: null,
+      tags: [],
+      is_pinned: false,
+      item_status: 'backlog',
       completed: false,
-      is_someday: false,
       is_next: false,
+      is_someday: false,
       is_waiting: false,
       waiting_note: null,
       waiting_started_at: null,
       start_date: null,
       due_date: null,
-      tags: [],
-      content: null,
-      priority: null,
       depends_on: null,
-      okr_id: null,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
@@ -163,8 +161,7 @@ export function TaskList() {
     updates: {
       title: string;
       description: string;
-      projectId: string | null;
-      areaId: string | null;
+      parentId: string | null;
       isNext: boolean;
       startDate: string | null;
       dueDate: string | null;
@@ -177,13 +174,12 @@ export function TaskList() {
     if (!db) return;
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    const doc = await db.tasks.findOne(taskId).exec();
+    const doc = await db.items.findOne(taskId).exec();
     if (!doc) return;
     await doc.patch({
       title: trimmedTitle,
-      description: updates.description.trim() || null,
-      project_id: updates.projectId,
-      area_id: updates.areaId,
+      content: updates.description.trim() || null,
+      parent_id: updates.parentId,
       is_next: updates.isNext,
       start_date: updates.startDate,
       due_date: updates.dueDate,
@@ -197,7 +193,7 @@ export function TaskList() {
 
   const handleDeleteTask = async (taskId: string) => {
     if (!db) return;
-    const doc = await db.tasks.findOne(taskId).exec();
+    const doc = await db.items.findOne(taskId).exec();
     if (!doc) return;
     const timestamp = nowIso();
     await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
@@ -205,12 +201,11 @@ export function TaskList() {
 
   const handleToggleComplete = async (taskId: string, nextValue: boolean) => {
     if (!db) return;
-    const doc = await db.tasks.findOne(taskId).exec();
+    const doc = await db.items.findOne(taskId).exec();
     if (!doc) return;
     await doc.patch({ completed: nextValue, updated_at: nowIso() });
   };
 
-  // Clear all pending timers on unmount
   useEffect(() => {
     const timers = pendingTimersRef.current;
     return () => { timers.forEach((id) => window.clearTimeout(id)); };
@@ -228,7 +223,6 @@ export function TaskList() {
     } else {
       const timerId = pendingTimersRef.current.get(taskId);
       if (timerId !== undefined) {
-        // Cancel pending completion
         window.clearTimeout(timerId);
         pendingTimersRef.current.delete(taskId);
         setPendingIds((prev) => { const s = new Set(prev); s.delete(taskId); return s; });
@@ -240,9 +234,9 @@ export function TaskList() {
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  const renderTaskRow = (task: TaskDocument, dateLabel?: string) => {
-    const projectLabel = task.project_id ? projectMap.get(task.project_id) : null;
-    const snippet = task.description?.trim() ?? '';
+  const renderTaskRow = (task: ItemDocument, dateLabel?: string) => {
+    const projectLabel = task.parent_id ? projectMap.get(task.parent_id) : null;
+    const snippet = task.content?.trim() ?? '';
     const isPending = pendingIds.has(task.id);
 
     return (
@@ -271,7 +265,7 @@ export function TaskList() {
             {dateLabel ? (
               <span className={styles.itemDateLabel}>{dateLabel}</span>
             ) : null}
-            {!task.is_waiting && !task.is_someday && isStartDateToday(task.start_date ?? null) ? (
+            {!task.is_waiting && !task.is_someday && isStartDateToday(task.start_date) ? (
               <span className={styles.itemBadge}>Today</span>
             ) : null}
             {task.is_waiting ? (
@@ -295,7 +289,7 @@ export function TaskList() {
     );
   };
 
-  const renderSection = (label: string, sectionTasks: TaskDocument[]) => {
+  const renderSection = (label: string, sectionTasks: ItemDocument[]) => {
     if (sectionTasks.length === 0) return null;
     return (
       <div key={label} className={styles.section}>

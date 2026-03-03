@@ -1,4 +1,4 @@
-import type { TaskDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 
 export type TaskListFilter =
   | 'today'
@@ -41,8 +41,7 @@ const getWindow = () => {
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
-// Primary: due_date asc (nulls last). Secondary: start_date asc (nulls last).
-export function sortByDeadline(a: TaskDocument, b: TaskDocument): number {
+export function sortByDeadline(a: ItemDocument, b: ItemDocument): number {
   const aDue = parseMs(a.due_date);
   const bDue = parseMs(b.due_date);
 
@@ -63,7 +62,7 @@ export function sortByDeadline(a: TaskDocument, b: TaskDocument): number {
 // ─── Filter ───────────────────────────────────────────────────────────────────
 
 export function matchesTaskFilter(
-  task: TaskDocument,
+  task: ItemDocument,
   filter: TaskListFilter
 ): boolean {
   const { startOfDayMs, endOfDayMs } = getWindow();
@@ -73,19 +72,14 @@ export function matchesTaskFilter(
 
   switch (filter) {
     case 'today':
-      // Backlog tasks scheduled for today or earlier (includes waiting tasks)
       if (active && !task.is_someday && startMs !== null && startMs <= endOfDayMs) return true;
-      // Waiting tasks always surface in Today (regardless of start_date)
       if (active && !task.is_someday && task.is_waiting) return true;
-      // Overdue due dates from backlog or someday
       if (active && dueMs !== null && dueMs < startOfDayMs) return true;
       return false;
 
     case 'upcoming':
       if (!active) return false;
-      // Future start dates (backlog only, not someday)
       if (!task.is_someday && startMs !== null && startMs > endOfDayMs) return true;
-      // Future due dates (backlog + someday + waiting)
       if (dueMs !== null && dueMs > endOfDayMs) return true;
       return false;
 
@@ -109,12 +103,12 @@ export function matchesTaskFilter(
 // ─── Upcoming items ───────────────────────────────────────────────────────────
 
 export type UpcomingItem = {
-  task: TaskDocument;
+  task: ItemDocument;
   dateType: 'start' | 'due';
   dateMs: number;
 };
 
-export function getUpcomingItems(tasks: TaskDocument[]): UpcomingItem[] {
+export function getUpcomingItems(tasks: ItemDocument[]): UpcomingItem[] {
   const { endOfDayMs } = getWindow();
   const rows: UpcomingItem[] = [];
 
@@ -124,12 +118,10 @@ export function getUpcomingItems(tasks: TaskDocument[]): UpcomingItem[] {
     const startMs = parseMs(task.start_date);
     const dueMs = parseMs(task.due_date);
 
-    // Future start dates — backlog only (not someday)
     if (!task.is_someday && startMs !== null && startMs > endOfDayMs) {
       rows.push({ task, dateType: 'start', dateMs: startMs });
     }
 
-    // Future due dates — all active tasks (backlog + someday + waiting)
     if (dueMs !== null && dueMs > endOfDayMs) {
       rows.push({ task, dateType: 'due', dateMs: dueMs });
     }
@@ -146,16 +138,16 @@ export function getUpcomingItems(tasks: TaskDocument[]): UpcomingItem[] {
 // ─── Today sections ───────────────────────────────────────────────────────────
 
 export type TodaySections = {
-  overdue: TaskDocument[];   // past due_date, from backlog or someday
-  main: TaskDocument[];      // start_date <= today, not someday, not waiting, not in overdue
-  waiting: TaskDocument[];   // is_waiting tasks from backlog
+  overdue: ItemDocument[];
+  main: ItemDocument[];
+  waiting: ItemDocument[];
 };
 
-export function getTodaySections(tasks: TaskDocument[]): TodaySections {
+export function getTodaySections(tasks: ItemDocument[]): TodaySections {
   const { startOfDayMs, endOfDayMs } = getWindow();
-  const overdue: TaskDocument[] = [];
-  const main: TaskDocument[] = [];
-  const waiting: TaskDocument[] = [];
+  const overdue: ItemDocument[] = [];
+  const main: ItemDocument[] = [];
+  const waiting: ItemDocument[] = [];
 
   const overdueIds = new Set<string>();
 
@@ -193,7 +185,7 @@ export function getTodaySections(tasks: TaskDocument[]): TodaySections {
 
 // ─── Counts ───────────────────────────────────────────────────────────────────
 
-export function getTaskBucketCounts(tasks: TaskDocument[]): TaskBucketCounts {
+export function getTaskBucketCounts(tasks: ItemDocument[]): TaskBucketCounts {
   const counts: TaskBucketCounts = { ...EMPTY_COUNTS };
 
   for (const task of tasks) {

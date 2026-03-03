@@ -4,8 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type {
-  ProjectDocument,
-  TaskDocument,
+  ItemDocument,
   TimeEntryDocument,
 } from '@/lib/db';
 
@@ -107,8 +106,8 @@ export function useTimer() {
     const parsed = Number(raw);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   });
-  const [tasks, setTasks] = useState<TaskDocument[]>([]);
-  const [projects, setProjects] = useState<ProjectDocument[]>([]);
+  const [tasks, setTasks] = useState<ItemDocument[]>([]);
+  const [projects, setProjects] = useState<ItemDocument[]>([]);
   const [unplannedEntries, setUnplannedEntries] = useState<TimeEntryDocument[]>(
     []
   );
@@ -139,13 +138,13 @@ export function useTimer() {
   useEffect(() => {
     if (!isReady || !db) return;
 
-    const subscription = db.tasks
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false },
+        selector: { type: 'task', is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setTasks(docs.map((doc) => doc.toJSON()));
+        setTasks(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
 
     return () => subscription.unsubscribe();
@@ -154,13 +153,13 @@ export function useTimer() {
   useEffect(() => {
     if (!isReady || !db) return;
 
-    const subscription = db.projects
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false },
+        selector: { type: 'project', is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setProjects(docs.map((doc) => doc.toJSON()));
+        setProjects(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
 
     return () => subscription.unsubscribe();
@@ -269,7 +268,7 @@ export function useTimer() {
     if (activeEntry) {
       return {
         entryType: activeEntry.entry_type,
-        taskId: activeEntry.task_id ?? null,
+        taskId: activeEntry.item_id ?? null,
         label: activeEntry.label ?? null,
       };
     }
@@ -286,8 +285,8 @@ export function useTimer() {
   const focusTask = focusContext?.taskId
     ? taskMap.get(focusContext.taskId) ?? null
     : null;
-  const focusProject = focusTask?.project_id
-    ? projectMap.get(focusTask.project_id) ?? null
+  const focusProject = focusTask?.parent_id
+    ? projectMap.get(focusTask.parent_id) ?? null
     : null;
 
   const focusState: FocusState = activeEntry
@@ -330,9 +329,9 @@ export function useTimer() {
     () =>
       tasks.map((task) => ({
         id: task.id,
-        title: task.title,
-        projectTitle: task.project_id
-          ? projectMap.get(task.project_id)?.title ?? null
+        title: task.title ?? '',
+        projectTitle: task.parent_id
+          ? projectMap.get(task.parent_id)?.title ?? null
           : null,
       })),
     [tasks, projectMap]
@@ -402,7 +401,7 @@ export function useTimer() {
       const labelNormalized = label ? normalizeLabel(label) : null;
       const payload: TimeEntryDocument = {
         id: uuidv4(),
-        task_id: config.entryType === 'planned' ? config.taskId : null,
+        item_id: config.entryType === 'planned' ? config.taskId : null,
         session_id: sessionId,
         entry_type: config.entryType,
         label,
@@ -435,7 +434,7 @@ export function useTimer() {
     setAccumulatedSecondsState(nextAccumulated);
     setPausedFocusState({
       entryType: activeEntry.entry_type,
-      taskId: activeEntry.task_id ?? null,
+      taskId: activeEntry.item_id ?? null,
       label: activeEntry.label ?? null,
       sessionId: result.sessionId,
       accumulatedSeconds: nextAccumulated,

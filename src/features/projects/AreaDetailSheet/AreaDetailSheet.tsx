@@ -5,13 +5,13 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
-import type { AreaDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import styles from './AreaDetailSheet.module.css';
 
 type AreaDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  area: AreaDocument | null;
+  area: ItemDocument | null;
   onSave: (areaId: string, title: string) => Promise<void> | void;
   onDelete: (areaId: string) => Promise<void> | void;
 };

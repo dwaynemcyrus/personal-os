@@ -11,7 +11,7 @@ import {
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { AreaDocument, NoteDocument, ProjectDocument, TagDocument, TaskDocument } from '@/lib/db';
+import type { ItemDocument, TagDocument } from '@/lib/db';
 import { CalendarPicker } from './CalendarPicker';
 import styles from './TaskDetailSheet.module.css';
 
@@ -21,13 +21,12 @@ const NOTES_MAX_ROWS = 4;
 type TaskDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task: TaskDocument | null;
-  projects: ProjectDocument[];
+  task: ItemDocument | null;
+  projects: ItemDocument[];
   onSave: (taskId: string, updates: {
     title: string;
     description: string;
-    projectId: string | null;
-    areaId: string | null;
+    parentId: string | null;
     isNext: boolean;
     startDate: string | null;
     dueDate: string | null;
@@ -107,9 +106,8 @@ export function TaskDetailSheet({
 
   // Form state
   const [title, setTitle] = useState(task?.title ?? '');
-  const [description, setDescription] = useState(task?.description ?? '');
-  const [projectId, setProjectId] = useState(task?.project_id ?? '');
-  const [areaId, setAreaId] = useState(task?.area_id ?? '');
+  const [description, setDescription] = useState(task?.content ?? '');
+  const [parentId, setParentId] = useState(task?.parent_id ?? '');
   const [isNext, setIsNext] = useState(task?.is_next ?? false);
   const [startDateInput, setStartDateInput] = useState(toDateInputValue(task?.start_date ?? null));
   const [dueDateInput, setDueDateInput] = useState(toDateInputValue(task?.due_date ?? null));
@@ -120,7 +118,7 @@ export function TaskDetailSheet({
 
   // Catalogs
   const [tagCatalog, setTagCatalog] = useState<TagDocument[]>([]);
-  const [areas, setAreas] = useState<AreaDocument[]>([]);
+  const [areas, setAreas] = useState<ItemDocument[]>([]);
 
   // Tag sheet state
   const [tagInput, setTagInput] = useState('');
@@ -167,12 +165,11 @@ export function TaskDetailSheet({
   useEffect(() => {
     if (!task) return;
     setTitle(task.title ?? '');
-    setDescription(task.description ?? '');
-    setProjectId(task.project_id ?? '');
-    setAreaId(task.area_id ?? '');
+    setDescription(task.content ?? '');
+    setParentId(task.parent_id ?? '');
     setIsNext(task.is_next ?? false);
-    setStartDateInput(toDateInputValue(task.start_date));
-    setDueDateInput(toDateInputValue(task.due_date));
+    setStartDateInput(toDateInputValue(task.start_date ?? null));
+    setDueDateInput(toDateInputValue(task.due_date ?? null));
     setIsSomeday(task.is_someday ?? false);
     setIsWaiting(task.is_waiting ?? false);
     setWaitingNote(task.waiting_note ?? '');
@@ -205,9 +202,9 @@ export function TaskDetailSheet({
     const tagSub = db.tags
       .find({ selector: { is_trashed: false }, sort: [{ name: 'asc' }] })
       .$.subscribe(docs => setTagCatalog(docs.map(d => d.toJSON() as TagDocument)));
-    const areaSub = db.areas
-      .find({ selector: { is_trashed: false }, sort: [{ title: 'asc' }] })
-      .$.subscribe(docs => setAreas(docs.map(d => d.toJSON() as AreaDocument)));
+    const areaSub = db.items
+      .find({ selector: { type: 'area', is_trashed: false }, sort: [{ title: 'asc' }] })
+      .$.subscribe(docs => setAreas(docs.map(d => d.toJSON() as ItemDocument)));
     return () => { tagSub.unsubscribe(); areaSub.unsubscribe(); };
   }, [db, isReady]);
 
@@ -241,39 +238,55 @@ export function TaskDetailSheet({
     [projects]
   );
 
+  // Build a combined parent map for display (projects + areas)
+  const parentMap = useMemo(() => {
+    const map = new Map<string, { title: string; type: 'project' | 'area' }>();
+    for (const p of activeProjects) {
+      map.set(p.id, { title: p.title ?? '', type: 'project' });
+    }
+    for (const a of areas) {
+      map.set(a.id, { title: a.title ?? '', type: 'area' });
+    }
+    return map;
+  }, [activeProjects, areas]);
+
+  // Projects that have no area parent
   const ungroupedProjects = useMemo(
-    () => activeProjects.filter(p => !p.area_id),
-    [activeProjects]
+    () => activeProjects.filter(p => !p.parent_id || !areas.some(a => a.id === p.parent_id)),
+    [activeProjects, areas]
   );
 
+  // Map area id → projects belonging to that area
   const areaProjectsMap = useMemo(() => {
-    const map = new Map<string, ProjectDocument[]>();
+    const map = new Map<string, ItemDocument[]>();
     for (const p of activeProjects) {
-      if (p.area_id) {
-        const list = map.get(p.area_id) ?? [];
+      if (p.parent_id && areas.some(a => a.id === p.parent_id)) {
+        const list = map.get(p.parent_id) ?? [];
         list.push(p);
-        map.set(p.area_id, list);
+        map.set(p.parent_id, list);
       }
     }
     return map;
-  }, [activeProjects]);
+  }, [activeProjects, areas]);
 
   const moveSearchResults = useMemo(() => {
     if (!moveSearch.trim()) return null;
     const q = moveSearch.toLowerCase();
     return {
-      areas: areas.filter(a => a.title.toLowerCase().includes(q)),
-      projects: activeProjects.filter(p => p.title.toLowerCase().includes(q)),
+      areas: areas.filter(a => (a.title ?? '').toLowerCase().includes(q)),
+      projects: activeProjects.filter(p => (p.title ?? '').toLowerCase().includes(q)),
     };
   }, [moveSearch, areas, activeProjects]);
 
   const moveLabel = useMemo(() => {
-    if (projectId) return projects.find(p => p.id === projectId)?.title ?? null;
-    if (areaId) return areas.find(a => a.id === areaId)?.title ?? null;
+    if (parentId) return parentMap.get(parentId)?.title ?? null;
     return null;
-  }, [projectId, areaId, projects, areas]);
-  const hasMove = Boolean(projectId || areaId);
+  }, [parentId, parentMap]);
+  const hasMove = Boolean(parentId);
   const moveDisplayLabel = moveLabel ?? 'move to...';
+
+  // Determine if current parent is a project or an area (for clear button label)
+  const currentParentType = parentId ? parentMap.get(parentId)?.type ?? null : null;
 
   // Meta label values
   const isStartToday = startDateInput === getTodayDateInputValue();
@@ -300,8 +313,7 @@ export function TaskDetailSheet({
     isWaiting?: boolean;
     waitingNote?: string | null;
     tags?: string[];
-    projectId?: string | null;
-    areaId?: string | null;
+    parentId?: string | null;
   } = {}): Promise<void> => {
     if (!task || !title.trim()) return Promise.resolve();
     const resolvedIsSomeday = opts.isSomeday ?? isSomeday;
@@ -310,15 +322,13 @@ export function TaskDetailSheet({
       ? opts.startDate
       : (resolvedIsSomeday || resolvedIsWaiting ? null : fromDateInputValue(startDateInput));
     const resolvedDueDate = opts.dueDate !== undefined ? opts.dueDate : fromDateInputValue(dueDateInput);
-    const resolvedProjectId = opts.projectId !== undefined ? opts.projectId : (projectId || null);
-    const resolvedAreaId = opts.areaId !== undefined ? opts.areaId : (areaId || null);
+    const resolvedParentId = opts.parentId !== undefined ? opts.parentId : (parentId || null);
     const resolvedIsNext = opts.isNext ?? isNext;
     const resolvedWaitingNote = opts.waitingNote !== undefined ? opts.waitingNote : (waitingNote || null);
     const payload = {
       title: title.trim(),
       description: description.trim(),
-      projectId: resolvedProjectId,
-      areaId: resolvedAreaId,
+      parentId: resolvedParentId,
       isNext: resolvedIsNext,
       startDate: resolvedStartDate,
       dueDate: resolvedDueDate,
@@ -445,30 +455,15 @@ export function TaskDetailSheet({
       current.map(t => t.toLowerCase() === tagDoc.name.toLowerCase() ? normalized : t)
     );
 
-    const allTasks = await db.tasks.find({ selector: { is_trashed: false } }).exec();
-    for (const task of allTasks) {
-      const data = task.toJSON();
+    const allItems = await db.items.find({ selector: { is_trashed: false } }).exec();
+    for (const item of allItems) {
+      const data = item.toJSON() as ItemDocument;
       const oldName = tagDoc.name.toLowerCase();
       if (!(data.tags as string[]).some((t: string) => t.toLowerCase() === oldName)) continue;
-      await task.patch({
+      await item.patch({
         tags: (data.tags as string[]).map((t: string) =>
           t.toLowerCase() === oldName ? normalized : t
         ),
-        updated_at: nowIso(),
-      });
-    }
-
-    const allNotes = await db.notes.find({ selector: { is_trashed: false } }).exec();
-    for (const note of allNotes) {
-      const data = note.toJSON() as NoteDocument;
-      const noteTags: string[] = data.properties?.tags ?? [];
-      const oldName = tagDoc.name.toLowerCase();
-      if (!noteTags.some(t => t.toLowerCase() === oldName)) continue;
-      await note.patch({
-        properties: {
-          ...data.properties,
-          tags: noteTags.map(t => t.toLowerCase() === oldName ? normalized : t),
-        },
         updated_at: nowIso(),
       });
     }
@@ -483,28 +478,13 @@ export function TaskDetailSheet({
 
     setTags(current => current.filter(t => t.toLowerCase() !== tagDoc.name.toLowerCase()));
 
-    const allTasks = await db.tasks.find({ selector: { is_trashed: false } }).exec();
-    for (const task of allTasks) {
-      const data = task.toJSON();
+    const allItems = await db.items.find({ selector: { is_trashed: false } }).exec();
+    for (const item of allItems) {
+      const data = item.toJSON() as ItemDocument;
       const oldName = tagDoc.name.toLowerCase();
       if (!(data.tags as string[]).some((t: string) => t.toLowerCase() === oldName)) continue;
-      await task.patch({
+      await item.patch({
         tags: (data.tags as string[]).filter((t: string) => t.toLowerCase() !== oldName),
-        updated_at: nowIso(),
-      });
-    }
-
-    const allNotes = await db.notes.find({ selector: { is_trashed: false } }).exec();
-    for (const note of allNotes) {
-      const data = note.toJSON() as NoteDocument;
-      const noteTags: string[] = data.properties?.tags ?? [];
-      const oldName = tagDoc.name.toLowerCase();
-      if (!noteTags.some(t => t.toLowerCase() === oldName)) continue;
-      await note.patch({
-        properties: {
-          ...data.properties,
-          tags: noteTags.filter(t => t.toLowerCase() !== oldName),
-        },
         updated_at: nowIso(),
       });
     }
@@ -515,24 +495,18 @@ export function TaskDetailSheet({
   type MoveTarget =
     | { type: 'project'; id: string }
     | { type: 'area'; id: string }
-    | { type: 'clear-project' }
-    | { type: 'clear-area' };
+    | { type: 'clear' };
 
   const handleMoveSelect = (target: MoveTarget) => {
     switch (target.type) {
       case 'project':
-        setProjectId(target.id);
-        setAreaId('');
+        setParentId(target.id);
         break;
       case 'area':
-        setAreaId(target.id);
-        setProjectId('');
+        setParentId(target.id);
         break;
-      case 'clear-project':
-        setProjectId('');
-        break;
-      case 'clear-area':
-        setAreaId('');
+      case 'clear':
+        setParentId('');
         break;
     }
   };
@@ -921,24 +895,24 @@ export function TaskDetailSheet({
                   <button
                     key={area.id}
                     type="button"
-                    className={`${styles['task-detail__moveItem']}${areaId === area.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
+                    className={`${styles['task-detail__moveItem']}${parentId === area.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
                     onClick={() => handleMoveSelect({ type: 'area', id: area.id })}
                   >
                     <AreaIcon />
                     <span className={styles['task-detail__moveItemName']}>{area.title}</span>
-                    {areaId === area.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
+                    {parentId === area.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
                   </button>
                 ))}
                 {moveSearchResults.projects.map(project => (
                   <button
                     key={project.id}
                     type="button"
-                    className={`${styles['task-detail__moveItem']}${projectId === project.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
+                    className={`${styles['task-detail__moveItem']}${parentId === project.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
                     onClick={() => handleMoveSelect({ type: 'project', id: project.id })}
                   >
                     <ProjectIcon />
                     <span className={styles['task-detail__moveItemName']}>{project.title}</span>
-                    {projectId === project.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
+                    {parentId === project.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
                   </button>
                 ))}
                 {moveSearchResults.areas.length === 0 && moveSearchResults.projects.length === 0 && (
@@ -948,28 +922,20 @@ export function TaskDetailSheet({
             ) : (
               /* Grouped view */
               <>
-                {/* Clear options */}
-                {projectId && (
+                {/* Clear option */}
+                {parentId && (
                   <button
                     type="button"
                     className={styles['task-detail__moveClearOption']}
-                    onClick={() => handleMoveSelect({ type: 'clear-project' })}
+                    onClick={() => handleMoveSelect({ type: 'clear' })}
                   >
                     <ClearIcon />
-                    <span className={styles['task-detail__moveItemName']}>No Project</span>
+                    <span className={styles['task-detail__moveItemName']}>
+                      {currentParentType === 'area' ? 'No Area' : 'No Project'}
+                    </span>
                   </button>
                 )}
-                {areaId && (
-                  <button
-                    type="button"
-                    className={styles['task-detail__moveClearOption']}
-                    onClick={() => handleMoveSelect({ type: 'clear-area' })}
-                  >
-                    <ClearIcon />
-                    <span className={styles['task-detail__moveItemName']}>No Area</span>
-                  </button>
-                )}
-                {(projectId || areaId) && (
+                {parentId && (
                   <div className={styles['task-detail__moveDivider']} />
                 )}
 
@@ -978,12 +944,12 @@ export function TaskDetailSheet({
                   <button
                     key={project.id}
                     type="button"
-                    className={`${styles['task-detail__moveItem']}${projectId === project.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
+                    className={`${styles['task-detail__moveItem']}${parentId === project.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
                     onClick={() => handleMoveSelect({ type: 'project', id: project.id })}
                   >
                     <ProjectIcon />
                     <span className={styles['task-detail__moveItemName']}>{project.title}</span>
-                    {projectId === project.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
+                    {parentId === project.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
                   </button>
                 ))}
 
@@ -992,23 +958,23 @@ export function TaskDetailSheet({
                   <div key={area.id}>
                     <button
                       type="button"
-                      className={`${styles['task-detail__moveAreaHeader']}${areaId === area.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
+                      className={`${styles['task-detail__moveAreaHeader']}${parentId === area.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
                       onClick={() => handleMoveSelect({ type: 'area', id: area.id })}
                     >
                       <AreaIcon />
                       <span className={styles['task-detail__moveItemName']}>{area.title}</span>
-                      {areaId === area.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
+                      {parentId === area.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
                     </button>
                     {(areaProjectsMap.get(area.id) ?? []).map(project => (
                       <button
                         key={project.id}
                         type="button"
-                        className={`${styles['task-detail__moveItem']} ${styles['task-detail__moveItem--indent']}${projectId === project.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
+                        className={`${styles['task-detail__moveItem']} ${styles['task-detail__moveItem--indent']}${parentId === project.id ? ` ${styles['task-detail__moveItem--selected']}` : ''}`}
                         onClick={() => handleMoveSelect({ type: 'project', id: project.id })}
                       >
                         <ProjectIcon />
                         <span className={styles['task-detail__moveItemName']}>{project.title}</span>
-                        {projectId === project.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
+                        {parentId === project.id && <CheckIcon className={styles['task-detail__moveItemCheck']} />}
                       </button>
                     ))}
                   </div>

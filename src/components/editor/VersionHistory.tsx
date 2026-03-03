@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetClose,
 } from '@/components/ui/Sheet';
-import type { DatabaseCollections, NoteVersionDocument } from '@/lib/db';
+import type { DatabaseCollections, ItemVersionDocument } from '@/lib/db';
 import { getVersions, restoreVersion } from '@/lib/versions';
 import { formatRelativeTime } from '@/features/notes/noteUtils';
 import styles from './VersionHistory.module.css';
@@ -30,8 +30,8 @@ export function VersionHistory({
   db,
   onRestore,
 }: VersionHistoryProps) {
-  const [versions, setVersions] = useState<NoteVersionDocument[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState<NoteVersionDocument | null>(null);
+  const [versions, setVersions] = useState<ItemVersionDocument[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<ItemVersionDocument | null>(null);
   const [currentContent, setCurrentContent] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [isRestoring, setIsRestoring] = useState(false);
@@ -43,7 +43,7 @@ export function VersionHistory({
     const loadData = async () => {
       const [versionList, noteDoc] = await Promise.all([
         getVersions(db, noteId),
-        db.notes.findOne(noteId).exec(),
+        db.items.findOne(noteId).exec(),
       ]);
       setVersions(versionList);
       setCurrentContent(noteDoc?.content ?? '');
@@ -60,7 +60,7 @@ export function VersionHistory({
     }
   }, [open]);
 
-  const handleSelectVersion = useCallback((version: NoteVersionDocument) => {
+  const handleSelectVersion = useCallback((version: ItemVersionDocument) => {
     setSelectedVersion(version);
     setViewMode('preview');
   }, []);

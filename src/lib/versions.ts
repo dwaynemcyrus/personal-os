@@ -6,7 +6,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections, NoteVersionDocument, NoteProperties } from './db';
+import type { DatabaseCollections, ItemVersionDocument } from './db';
 
 const AUTO_SAVE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -41,9 +41,9 @@ async function getNextVersionNumber(
   db: RxDatabase<DatabaseCollections>,
   noteId: string
 ): Promise<number> {
-  const versions = await db.note_versions
+  const versions = await db.item_versions
     .find({
-      selector: { note_id: noteId, is_trashed: false },
+      selector: { item_id: noteId, is_trashed: false },
       sort: [{ version_number: 'desc' }],
       limit: 1,
     })
@@ -63,18 +63,18 @@ export async function saveVersion(
   db: RxDatabase<DatabaseCollections>,
   noteId: string,
   content: string | null,
-  properties: NoteProperties | null,
+  properties: Record<string, unknown> | null,
   createdBy: 'auto' | 'manual',
   changeSummary?: string
-): Promise<NoteVersionDocument> {
+): Promise<ItemVersionDocument> {
   const versionNumber = await getNextVersionNumber(db, noteId);
   const timestamp = new Date().toISOString();
 
-  const version = await db.note_versions.insert({
+  const version = await db.item_versions.insert({
     id: uuidv4(),
-    note_id: noteId,
+    item_id: noteId,
     content,
-    properties: properties as Record<string, unknown> | null,
+    properties,
     version_number: versionNumber,
     created_by: createdBy,
     change_summary: changeSummary ?? null,
@@ -86,7 +86,7 @@ export async function saveVersion(
 
   markVersionSaved(noteId);
 
-  return version.toJSON() as NoteVersionDocument;
+  return version.toJSON() as ItemVersionDocument;
 }
 
 /**
@@ -95,15 +95,15 @@ export async function saveVersion(
 export async function getVersions(
   db: RxDatabase<DatabaseCollections>,
   noteId: string
-): Promise<NoteVersionDocument[]> {
-  const versions = await db.note_versions
+): Promise<ItemVersionDocument[]> {
+  const versions = await db.item_versions
     .find({
-      selector: { note_id: noteId, is_trashed: false },
+      selector: { item_id: noteId, is_trashed: false },
       sort: [{ created_at: 'desc' }],
     })
     .exec();
 
-  return versions.map((v) => v.toJSON() as NoteVersionDocument);
+  return versions.map((v) => v.toJSON() as ItemVersionDocument);
 }
 
 /**
@@ -112,9 +112,9 @@ export async function getVersions(
 export async function getVersion(
   db: RxDatabase<DatabaseCollections>,
   versionId: string
-): Promise<NoteVersionDocument | null> {
-  const version = await db.note_versions.findOne(versionId).exec();
-  return version ? (version.toJSON() as NoteVersionDocument) : null;
+): Promise<ItemVersionDocument | null> {
+  const version = await db.item_versions.findOne(versionId).exec();
+  return version ? (version.toJSON() as ItemVersionDocument) : null;
 }
 
 /**
@@ -125,11 +125,11 @@ export async function restoreVersion(
   db: RxDatabase<DatabaseCollections>,
   versionId: string
 ): Promise<boolean> {
-  const version = await db.note_versions.findOne(versionId).exec();
+  const version = await db.item_versions.findOne(versionId).exec();
   if (!version) return false;
 
-  const versionData = version.toJSON() as NoteVersionDocument;
-  const noteDoc = await db.notes.findOne(versionData.note_id).exec();
+  const versionData = version.toJSON() as ItemVersionDocument;
+  const noteDoc = await db.items.findOne(versionData.item_id).exec();
   if (!noteDoc) return false;
 
   const noteData = noteDoc.toJSON();
@@ -137,9 +137,9 @@ export async function restoreVersion(
   // Save current state as a new version before restoring
   await saveVersion(
     db,
-    versionData.note_id,
-    noteData.content,
-    noteData.properties as NoteProperties | null,
+    versionData.item_id,
+    noteData.content ?? null,
+    null,
     'auto',
     'Before restore'
   );
@@ -148,7 +148,6 @@ export async function restoreVersion(
   const timestamp = new Date().toISOString();
   await noteDoc.patch({
     content: versionData.content,
-    properties: versionData.properties as NoteProperties | null,
     updated_at: timestamp,
   });
 
@@ -162,7 +161,7 @@ export async function deleteVersion(
   db: RxDatabase<DatabaseCollections>,
   versionId: string
 ): Promise<boolean> {
-  const version = await db.note_versions.findOne(versionId).exec();
+  const version = await db.item_versions.findOne(versionId).exec();
   if (!version) return false;
 
   const timestamp = new Date().toISOString();
@@ -182,9 +181,9 @@ export async function countVersions(
   db: RxDatabase<DatabaseCollections>,
   noteId: string
 ): Promise<number> {
-  const versions = await db.note_versions
+  const versions = await db.item_versions
     .find({
-      selector: { note_id: noteId, is_trashed: false },
+      selector: { item_id: noteId, is_trashed: false },
     })
     .exec();
 

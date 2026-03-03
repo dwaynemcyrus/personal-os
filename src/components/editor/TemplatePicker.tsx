@@ -8,7 +8,7 @@ import {
   SheetClose,
 } from '@/components/ui/Sheet';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { TemplateDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import { replaceTemplateVariables } from '@/lib/templates';
 import styles from './TemplatePicker.module.css';
 
@@ -28,7 +28,7 @@ export function TemplatePicker({
   customTitle,
 }: TemplatePickerProps) {
   const { db, isReady } = useDatabase();
-  const [templates, setTemplates] = useState<TemplateDocument[]>([]);
+  const [templates, setTemplates] = useState<ItemDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORY);
 
@@ -37,13 +37,13 @@ export function TemplatePicker({
     if (!db || !isReady) return;
 
     setIsLoading(true);
-    const subscription = db.templates
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false },
-        sort: [{ category: 'asc' }, { sort_order: 'asc' }, { title: 'asc' }],
+        selector: { type: 'template' as const, is_trashed: false },
+        sort: [{ updated_at: 'asc' }, { title: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setTemplates(docs.map((doc) => doc.toJSON() as TemplateDocument));
+        setTemplates(docs.map((doc) => doc.toJSON() as ItemDocument));
         setIsLoading(false);
       });
 
@@ -69,9 +69,9 @@ export function TemplatePicker({
     return templates.filter((t) => t.category === selectedCategory);
   }, [templates, selectedCategory]);
 
-  const handleSelect = (template: TemplateDocument) => {
-    const processedContent = replaceTemplateVariables(template.content, {
-      title: customTitle || template.title,
+  const handleSelect = (template: ItemDocument) => {
+    const processedContent = replaceTemplateVariables(template.content ?? '', {
+      title: customTitle || (template.title ?? ''),
       date: new Date(),
     });
     onSelect(processedContent);

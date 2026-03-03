@@ -41,14 +41,21 @@ export function NotesList({ group }: NotesListProps) {
     if (!db) return;
     const timestamp = nowIso();
     const noteId = uuidv4();
-    await db.notes.insert({
+    await db.items.insert({
       id: noteId,
+      type: 'note',
+      parent_id: null,
       title: 'Untitled',
       content: '',
       inbox_at: null,
-      note_type: null,
+      subtype: null,
       is_pinned: false,
-      properties: null,
+      item_status: 'active',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
@@ -98,8 +105,8 @@ export function NotesList({ group }: NotesListProps) {
           <p className={styles.empty}>No notes here yet.</p>
         ) : (
           notes.map((note) => {
-            const title = formatNoteTitle(extractNoteTitle(note.content, note.title));
-            const snippet = extractNoteSnippet(note.content);
+            const title = formatNoteTitle(extractNoteTitle(note.content ?? null, note.title ?? ''));
+            const snippet = extractNoteSnippet(note.content ?? null);
             const updatedLabel = formatRelativeTime(note.updated_at);
             return (
               <button

@@ -10,7 +10,7 @@ import {
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { AreaDocument, ProjectDocument, TaskDocument } from '@/lib/db';
+import type { ItemDocument, ItemStatus } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import { CalendarPicker } from '@/features/tasks/TaskDetailSheet/CalendarPicker';
 import styles from './ProjectDetailSheet.module.css';
@@ -49,21 +49,23 @@ function formatMetaDateLabel(value: string | null): string | null {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type ProjectStatus = 'backlog' | 'active' | 'someday' | 'archived';
+
 type ProjectDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  project: ProjectDocument | null;
-  projects: ProjectDocument[];
-  tasks: TaskDocument[];
+  project: ItemDocument | null;
+  projects: ItemDocument[];
+  tasks: ItemDocument[];
   onSave: (
     projectId: string,
     updates: {
       title: string;
-      description: string;
-      status: 'backlog' | 'next' | 'active' | 'hold';
+      content: string;
+      item_status: ProjectStatus;
       startDate: string | null;
       dueDate: string | null;
-      areaId: string | null;
+      parentId: string | null;
     }
   ) => Promise<void> | void;
   onDelete: (projectId: string) => Promise<void> | void;
@@ -73,8 +75,7 @@ type ProjectDetailSheetProps = {
     updates: {
       title: string;
       description: string;
-      projectId: string | null;
-      areaId: string | null;
+      parentId: string | null;
       isNext: boolean;
       startDate: string | null;
       dueDate: string | null;
@@ -88,12 +89,12 @@ type ProjectDetailSheetProps = {
   onCreateTask: (projectId: string, title: string) => Promise<void> | void;
 };
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: 'backlog', label: 'Backlog' },
-  { value: 'next', label: 'Next' },
   { value: 'active', label: 'Active' },
-  { value: 'hold', label: 'Hold' },
-] as const;
+  { value: 'someday', label: 'Someday' },
+  { value: 'archived', label: 'Archived' },
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -111,17 +112,17 @@ export function ProjectDetailSheet({
   onCreateTask,
 }: ProjectDetailSheetProps) {
   const { db, isReady } = useDatabase();
-  const [areas, setAreas] = useState<AreaDocument[]>([]);
+  const [areas, setAreas] = useState<ItemDocument[]>([]);
 
   // Form state
   const [title, setTitle] = useState(project?.title ?? '');
-  const [description, setDescription] = useState(project?.description ?? '');
-  const [status, setStatus] = useState<'backlog' | 'next' | 'active' | 'hold'>(
-    project?.status ?? 'backlog'
+  const [content, setContent] = useState(project?.content ?? '');
+  const [projectStatus, setProjectStatus] = useState<ProjectStatus>(
+    (project?.item_status as ProjectStatus) ?? 'backlog'
   );
   const [startDateInput, setStartDateInput] = useState(toDateInputValue(project?.start_date ?? null));
   const [dueDateInput, setDueDateInput] = useState(toDateInputValue(project?.due_date ?? null));
-  const [areaId, setAreaId] = useState(project?.area_id ?? '');
+  const [parentId, setParentId] = useState(project?.parent_id ?? '');
 
   // Task state
   const [taskTitle, setTaskTitle] = useState('');
@@ -139,31 +140,31 @@ export function ProjectDetailSheet({
 
   useEffect(() => {
     if (!db || !isReady) return;
-    const sub = db.areas
-      .find({ selector: { is_trashed: false }, sort: [{ title: 'asc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setAreas(docs.map((d) => d.toJSON() as AreaDocument)));
+    const sub = db.items
+      .find({ selector: { type: 'area', is_trashed: false }, sort: [{ title: 'asc' }, { id: 'asc' }] })
+      .$.subscribe((docs) => setAreas(docs.map((d) => d.toJSON() as ItemDocument)));
     return () => sub.unsubscribe();
   }, [db, isReady]);
 
   useEffect(() => {
     if (!project) return;
     setTitle(project.title ?? '');
-    setDescription(project.description ?? '');
-    setStatus(project.status ?? 'backlog');
+    setContent(project.content ?? '');
+    setProjectStatus((project.item_status as ProjectStatus) ?? 'backlog');
     setStartDateInput(toDateInputValue(project.start_date ?? null));
     setDueDateInput(toDateInputValue(project.due_date ?? null));
-    setAreaId(project.area_id ?? '');
+    setParentId(project.parent_id ?? '');
   }, [project]);
 
   useEffect(() => {
     resizeNotesTextarea();
-  }, [description, open]);
+  }, [content, open]);
 
   // ─── Task derived state ───────────────────────────────────────────────────
 
   const projectTasks = useMemo(() => {
     if (!project) return [];
-    return [...tasks.filter((t) => t.project_id === project.id)].sort(sortByDeadline);
+    return [...tasks.filter((t) => t.parent_id === project.id)].sort(sortByDeadline);
   }, [project, tasks]);
 
   const activeTasks = useMemo(() => {
@@ -183,14 +184,14 @@ export function ProjectDetailSheet({
   // ─── Derived labels ───────────────────────────────────────────────────────
 
   const areaLabel = useMemo(
-    () => areas.find((a) => a.id === areaId)?.title ?? null,
-    [areas, areaId]
+    () => areas.find((a) => a.id === parentId)?.title ?? null,
+    [areas, parentId]
   );
   const startLabel = formatMetaDateLabel(fromDateInputValue(startDateInput));
   const dueLabel = formatMetaDateLabel(fromDateInputValue(dueDateInput));
   const hasStart = Boolean(startDateInput);
   const hasDue = Boolean(dueDateInput);
-  const hasArea = Boolean(areaId);
+  const hasArea = Boolean(parentId);
 
   // ─── Textarea resize ──────────────────────────────────────────────────────
 
@@ -213,19 +214,19 @@ export function ProjectDetailSheet({
   // ─── Auto-save ────────────────────────────────────────────────────────────
 
   const doSave = (opts: {
-    status?: 'backlog' | 'next' | 'active' | 'hold';
+    item_status?: ProjectStatus;
     startDate?: string | null;
     dueDate?: string | null;
-    areaId?: string | null;
+    parentId?: string | null;
   } = {}): Promise<void> => {
     if (!project || !title.trim()) return Promise.resolve();
     const payload = {
       title: title.trim(),
-      description: description.trim(),
-      status: opts.status ?? status,
+      content: content.trim(),
+      item_status: opts.item_status ?? projectStatus,
       startDate: opts.startDate !== undefined ? opts.startDate : fromDateInputValue(startDateInput),
       dueDate: opts.dueDate !== undefined ? opts.dueDate : fromDateInputValue(dueDateInput),
-      areaId: opts.areaId !== undefined ? opts.areaId : (areaId || null),
+      parentId: opts.parentId !== undefined ? opts.parentId : (parentId || null),
     };
     const projectId = project.id;
     const next = saveQueue.current
@@ -248,9 +249,9 @@ export function ProjectDetailSheet({
     onOpenChange(false);
   };
 
-  const handleStatusSelect = async (newStatus: 'backlog' | 'next' | 'active' | 'hold') => {
-    setStatus(newStatus);
-    await doSave({ status: newStatus });
+  const handleStatusSelect = async (newStatus: ProjectStatus) => {
+    setProjectStatus(newStatus);
+    await doSave({ item_status: newStatus });
   };
 
   const handleQuickAdd = async (event: FormEvent<HTMLFormElement>) => {
@@ -319,15 +320,15 @@ export function ProjectDetailSheet({
   };
 
   const handleMoveSelectArea = async (id: string) => {
-    setAreaId(id);
+    setParentId(id);
     setIsMoveSheetOpen(false);
-    await doSave({ areaId: id });
+    await doSave({ parentId: id });
   };
 
   const handleMoveClearArea = async () => {
-    setAreaId('');
+    setParentId('');
     setIsMoveSheetOpen(false);
-    await doSave({ areaId: null });
+    await doSave({ parentId: null });
   };
 
   if (!project) return null;
@@ -375,7 +376,7 @@ export function ProjectDetailSheet({
                 {STATUS_OPTIONS.map(({ value, label }) => (
                   <DropdownCheckboxItem
                     key={value}
-                    checked={status === value}
+                    checked={projectStatus === value}
                     onCheckedChange={() => void handleStatusSelect(value)}
                   >
                     {label}
@@ -406,9 +407,9 @@ export function ProjectDetailSheet({
             <textarea
               ref={notesTextareaRef}
               className={styles.notesTextarea}
-              value={description}
+              value={content}
               onChange={(e) => {
-                setDescription(e.target.value);
+                setContent(e.target.value);
                 resizeNotesTextarea(e.currentTarget);
               }}
               onBlur={() => void doSave()}
@@ -567,12 +568,12 @@ export function ProjectDetailSheet({
                 <button
                   key={area.id}
                   type="button"
-                  className={`${styles.moveItem}${areaId === area.id ? ` ${styles['moveItem--selected']}` : ''}`}
+                  className={`${styles.moveItem}${parentId === area.id ? ` ${styles['moveItem--selected']}` : ''}`}
                   onClick={() => void handleMoveSelectArea(area.id)}
                 >
                   <AreaIcon />
                   <span className={styles.moveItemName}>{area.title}</span>
-                  {areaId === area.id && <CheckIcon />}
+                  {parentId === area.id && <CheckIcon />}
                 </button>
               ))
             )}

@@ -11,7 +11,7 @@ import { useDatabase } from '@/hooks/useDatabase';
 import { useNavigationActions } from '@/components/providers';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { searchNotes, type SearchResult } from '@/lib/search';
-import type { NoteDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import {
   extractNoteTitle,
   extractNoteSnippet,
@@ -36,16 +36,16 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const { pushLayer } = useNavigationActions();
 
   // Subscribe to recent notes
-  const [allNotes, setAllNotes] = useState<NoteDocument[]>([]);
+  const [allNotes, setAllNotes] = useState<ItemDocument[]>([]);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false, inbox_at: null },
+        selector: { type: 'note', is_trashed: false, inbox_at: null },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setAllNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
+        setAllNotes(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
@@ -124,28 +124,43 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     const timestamp = new Date().toISOString();
     const trimmedText = text.trim();
 
-    await db.captures.insert({
+    await db.items.insert({
       id: captureId,
+      type: 'capture',
+      parent_id: null,
       body: trimmedText,
-      source: 'quick',
+      capture_source: 'quick',
       processed: false,
       processed_at: null,
       result_type: null,
       result_id: noteId,
+      is_pinned: false,
+      item_status: 'active',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
       trashed_at: null,
     });
 
-    await db.notes.insert({
+    await db.items.insert({
       id: noteId,
+      type: 'note',
+      parent_id: null,
       title: extractTitleFromFirstLine(trimmedText),
       content: trimmedText,
       inbox_at: timestamp,
-      note_type: 'capture',
+      subtype: 'capture',
       is_pinned: false,
-      properties: null,
+      item_status: 'active',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

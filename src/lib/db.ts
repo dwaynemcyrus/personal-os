@@ -13,160 +13,142 @@ if (import.meta.env.DEV) {
   addRxPlugin(RxDBDevModePlugin);
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const itemTypes = [
+  'area',
+  'plan',
+  'objective',
+  'key_result',
+  'project',
+  'task',
+  'note',
+  'capture',
+  'source',
+  'habit',
+  'habit_entry',
+  'template',
+] as const;
+
+export const itemStatuses = [
+  'inbox',
+  'active',
+  'backlog',
+  'someday',
+  'complete',
+  'archived',
+] as const;
+
+export const itemPriorities = ['low', 'medium', 'high', 'urgent'] as const;
+
+export const contentTypes = ['audio', 'video', 'text', 'live'] as const;
+
+export const readStatuses = ['inbox', 'reading', 'read'] as const;
+
+export const habitFrequencies = ['daily', 'weekdays', 'weekly'] as const;
+
+export const captureSources = ['quick', 'voice', 'email'] as const;
+
+// ── Zod schemas ───────────────────────────────────────────────────────────────
+
 const baseFields = {
   id: z.string().uuid(),
   created_at: z.string(),
   updated_at: z.string(),
   is_trashed: z.boolean(),
   trashed_at: z.string().nullable(),
-  // Sync v2 fields
+  // Sync fields
   owner: z.string().uuid().nullable().optional(),
   device_id: z.string().nullable().optional(),
   sync_rev: z.number().int().nonnegative().nullable().optional(),
 };
 
+export const itemSchema = z.object({
+  ...baseFields,
+  type: z.enum(itemTypes),
+  parent_id: z.string().uuid().nullable(),
+
+  // Common
+  title: z.string().nullable().optional(),
+  content: z.string().nullable().optional(),
+  tags: z.array(z.string()).readonly().optional(),
+  is_pinned: z.boolean(),
+  item_status: z.enum(itemStatuses),
+  priority: z.enum(itemPriorities).nullable().optional(),
+
+  // Scheduling (tasks, projects)
+  due_date: z.string().nullable().optional(),
+  start_date: z.string().nullable().optional(),
+  completed: z.boolean(),
+  is_next: z.boolean(),
+  is_someday: z.boolean(),
+  is_waiting: z.boolean(),
+  waiting_note: z.string().nullable().optional(),
+  waiting_started_at: z.string().nullable().optional(),
+  depends_on: z.array(z.string().uuid()).readonly().nullable().optional(),
+
+  // Note-specific
+  inbox_at: z.string().nullable().optional(),
+  subtype: z.string().nullable().optional(),
+
+  // Source-specific
+  url: z.string().nullable().optional(),
+  content_type: z.enum(contentTypes).nullable().optional(),
+  read_status: z.enum(readStatuses).nullable().optional(),
+
+  // OKR / planning
+  period_start: z.string().nullable().optional(),
+  period_end: z.string().nullable().optional(),
+  progress: z.number().int().min(0).max(100).nullable().optional(),
+
+  // Habit
+  frequency: z.enum(habitFrequencies).nullable().optional(),
+  target: z.number().int().positive().nullable().optional(),
+  active: z.boolean().nullable().optional(),
+  streak: z.number().int().nonnegative().nullable().optional(),
+  last_completed_at: z.string().nullable().optional(),
+
+  // Capture
+  body: z.string().nullable().optional(),
+  capture_source: z.enum(captureSources).nullable().optional(),
+  processed: z.boolean(),
+  processed_at: z.string().nullable().optional(),
+  result_type: z.string().nullable().optional(),
+  result_id: z.string().uuid().nullable().optional(),
+
+  // Template
+  description: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  sort_order: z.number().int().nonnegative().nullable().optional(),
+});
+
+export const itemLinkSchema = z.object({
+  ...baseFields,
+  source_id: z.string().uuid(),
+  target_id: z.string().uuid().nullable(),
+  target_title: z.string(),
+  header: z.string().nullable(),
+  alias: z.string().nullable(),
+  position: z.number().int().nonnegative(),
+});
+
+export const itemVersionSchema = z.object({
+  ...baseFields,
+  item_id: z.string().uuid(),
+  content: z.string().nullable(),
+  properties: z.record(z.string(), z.unknown()).nullable(),
+  version_number: z.number().int().positive(),
+  created_by: z.enum(['auto', 'manual']),
+  change_summary: z.string().nullable(),
+});
+
 const timeEntryTypes = ['planned', 'unplanned'] as const;
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
-const projectStatuses = ['backlog', 'next', 'active', 'hold'] as const;
-
-const coerceProjectStatus = (value: unknown) => {
-  if (
-    value === 'backlog' ||
-    value === 'next' ||
-    value === 'active' ||
-    value === 'hold'
-  ) {
-    return value;
-  }
-  return 'backlog';
-};
-
-export const projectSchema = z.object({
-  ...baseFields,
-  title: z.string(),
-  description: z.string().nullable(),
-  status: z.enum(projectStatuses),
-  start_date: z.string().nullable(),
-  due_date: z.string().nullable(),
-  area_id: z.string().uuid().nullable().optional(),
-  okr_id: z.string().uuid().nullable().optional(),
-});
-
-// Kept only for migration strategies 1–6 that reference the old status field
-const taskStatuses = ['backlog', 'next'] as const;
-
-const coerceTaskStatus = (value: unknown) => {
-  if (value === 'active') return 'next';
-  if (value === 'backlog' || value === 'next') return value;
-  return 'backlog';
-};
-
-const coerceLegacyTaskStatus = (value: unknown) => {
-  if (value === 'active') return 'next';
-  if (value === 'waiting') return 'someday';
-  if (value === 'backlog' || value === 'someday' || value === 'next') return value;
-  return 'backlog';
-};
-
-export const taskSchema = z.object({
-  ...baseFields,
-  project_id: z.string().uuid().nullable(),
-  area_id: z.string().uuid().nullable().optional(),
-  title: z.string(),
-  description: z.string().nullable(),
-  completed: z.boolean(),
-  is_someday: z.boolean(),
-  is_next: z.boolean(),
-  is_waiting: z.boolean(),
-  waiting_note: z.string().nullable(),
-  waiting_started_at: z.string().nullable(),
-  start_date: z.string().nullable(),
-  due_date: z.string().nullable(),
-  tags: z.array(z.string()).readonly(),
-  content: z.string().nullable().optional(),
-  priority: z.number().int().min(1).max(4).nullable().optional(),
-  depends_on: z.array(z.string().uuid()).readonly().nullable().optional(),
-  okr_id: z.string().uuid().nullable().optional(),
-});
-
-export const notePropertiesSchema = z.object({
-  project_id: z.string().uuid().nullable().optional(),
-  status: z.string().nullable().optional(),
-  tags: z.array(z.string()).optional(),
-  related_notes: z.array(z.string().uuid()).optional(),
-  due_date: z.string().nullable().optional(),
-  priority: z.number().int().min(1).max(5).nullable().optional(),
-  okr_id: z.string().uuid().nullable().optional(),
-  period: z.enum(['weekly', 'monthly', 'quarterly', 'annual']).nullable().optional(),
-  period_date: z.string().nullable().optional(),
-}).passthrough(); // Allow additional custom properties
-
-export const noteSchema = z.object({
-  ...baseFields,
-  title: z.string(),
-  content: z.string().nullable(),
-  inbox_at: z.string().nullable(),
-  note_type: z.string().nullable(),
-  is_pinned: z.boolean(),
-  properties: notePropertiesSchema.nullable(),
-});
-
-const habitFrequencies = ['daily', 'weekdays', 'weekly'] as const;
-
-export const habitSchema = z.object({
-  ...baseFields,
-  title: z.string(),
-  description: z.string().nullable(),
-  frequency: z.enum(habitFrequencies).optional(),
-  target: z.number().int().positive().optional(),
-  active: z.boolean().optional(),
-  okr_id: z.string().uuid().nullable().optional(),
-  streak: z.number().int().nonnegative().optional(),
-  last_completed_at: z.string().nullable().optional(),
-});
-
-export const habitCompletionSchema = z.object({
-  ...baseFields,
-  habit_id: z.string().uuid(),
-  completed_date: z.string(),
-});
-
-export const noteLinkSchema = z.object({
-  ...baseFields,
-  source_id: z.string().uuid(), // Note containing the link
-  target_id: z.string().uuid().nullable(), // Note being linked to (null if unresolved)
-  target_title: z.string(), // Title text used in the link
-  header: z.string().nullable(), // Section header if [[Note#Header]]
-  alias: z.string().nullable(), // Alias text if [[Note|alias]]
-  position: z.number().int().nonnegative(), // Character position in source content
-});
-
-export const templateSchema = z.object({
-  ...baseFields,
-  title: z.string(), // Template name
-  content: z.string(), // Template content with variables like {{date}}, {{title}}
-  description: z.string().nullable(), // Brief description of template purpose
-  category: z.string().nullable(), // Category for grouping (daily, meeting, etc.)
-  sort_order: z.number().int().nonnegative(), // For custom ordering
-});
-
-const versionCreatedByTypes = ['auto', 'manual'] as const;
-
-export const noteVersionSchema = z.object({
-  ...baseFields,
-  note_id: z.string().uuid(),
-  content: z.string().nullable(),
-  properties: z.record(z.string(), z.unknown()).nullable(),
-  version_number: z.number().int().positive(),
-  created_by: z.enum(versionCreatedByTypes),
-  change_summary: z.string().nullable(),
-});
-
 export const timeEntrySchema = z.object({
   ...baseFields,
-  task_id: z.string().uuid().nullable(),
+  item_id: z.string().uuid().nullable(),
   session_id: z.string().uuid().nullable(),
   entry_type: z.enum(timeEntryTypes),
   label: z.string().nullable(),
@@ -204,54 +186,12 @@ export const timeEntrySchema = z.object({
   }
 });
 
-const captureSources = ['quick', 'voice', 'email'] as const;
-const captureResultTypes = ['note', 'task', 'project', 'source', 'discarded'] as const;
-
-export const contentTypes = ['article', 'book', 'video', 'podcast', 'other'] as const;
-export const readStatuses = ['inbox', 'reading', 'read'] as const;
-
-export const captureSchema = z.object({
-  ...baseFields,
-  body: z.string(),
-  source: z.enum(captureSources).nullable(),
-  processed: z.boolean(),
-  processed_at: z.string().nullable(),
-  result_type: z.enum(captureResultTypes).nullable(),
-  result_id: z.string().uuid().nullable(),
-});
-
-export const sourceSchema = z.object({
-  ...baseFields,
-  url: z.string(),
-  title: z.string().nullable(),
-  content_type: z.enum(contentTypes),
-  read_status: z.enum(readStatuses),
-});
-
-export const OkrType = ['yearly', '12week', 'objective', 'key_result'] as const;
-const okrStatuses = ['draft', 'active', 'complete', 'abandoned'] as const;
-
-export const okrSchema = z.object({
-  ...baseFields,
-  title: z.string(),
-  description: z.string().nullable(),
-  type: z.enum(OkrType),
-  parent_id: z.string().uuid().nullable(),
-  period_start: z.string().nullable(),
-  period_end: z.string().nullable(),
-  status: z.enum(okrStatuses),
-  progress: z.number().int().min(0).max(100),
-});
-
 export const tagSchema = z.object({
   ...baseFields,
   name: z.string(),
 });
 
-export const areaSchema = z.object({
-  ...baseFields,
-  title: z.string(),
-});
+// ── JSON schemas (RxDB) ───────────────────────────────────────────────────────
 
 const baseProperties = {
   id: { type: 'string', maxLength: 36 },
@@ -259,7 +199,6 @@ const baseProperties = {
   updated_at: { type: 'string', format: 'date-time' },
   is_trashed: { type: 'boolean' },
   trashed_at: { type: ['string', 'null'], format: 'date-time' },
-  // Sync v2 fields (optional — populated at sync time)
   owner: { type: ['string', 'null'], maxLength: 36 },
   device_id: { type: ['string', 'null'] },
   sync_rev: { type: ['number', 'null'] },
@@ -273,144 +212,88 @@ const baseRequired = [
   'trashed_at',
 ] as const;
 
-const projectsRxSchema = {
-  version: 5,
+const itemsRxSchema = {
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
-    title: { type: 'string' },
-    description: { type: ['string', 'null'] },
-    status: { type: 'string', enum: projectStatuses },
-    start_date: { type: ['string', 'null'], format: 'date-time' },
-    due_date: { type: ['string', 'null'], format: 'date-time' },
-    area_id: { type: ['string', 'null'], maxLength: 36 },
-    okr_id: { type: ['string', 'null'], maxLength: 36 },
-  },
-  required: [
-    ...baseRequired,
-    'title',
-    'description',
-    'status',
-    'start_date',
-    'due_date',
-    'area_id',
-    'okr_id',
-  ],
-};
+    type: { type: 'string', maxLength: 20 },
+    parent_id: { type: ['string', 'null'], maxLength: 36 },
 
-const tasksRxSchema = {
-  version: 8,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    project_id: { type: ['string', 'null'], maxLength: 36 },
-    area_id: { type: ['string', 'null'], maxLength: 36 },
-    title: { type: 'string' },
-    description: { type: ['string', 'null'] },
+    // Common
+    title: { type: ['string', 'null'] },
+    content: { type: ['string', 'null'] },
+    tags: { type: 'array', items: { type: 'string' } },
+    is_pinned: { type: 'boolean' },
+    item_status: { type: 'string' },
+    priority: { type: ['string', 'null'] },
+
+    // Scheduling
+    due_date: { type: ['string', 'null'] },
+    start_date: { type: ['string', 'null'] },
     completed: { type: 'boolean' },
-    is_someday: { type: 'boolean' },
     is_next: { type: 'boolean' },
+    is_someday: { type: 'boolean' },
     is_waiting: { type: 'boolean' },
     waiting_note: { type: ['string', 'null'] },
-    waiting_started_at: { type: ['string', 'null'], format: 'date-time' },
-    start_date: { type: ['string', 'null'], format: 'date-time' },
-    due_date: { type: ['string', 'null'], format: 'date-time' },
-    tags: { type: 'array', items: { type: 'string' } },
-    content: { type: ['string', 'null'] },
-    priority: { type: ['number', 'null'] },
+    waiting_started_at: { type: ['string', 'null'] },
     depends_on: { type: ['array', 'null'], items: { type: 'string', maxLength: 36 } },
-    okr_id: { type: ['string', 'null'], maxLength: 36 },
-  },
-  required: [
-    ...baseRequired,
-    'project_id',
-    'area_id',
-    'title',
-    'description',
-    'completed',
-    'is_someday',
-    'is_next',
-    'is_waiting',
-    'waiting_note',
-    'waiting_started_at',
-    'start_date',
-    'due_date',
-    'tags',
-    'content',
-    'priority',
-    'depends_on',
-    'okr_id',
-  ],
-};
 
-const notesRxSchema = {
-  version: 7,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    title: { type: 'string' },
-    content: { type: ['string', 'null'] },
+    // Note
     inbox_at: { type: ['string', 'null'] },
-    note_type: { type: ['string', 'null'] },
-    is_pinned: { type: 'boolean' },
-    properties: { type: ['object', 'null'] },
-  },
-  required: [
-    ...baseRequired,
-    'title',
-    'content',
-    'inbox_at',
-    'note_type',
-    'is_pinned',
-    'properties',
-  ],
-};
+    subtype: { type: ['string', 'null'] },
 
-const habitsRxSchema = {
-  version: 3,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    title: { type: 'string' },
-    description: { type: ['string', 'null'] },
-    frequency: { type: 'string', enum: habitFrequencies },
-    target: { type: 'number' },
-    active: { type: 'boolean' },
-    okr_id: { type: ['string', 'null'], maxLength: 36 },
-    streak: { type: 'number' },
+    // Source
+    url: { type: ['string', 'null'] },
+    content_type: { type: ['string', 'null'] },
+    read_status: { type: ['string', 'null'] },
+
+    // OKR / planning
+    period_start: { type: ['string', 'null'] },
+    period_end: { type: ['string', 'null'] },
+    progress: { type: ['number', 'null'] },
+
+    // Habit
+    frequency: { type: ['string', 'null'] },
+    target: { type: ['number', 'null'] },
+    active: { type: ['boolean', 'null'] },
+    streak: { type: ['number', 'null'] },
     last_completed_at: { type: ['string', 'null'] },
+
+    // Capture
+    body: { type: ['string', 'null'] },
+    capture_source: { type: ['string', 'null'] },
+    processed: { type: 'boolean' },
+    processed_at: { type: ['string', 'null'] },
+    result_type: { type: ['string', 'null'] },
+    result_id: { type: ['string', 'null'], maxLength: 36 },
+
+    // Template
+    description: { type: ['string', 'null'] },
+    category: { type: ['string', 'null'] },
+    sort_order: { type: ['number', 'null'] },
   },
   required: [
     ...baseRequired,
-    'title',
-    'description',
-    'frequency',
-    'target',
-    'active',
-    'okr_id',
-    'streak',
-    'last_completed_at',
+    'type',
+    'parent_id',
+    'is_pinned',
+    'item_status',
+    'completed',
+    'is_next',
+    'is_someday',
+    'is_waiting',
+    'processed',
+  ],
+  indexes: [
+    'type',
+    ['type', 'is_trashed'],
   ],
 };
 
-const habitCompletionsRxSchema = {
-  version: 2,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    habit_id: { type: 'string', maxLength: 36 },
-    completed_date: { type: 'string', format: 'date' },
-  },
-  required: [...baseRequired, 'habit_id', 'completed_date'],
-};
-
-const noteLinksRxSchema = {
-  version: 2,
+const itemLinksRxSchema = {
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -434,60 +317,38 @@ const noteLinksRxSchema = {
   indexes: ['source_id'],
 };
 
-const templatesRxSchema = {
-  version: 2,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    title: { type: 'string' },
-    content: { type: 'string' },
-    description: { type: ['string', 'null'] },
-    category: { type: ['string', 'null'] },
-    sort_order: { type: 'number' },
-  },
-  required: [
-    ...baseRequired,
-    'title',
-    'content',
-    'description',
-    'category',
-    'sort_order',
-  ],
-};
-
-const noteVersionsRxSchema = {
+const itemVersionsRxSchema = {
   version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
-    note_id: { type: 'string', maxLength: 36 },
+    item_id: { type: 'string', maxLength: 36 },
     content: { type: ['string', 'null'] },
     properties: { type: ['object', 'null'] },
     version_number: { type: 'number' },
-    created_by: { type: 'string', enum: versionCreatedByTypes },
+    created_by: { type: 'string', enum: ['auto', 'manual'] },
     change_summary: { type: ['string', 'null'] },
   },
   required: [
     ...baseRequired,
-    'note_id',
+    'item_id',
     'content',
     'properties',
     'version_number',
     'created_by',
     'change_summary',
   ],
-  indexes: ['note_id'],
+  indexes: ['item_id'],
 };
 
 const timeEntriesRxSchema = {
-  version: 4,
+  version: 5,
   primaryKey: 'id',
   type: 'object',
   properties: {
     ...baseProperties,
-    task_id: { type: ['string', 'null'], maxLength: 36 },
+    item_id: { type: ['string', 'null'], maxLength: 36 },
     session_id: { type: ['string', 'null'], maxLength: 36 },
     entry_type: { type: 'string', enum: timeEntryTypes },
     label: { type: ['string', 'null'] },
@@ -498,7 +359,7 @@ const timeEntriesRxSchema = {
   },
   required: [
     ...baseRequired,
-    'task_id',
+    'item_id',
     'session_id',
     'entry_type',
     'label',
@@ -506,58 +367,6 @@ const timeEntriesRxSchema = {
     'started_at',
     'stopped_at',
     'duration_seconds',
-  ],
-};
-
-const capturesRxSchema = {
-  version: 1,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    body: { type: 'string' },
-    source: { type: ['string', 'null'] },
-    processed: { type: 'boolean' },
-    processed_at: { type: ['string', 'null'] },
-    result_type: { type: ['string', 'null'] },
-    result_id: { type: ['string', 'null'], maxLength: 36 },
-  },
-  required: [
-    ...baseRequired,
-    'body',
-    'source',
-    'processed',
-    'processed_at',
-    'result_type',
-    'result_id',
-  ],
-};
-
-const okrsRxSchema = {
-  version: 1,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    title: { type: 'string' },
-    description: { type: ['string', 'null'] },
-    type: { type: 'string', enum: OkrType },
-    parent_id: { type: ['string', 'null'], maxLength: 36 },
-    period_start: { type: ['string', 'null'] },
-    period_end: { type: ['string', 'null'] },
-    status: { type: 'string', enum: okrStatuses },
-    progress: { type: 'number' },
-  },
-  required: [
-    ...baseRequired,
-    'title',
-    'description',
-    'type',
-    'parent_id',
-    'period_start',
-    'period_end',
-    'status',
-    'progress',
   ],
 };
 
@@ -572,103 +381,7 @@ const tagsRxSchema = {
   required: [...baseRequired, 'name'],
 };
 
-const areasRxSchema = {
-  version: 1,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    title: { type: 'string' },
-  },
-  required: [...baseRequired, 'title'],
-};
-
-const sourcesRxSchema = {
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    url: { type: 'string' },
-    title: { type: ['string', 'null'] },
-    content_type: { type: 'string', enum: contentTypes },
-    read_status: { type: 'string', enum: readStatuses },
-  },
-  required: [...baseRequired, 'url', 'title', 'content_type', 'read_status'],
-};
-
-type LegacySoftDeleteFields = {
-  is_deleted?: boolean;
-  deleted_at?: string | null;
-  is_trashed?: boolean;
-  trashed_at?: string | null;
-};
-
-type LegacyTaskFields = {
-  status?: unknown;
-  completed?: unknown;
-};
-
-type LegacyProjectFields = {
-  status?: unknown;
-  start_date?: unknown;
-  due_date?: unknown;
-};
-
-type LegacyTimeEntryFields = {
-  entry_type?: unknown;
-  label?: unknown;
-  label_normalized?: unknown;
-  session_id?: unknown;
-};
-
-type TimeEntryType = (typeof timeEntryTypes)[number];
-
-const isTimeEntryType = (value: string): value is TimeEntryType =>
-  timeEntryTypes.includes(value as TimeEntryType);
-
-const coerceEntryType = (value: unknown): TimeEntryType => {
-  if (value === 'log') return 'unplanned';
-  if (typeof value === 'string' && isTimeEntryType(value)) return value;
-  return 'planned';
-};
-
-function migrateSoftDeleteFields<T extends Record<string, unknown>>(
-  oldDoc: T & LegacySoftDeleteFields
-) {
-  const { is_deleted, deleted_at, is_trashed, trashed_at, ...rest } =
-    oldDoc as Record<string, unknown> & LegacySoftDeleteFields;
-
-  return {
-    ...rest,
-    is_trashed: is_trashed ?? is_deleted ?? false,
-    trashed_at: trashed_at ?? deleted_at ?? null,
-  };
-}
-
-function migrateTimeEntryFields(
-  oldDoc: LegacySoftDeleteFields & LegacyTimeEntryFields & Record<string, unknown>
-) {
-  const migrated = migrateSoftDeleteFields(oldDoc);
-  const entry_type = coerceEntryType(oldDoc.entry_type);
-  const label = typeof oldDoc.label === 'string' ? oldDoc.label : null;
-  const label_normalized =
-    typeof oldDoc.label_normalized === 'string'
-      ? oldDoc.label_normalized
-      : label
-        ? normalizeLabel(label)
-        : null;
-  const session_id =
-    typeof oldDoc.session_id === 'string' ? oldDoc.session_id : null;
-
-  return {
-    ...migrated,
-    entry_type,
-    label,
-    label_normalized,
-    session_id,
-  };
-}
+// ── Migration strategies ───────────────────────────────────────────────────────
 
 function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
   return {
@@ -679,228 +392,63 @@ function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
   };
 }
 
-const softDeleteMigrationStrategies = {
-  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
-    migrateSoftDeleteFields(oldDoc),
-  2: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
+const itemsMigrationStrategies = {
+  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
 };
 
-const notesMigrationStrategies = {
-  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
-    migrateSoftDeleteFields(oldDoc),
-  2: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    inbox_at: oldDoc.inbox_at ?? null,
-  }),
-  3: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    note_type: oldDoc.note_type ?? null,
-  }),
-  4: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    is_pinned: oldDoc.is_pinned ?? false,
-  }),
-  5: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    properties: oldDoc.properties ?? null,
-  }),
-  6: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
-  7: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
+const itemLinksMigrationStrategies = {
+  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
 };
 
-const tasksMigrationStrategies = {
-  1: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
-    const migrated = migrateSoftDeleteFields(oldDoc);
-    const completed = typeof oldDoc.completed === 'boolean' ? oldDoc.completed : false;
-    const status = completed ? 'backlog' : coerceLegacyTaskStatus(oldDoc.status);
-
-    return {
-      ...migrated,
-      status,
-      completed,
-    };
-  },
-  2: (oldDoc: LegacySoftDeleteFields & LegacyTaskFields & Record<string, unknown>) => {
-    const migrated = migrateSoftDeleteFields(oldDoc);
-    const completed = typeof oldDoc.completed === 'boolean' ? oldDoc.completed : false;
-    const status = completed ? 'backlog' : coerceLegacyTaskStatus(oldDoc.status);
-
-    return {
-      ...migrated,
-      status,
-      completed,
-    };
-  },
-  3: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    content: oldDoc.content ?? null,
-    priority: oldDoc.priority ?? null,
-    depends_on: Array.isArray(oldDoc.depends_on) ? oldDoc.depends_on : null,
-    okr_id: oldDoc.okr_id ?? null,
-  }),
-  4: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    status: coerceLegacyTaskStatus(oldDoc.status),
-    start_date:
-      typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null,
-  }),
-  5: (oldDoc: Record<string, unknown>) => {
-    const status = coerceTaskStatus(oldDoc.status);
-    const legacyStatus = oldDoc.status;
-    const isSomeday =
-      typeof oldDoc.is_someday === 'boolean'
-        ? oldDoc.is_someday
-        : legacyStatus === 'someday' || legacyStatus === 'waiting';
-    const tags = Array.isArray(oldDoc.tags)
-      ? oldDoc.tags.filter((tag): tag is string => typeof tag === 'string')
-      : [];
-
-    return {
-      ...oldDoc,
-      status,
-      is_someday: isSomeday,
-      tags,
-    };
-  },
-  6: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    area_id: oldDoc.area_id ?? null,
-  }),
-  7: (oldDoc: Record<string, unknown>) => {
-    const { status, ...rest } = oldDoc;
-    return {
-      ...rest,
-      is_next: status === 'next',
-      is_waiting: false,
-      waiting_note: null,
-      waiting_started_at: null,
-    };
-  },
-  8: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const projectsMigrationStrategies = {
-  1: (oldDoc: LegacySoftDeleteFields & LegacyProjectFields & Record<string, unknown>) => {
-    const migrated = migrateSoftDeleteFields(oldDoc);
-    const status = coerceProjectStatus(oldDoc.status);
-    const start_date =
-      typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null;
-    const due_date = typeof oldDoc.due_date === 'string' ? oldDoc.due_date : null;
-
-    return {
-      ...migrated,
-      status,
-      start_date,
-      due_date,
-    };
-  },
-  2: (oldDoc: LegacySoftDeleteFields & LegacyProjectFields & Record<string, unknown>) => {
-    const migrated = migrateSoftDeleteFields(oldDoc);
-    const status = coerceProjectStatus(oldDoc.status);
-    const start_date =
-      typeof oldDoc.start_date === 'string' ? oldDoc.start_date : null;
-    const due_date = typeof oldDoc.due_date === 'string' ? oldDoc.due_date : null;
-
-    return {
-      ...migrated,
-      status,
-      start_date,
-      due_date,
-    };
-  },
-  3: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    okr_id: oldDoc.okr_id ?? null,
-  }),
-  4: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    area_id: oldDoc.area_id ?? null,
-  }),
-  5: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const habitsMigrationStrategies = {
-  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
-    migrateSoftDeleteFields(oldDoc),
-  2: (oldDoc: Record<string, unknown>) => ({
-    ...oldDoc,
-    frequency: (oldDoc.frequency as string) ?? 'daily',
-    target: (oldDoc.target as number) ?? 1,
-    active: (oldDoc.active as boolean) ?? true,
-    okr_id: oldDoc.okr_id ?? null,
-    streak: (oldDoc.streak as number) ?? 0,
-    last_completed_at: oldDoc.last_completed_at ?? null,
-  }),
-  3: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
+const itemVersionsMigrationStrategies = {
+  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
 };
 
 const timeEntriesMigrationStrategies = {
-  1: (oldDoc: LegacySoftDeleteFields & Record<string, unknown>) =>
-    migrateSoftDeleteFields(oldDoc),
-  2: (oldDoc: LegacySoftDeleteFields &
-    LegacyTimeEntryFields &
-    Record<string, unknown>) => migrateTimeEntryFields(oldDoc),
-  3: (oldDoc: LegacySoftDeleteFields &
-    LegacyTimeEntryFields &
-    Record<string, unknown>) => migrateTimeEntryFields(oldDoc),
-  4: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const noteVersionsMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const capturesMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
-
-const okrsMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
+  // Versions 1–4 handled old task_id schema; all data is discarded on fresh installs.
+  // Version 5 renames task_id → item_id and adds sync v2 fields.
+  1: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
+  2: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
+  3: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
+  4: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
+  5: (oldDoc: Record<string, unknown>) => {
+    const { task_id, ...rest } = oldDoc;
+    return migrateSyncV2Fields({
+      ...rest,
+      item_id: task_id ?? null,
+    });
+  },
 };
 
 const tagsMigrationStrategies = {
   1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
 };
 
-const areasMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-};
+// ── TypeScript types ──────────────────────────────────────────────────────────
 
-export type ProjectDocument = z.infer<typeof projectSchema>;
-export type TaskDocument = z.infer<typeof taskSchema>;
-export type NoteDocument = z.infer<typeof noteSchema>;
-export type NoteProperties = z.infer<typeof notePropertiesSchema>;
-export type HabitDocument = z.infer<typeof habitSchema>;
-export type HabitCompletionDocument = z.infer<typeof habitCompletionSchema>;
+export type ItemDocument = z.infer<typeof itemSchema>;
+export type ItemLinkDocument = z.infer<typeof itemLinkSchema>;
+export type ItemVersionDocument = z.infer<typeof itemVersionSchema>;
 export type TimeEntryDocument = z.infer<typeof timeEntrySchema>;
-export type NoteLinkDocument = z.infer<typeof noteLinkSchema>;
-export type TemplateDocument = z.infer<typeof templateSchema>;
-export type NoteVersionDocument = z.infer<typeof noteVersionSchema>;
-export type CaptureDocument = z.infer<typeof captureSchema>;
-export type OkrDocument = z.infer<typeof okrSchema>;
-export type OkrTypeValue = (typeof OkrType)[number];
 export type TagDocument = z.infer<typeof tagSchema>;
-export type AreaDocument = z.infer<typeof areaSchema>;
-export type SourceDocument = z.infer<typeof sourceSchema>;
+
 export type ContentType = (typeof contentTypes)[number];
 export type ReadStatus = (typeof readStatuses)[number];
+export type ItemType = (typeof itemTypes)[number];
+export type ItemStatus = (typeof itemStatuses)[number];
+export type ItemPriority = (typeof itemPriorities)[number];
+
+// ── DatabaseCollections ───────────────────────────────────────────────────────
 
 export type DatabaseCollections = {
-  projects: RxCollection<ProjectDocument>;
-  tasks: RxCollection<TaskDocument>;
-  notes: RxCollection<NoteDocument>;
-  habits: RxCollection<HabitDocument>;
-  habit_completions: RxCollection<HabitCompletionDocument>;
+  items: RxCollection<ItemDocument>;
+  item_links: RxCollection<ItemLinkDocument>;
+  item_versions: RxCollection<ItemVersionDocument>;
   time_entries: RxCollection<TimeEntryDocument>;
-  note_links: RxCollection<NoteLinkDocument>;
-  templates: RxCollection<TemplateDocument>;
-  note_versions: RxCollection<NoteVersionDocument>;
-  captures: RxCollection<CaptureDocument>;
-  okrs: RxCollection<OkrDocument>;
   tags: RxCollection<TagDocument>;
-  areas: RxCollection<AreaDocument>;
-  sources: RxCollection<SourceDocument>;
 };
+
+// ── Database singleton ────────────────────────────────────────────────────────
 
 let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
 
@@ -916,60 +464,25 @@ export async function getDatabase() {
     });
 
     await db.addCollections({
-      projects: {
-        schema: projectsRxSchema,
-        migrationStrategies: projectsMigrationStrategies,
+      items: {
+        schema: itemsRxSchema,
+        migrationStrategies: itemsMigrationStrategies,
       },
-      tasks: {
-        schema: tasksRxSchema,
-        migrationStrategies: tasksMigrationStrategies,
+      item_links: {
+        schema: itemLinksRxSchema,
+        migrationStrategies: itemLinksMigrationStrategies,
       },
-      notes: {
-        schema: notesRxSchema,
-        migrationStrategies: notesMigrationStrategies,
-      },
-      habits: {
-        schema: habitsRxSchema,
-        migrationStrategies: habitsMigrationStrategies,
-      },
-      habit_completions: {
-        schema: habitCompletionsRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
+      item_versions: {
+        schema: itemVersionsRxSchema,
+        migrationStrategies: itemVersionsMigrationStrategies,
       },
       time_entries: {
         schema: timeEntriesRxSchema,
         migrationStrategies: timeEntriesMigrationStrategies,
       },
-      note_links: {
-        schema: noteLinksRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
-      },
-      templates: {
-        schema: templatesRxSchema,
-        migrationStrategies: softDeleteMigrationStrategies,
-      },
-      note_versions: {
-        schema: noteVersionsRxSchema,
-        migrationStrategies: noteVersionsMigrationStrategies,
-      },
-      captures: {
-        schema: capturesRxSchema,
-        migrationStrategies: capturesMigrationStrategies,
-      },
-      okrs: {
-        schema: okrsRxSchema,
-        migrationStrategies: okrsMigrationStrategies,
-      },
       tags: {
         schema: tagsRxSchema,
         migrationStrategies: tagsMigrationStrategies,
-      },
-      areas: {
-        schema: areasRxSchema,
-        migrationStrategies: areasMigrationStrategies,
-      },
-      sources: {
-        schema: sourcesRxSchema,
       },
     });
 

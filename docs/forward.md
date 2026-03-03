@@ -11,12 +11,7 @@
 
 ---
 
-### 1.2 `NoteList` shows inbox notes
-`src/features/notes/NoteList/NoteList.tsx:26`
-
-The `NoteList` component queries `{ type: 'note', is_trashed: false }` without filtering `inbox_at: null`. Inbox notes (captures) leak into the list. The sister component `NotesList` correctly adds `inbox_at: null` for the 'all' group.
-
-**Fix:** Add `inbox_at: null` to the selector, or consolidate with `NotesList` (see §4.2).
+### ~~1.2 `NoteList` shows inbox notes~~ ✓ fixed (deleted dead component)
 
 ---
 
@@ -156,9 +151,7 @@ Both components have identical `handleCreateNote` implementations (same fields, 
 
 ## 4. Architecture & Design
 
-### 4.1 `NoteList` and `NotesList` are two confusingly named components
-
-`src/features/notes/NoteList/` and `src/features/notes/NotesList/` both render a list of notes with different implementations. The distinction is not clear from the names. `NoteList` appears to be an older version; `NotesList` is the one backed by `useGroupedNotes`. If `NoteList` is still used anywhere, the two should be consolidated. If not, `NoteList` is dead code and should be removed.
+### ~~4.1 `NoteList` and `NotesList` are two confusingly named components~~ ✓ fixed (deleted dead component)
 
 ---
 
