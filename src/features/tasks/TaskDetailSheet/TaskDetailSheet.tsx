@@ -13,9 +13,8 @@ import {
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument, TagDocument } from '@/lib/db';
 import { CalendarPicker } from './CalendarPicker';
+import { nowIso } from '@/lib/time';
 import styles from './TaskDetailSheet.module.css';
-
-const nowIso = () => new Date().toISOString();
 const NOTES_MAX_ROWS = 4;
 
 type TaskDetailSheetProps = {

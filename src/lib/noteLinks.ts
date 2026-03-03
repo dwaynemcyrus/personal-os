@@ -9,7 +9,7 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from './db';
 import { parseWikiLinks } from './markdown/wikilinks';
 
-const nowIso = () => new Date().toISOString();
+import { nowIso } from './time';
 
 /**
  * Extract and save wiki-links from a note's content

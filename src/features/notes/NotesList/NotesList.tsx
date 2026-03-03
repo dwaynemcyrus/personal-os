@@ -11,6 +11,7 @@ import {
   formatNoteTitle,
   formatRelativeTime,
 } from '../noteUtils';
+import { nowIso } from '@/lib/time';
 import styles from './NotesList.module.css';
 
 const GROUP_LABELS: Record<NoteGroup, string> = {
@@ -21,8 +22,6 @@ const GROUP_LABELS: Record<NoteGroup, string> = {
   pinned: 'Pinned',
   trash: 'Trash',
 };
-
-const nowIso = () => new Date().toISOString();
 
 type NotesListProps = {
   group: NoteGroup;

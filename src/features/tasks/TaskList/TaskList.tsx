@@ -13,9 +13,8 @@ import {
   type TaskListFilter,
   type UpcomingItem,
 } from '@/features/tasks/taskBuckets';
+import { nowIso } from '@/lib/time';
 import styles from './TaskList.module.css';
-
-const nowIso = () => new Date().toISOString();
 
 function formatDateLabel(iso: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(iso));

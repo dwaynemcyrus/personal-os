@@ -21,10 +21,9 @@ import {
   parseFrontmatter,
   replaceFrontmatterBlock,
 } from '@/lib/markdown/frontmatter';
+import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
 import styles from './NoteEditor.module.css';
-
-const nowIso = () => new Date().toISOString();
 const SAVE_DEBOUNCE_MS = 1000;
 const TITLE_REVEAL_SCROLL_PX = 64;
 

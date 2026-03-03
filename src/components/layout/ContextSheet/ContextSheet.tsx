@@ -18,9 +18,8 @@ import type { ItemDocument } from '@/lib/db';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
 import { AreaDetailSheet } from '@/features/projects/AreaDetailSheet/AreaDetailSheet';
 import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDetailSheet';
+import { nowIso } from '@/lib/time';
 import styles from './ContextSheet.module.css';
-
-const nowIso = () => new Date().toISOString();
 
 type ContextSheetProps = {
   open: boolean;

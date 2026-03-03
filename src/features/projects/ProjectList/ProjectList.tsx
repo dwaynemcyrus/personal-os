@@ -3,12 +3,11 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
+import { nowIso } from '@/lib/time';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
 import styles from './ProjectList.module.css';
 
 type ProjectFilter = 'all' | 'backlog' | 'active' | 'someday' | 'archived';
-
-const nowIso = () => new Date().toISOString();
 
 const getTime = (value: string | null) => {
   if (!value) return null;
