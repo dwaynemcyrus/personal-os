@@ -1,18 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument } from '@/lib/db';
 import type { NoteGroup } from './useGroupedNotes';
-
-function isTodayNote(note: ItemDocument): boolean {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayIso = todayStart.toISOString();
-  return note.updated_at >= todayIso || note.created_at >= todayIso;
-}
-
-function isTodoNote(note: ItemDocument): boolean {
-  return (note.content ?? '').includes('- [ ]');
-}
+import { isTodayNote, isTodoNote } from '../noteUtils';
 
 type GroupCounts = Record<NoteGroup, number>;
 

@@ -1,3 +1,16 @@
+import type { ItemDocument } from '@/lib/db';
+
+export function isTodayNote(note: ItemDocument): boolean {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayIso = todayStart.toISOString();
+  return note.updated_at >= todayIso || note.created_at >= todayIso;
+}
+
+export function isTodoNote(note: ItemDocument): boolean {
+  return (note.content ?? '').includes('- [ ]');
+}
+
 const TITLE_FALLBACK = 'Untitled';
 const TITLE_MAX_LENGTH = 80;
 const FRONTMATTER_DELIMITER = /^---\s*$/;
