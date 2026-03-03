@@ -183,16 +183,20 @@ CREATE TABLE time_entries (
 -- ── RLS ───────────────────────────────────────────────────────────────────────
 
 ALTER TABLE items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "authenticated_all" ON items FOR ALL TO authenticated USING (true);
+CREATE POLICY "items_owner" ON items FOR ALL TO authenticated
+  USING (owner = auth.uid()) WITH CHECK (owner = auth.uid());
 
 ALTER TABLE item_links ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "authenticated_all" ON item_links FOR ALL TO authenticated USING (true);
+CREATE POLICY "item_links_owner" ON item_links FOR ALL TO authenticated
+  USING (owner = auth.uid()) WITH CHECK (owner = auth.uid());
 
 ALTER TABLE item_versions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "authenticated_all" ON item_versions FOR ALL TO authenticated USING (true);
+CREATE POLICY "item_versions_owner" ON item_versions FOR ALL TO authenticated
+  USING (owner = auth.uid()) WITH CHECK (owner = auth.uid());
 
 ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "authenticated_all" ON time_entries FOR ALL TO authenticated USING (true);
+CREATE POLICY "time_entries_owner" ON time_entries FOR ALL TO authenticated
+  USING (owner = auth.uid()) WITH CHECK (owner = auth.uid());
 
 -- ── Realtime ──────────────────────────────────────────────────────────────────
 

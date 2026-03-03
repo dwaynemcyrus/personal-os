@@ -19,37 +19,15 @@
 
 ---
 
-### 1.4 `nowLabel` / `nowIso` in `NowView` won't update across midnight
-`src/App.tsx:80–91`
+### ~~1.4 `nowLabel` / `nowIso` in `NowView` won't update across midnight~~ ✓ fixed
 
-```ts
-const nowLabel = useMemo(() => { ... }, []);
-const nowIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
-```
-
-Both values are computed once on mount. If the app stays open past midnight, the date header and the today-note lookup remain stale.
-
-**Fix:** Subscribe to a midnight boundary (e.g., `setTimeout` to the next midnight, or a clock hook) and recompute.
-
----
-
-### 1.5 Console error SC34 (resolved in current commit, file left behind)
-`tmp/console-error.md`
-
-The file documents an `RxError SC34` ("indexed string field missing `maxLength`") for the `type` field. This is now fixed — `db.ts` sets `type: { type: 'string', maxLength: 20 }`. The tmp file should be deleted to avoid confusion.
+### ~~1.5 Console error SC34 (resolved in current commit, file left behind)~~ ✓ fixed
 
 ---
 
 ## 2. Schema & Data Integrity
 
-### 2.1 RLS policies are too permissive
-`supabase/migrations/20260302000000_items_table.sql:186–195`
-
-```sql
-CREATE POLICY "authenticated_all" ON items FOR ALL TO authenticated USING (true);
-```
-
-Any authenticated user can read and write any row regardless of `owner`. For a personal-data app this is a security hole once the app is multi-user. All policies should be `USING (owner = auth.uid())` or `USING (owner IS NULL OR owner = auth.uid())`.
+### ~~2.1 RLS policies are too permissive~~ ✓ fixed
 
 ---
 
@@ -271,4 +249,4 @@ These three functions are fully implemented but not surfaced anywhere in the UI.
 | `src/App.tsx:191` | `'Your Workbench Empty'` — grammatically should be `'Your Workbench Is Empty'` |
 | `src/lib/versions.ts:23–28` | `shouldAutoSaveVersion` can be simplified: `return now - (lastVersionSaveByNote.get(noteId) ?? 0) > AUTO_SAVE_INTERVAL_MS` |
 | `src/features/tasks/taskBuckets.ts:68` | `getWindow()` is called in every `matchesTaskFilter` call — hoist to module-level or memoize per-render |
-| `supabase/migrations/…_items_table.sql:186` | Policy names are identical across all tables (`"authenticated_all"`); consider prefixing with table name for clarity |
+| ~~`supabase/migrations/…_items_table.sql:186`~~ | ~~Policy names are identical across all tables~~ ✓ fixed |
