@@ -210,7 +210,7 @@ const baseRequired = [
 ] as const;
 
 const itemsRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -381,6 +381,15 @@ const tagsRxSchema = {
 
 // ── Migration strategies ───────────────────────────────────────────────────────
 
+const itemsMigrationStrategies = {
+  // Version 2: removed sync_rev, added enum constraints and indexes.
+  2: (oldDoc: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { sync_rev, ...rest } = oldDoc;
+    return rest;
+  },
+};
+
 function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
   return {
     ...oldDoc,
@@ -451,6 +460,7 @@ export async function getDatabase() {
     await db.addCollections({
       items: {
         schema: itemsRxSchema,
+        migrationStrategies: itemsMigrationStrategies,
       },
       item_links: {
         schema: itemLinksRxSchema,
