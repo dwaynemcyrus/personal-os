@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppShell } from '@/components/layout/AppShell';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -15,6 +15,17 @@ import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
+
+function useTodayDate() {
+  const [today, setToday] = useState(() => new Date());
+  useEffect(() => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const timer = setTimeout(() => setToday(new Date()), tomorrow.getTime() - now.getTime());
+    return () => clearTimeout(timer);
+  }, [today]);
+  return today;
+}
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
@@ -77,16 +88,17 @@ function NowView() {
     window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
   };
 
-  const nowLabel = useMemo(() => {
-    const d = new Date();
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
-  }, []);
-
-  const nowIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useTodayDate();
+  const nowLabel = today.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const nowIso = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
   const nowNoteType = `daily:${nowIso}`;
   const nowTitle = `daily_${nowIso}`;
 
