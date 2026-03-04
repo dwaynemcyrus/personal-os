@@ -387,17 +387,24 @@ function stripSyncRev({ sync_rev, ...rest }: Record<string, unknown>) {
   return rest;
 }
 
+// Identity pass-through — required by RxDB dev-mode to fill the gap between
+// the first schema version and the current one for collections that skipped v0.
+const passthrough = (oldDoc: Record<string, unknown>) => ({ ...oldDoc });
+
 const itemsMigrationStrategies = {
+  1: passthrough,
   // Version 2: removed sync_rev, added enum constraints and indexes.
   2: stripSyncRev,
 };
 
 const itemLinksMigrationStrategies = {
+  1: passthrough,
   // Version 2: removed sync_rev, added maxLength to timestamps.
   2: stripSyncRev,
 };
 
 const itemVersionsMigrationStrategies = {
+  1: passthrough,
   // Version 2: removed sync_rev, added maxLength to timestamps.
   2: stripSyncRev,
 };
