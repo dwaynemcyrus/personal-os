@@ -53,7 +53,7 @@
 
 ## 3. Code Duplication (DRY)
 
-### 3.1 `nowIso` defined in five files
+### ~~3.1 `nowIso` defined in five files~~ ✓ fixed
 
 ```ts
 const nowIso = () => new Date().toISOString();
@@ -63,7 +63,7 @@ Appears in `App.tsx`, `NoteList.tsx`, `NotesList.tsx`, `TaskList.tsx`, `ProjectL
 
 ---
 
-### 3.2 `isTodayNote` and `isTodoNote` duplicated
+### ~~3.2 `isTodayNote` and `isTodoNote` duplicated~~ ✓ fixed
 
 `src/features/notes/hooks/useGroupedNotes.ts:7–15`
 `src/features/notes/hooks/useNoteGroupCounts.ts:6–14`
@@ -72,7 +72,7 @@ Both files define identical `isTodayNote` and `isTodoNote` functions. These belo
 
 ---
 
-### 3.3 Note-creation logic duplicated in `NoteList` and `NotesList`
+### ~~3.3 Note-creation logic duplicated in `NoteList` and `NotesList`~~ ✓ fixed (NoteList deleted)
 
 `src/features/notes/NoteList/NoteList.tsx:55–79`
 `src/features/notes/NotesList/NotesList.tsx:40–65`
@@ -81,7 +81,7 @@ Both components have identical `handleCreateNote` implementations (same fields, 
 
 ---
 
-### 3.4 Inline SVG icons scattered across files
+### ~~3.4 Inline SVG icons scattered across files~~ ✓ fixed
 
 `CloseIcon`, `GearIcon` in `App.tsx`; `BackIcon`, `PlusIcon` in `NotesList.tsx`. A shared `src/components/ui/Icon` directory or `src/components/ui/icons.tsx` would prevent icon definitions from living in feature-level files.
 
@@ -93,7 +93,7 @@ Both components have identical `handleCreateNote` implementations (same fields, 
 
 ---
 
-### 4.2 InboxWizard opened via global `CustomEvent`
+### ~~4.2 InboxWizard opened via global `CustomEvent`~~ ✓ fixed
 `src/App.tsx:77`
 
 ```ts
@@ -104,27 +104,27 @@ This bypasses the navigation context entirely. The InboxWizard is already prop-d
 
 ---
 
-### 4.3 `useDatabase` called per-component instead of via context
+### ~~4.3 `useDatabase` called per-component instead of via context~~ ✓ fixed
 
 Every component that needs the database calls `useDatabase()`, each maintaining its own `db` and `isReady` state. Since `getDatabase()` is a singleton, the DB is shared, but the ready-state check is duplicated across dozens of components. A `DatabaseContext` provider would centralize this and allow components to simply call `useDb()`.
 
 ---
 
-### 4.4 `useIsDesktop` defined inline in `App.tsx`
+### ~~4.4 `useIsDesktop` defined inline in `App.tsx`~~ ✓ fixed
 `src/App.tsx:19–29`
 
 This media-query hook is general-purpose and should live in `src/hooks/useIsDesktop.ts`.
 
 ---
 
-### 4.5 `PlansView` is an inline placeholder in the top-level app file
+### ~~4.5 `PlansView` is an inline placeholder in the top-level app file~~ ✓ fixed
 `src/App.tsx:37–44`
 
 Plans is a planned feature. The placeholder lives in `App.tsx` and should at minimum be moved to `src/features/plans/PlansView.tsx` to establish the correct file structure now.
 
 ---
 
-### 4.6 Online resync pushes every document regardless of modification
+### ~~4.6 Online resync pushes every document regardless of modification~~ ✓ fixed
 `src/lib/sync.ts:281–291`
 
 ```ts
@@ -142,7 +142,7 @@ When connectivity is restored, every document across every collection is re-push
 
 ## 5. Performance
 
-### 5.1 `getTaskBucketCounts` calls `getWindow()` six times per task
+### ~~5.1 `getTaskBucketCounts` calls `getWindow()` six times per task~~ ✓ fixed
 `src/features/tasks/taskBuckets.ts:188–200`
 
 `getTaskBucketCounts` calls `matchesTaskFilter` six times per task; each invocation re-runs `getWindow()` which creates `new Date()` objects. For a task list with hundreds of tasks this adds up.
@@ -151,21 +151,21 @@ When connectivity is restored, every document across every collection is re-push
 
 ---
 
-### 5.2 `countVersions` loads all version documents to count
+### ~~5.2 `countVersions` loads all version documents to count~~ ✓ fixed
 `src/lib/versions.ts:181–191`
 
 All version documents are fetched into memory just to return `versions.length`. RxDB on Dexie supports `count()` queries — use that instead.
 
 ---
 
-### 5.3 `syncNoteLinks` fetches all notes on every save
+### ~~5.3 `syncNoteLinks` fetches all notes on every save~~ ✓ fixed
 `src/lib/noteLinks.ts:32–40`
 
 Every time a note is saved, `syncNoteLinks` fetches every non-trashed note to build a title→id map. This is O(n notes) per save. Consider caching the title map or only re-fetching when note titles change.
 
 ---
 
-### 5.4 `useGroupedNotes` 'today' and 'todo' groups load all active notes
+### ~~5.4 `useGroupedNotes` 'today' and 'todo' groups load all active notes~~ ✓ fixed
 `src/features/notes/hooks/useGroupedNotes.ts:35–58`
 
 Both groups subscribe to all non-trashed, non-inbox notes and filter in JavaScript. For 'todo' in particular, a cheaper approach would be an RxDB query with a regex or content filter if supported, or limit the subscription.
