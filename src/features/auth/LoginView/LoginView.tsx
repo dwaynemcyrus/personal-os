@@ -16,7 +16,11 @@ export function LoginView() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError('Invalid email or password.');
+      const isNetworkError = error.message?.toLowerCase().includes('fetch') ||
+        error.message?.toLowerCase().includes('network');
+      setError(isNetworkError
+        ? 'Cannot reach the server. Check your connection and try again.'
+        : 'Invalid email or password.');
       setLoading(false);
     }
     // On success, AuthProvider's onAuthStateChange fires and renders the app
