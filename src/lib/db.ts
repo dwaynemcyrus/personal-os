@@ -341,7 +341,7 @@ const itemVersionsRxSchema = {
 };
 
 const timeEntriesRxSchema = {
-  version: 5,
+  version: 6,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -424,6 +424,8 @@ const timeEntriesMigrationStrategies = {
       item_id: task_id ?? null,
     });
   },
+  // Version 6: removed sync_rev, added maxLength to timestamps.
+  6: stripSyncRev,
 };
 
 const tagsMigrationStrategies = {
