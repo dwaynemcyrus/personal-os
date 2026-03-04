@@ -291,7 +291,7 @@ const itemsRxSchema = {
 };
 
 const itemLinksRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -316,7 +316,7 @@ const itemLinksRxSchema = {
 };
 
 const itemVersionsRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -369,7 +369,7 @@ const timeEntriesRxSchema = {
 };
 
 const tagsRxSchema = {
-  version: 1,
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -381,13 +381,25 @@ const tagsRxSchema = {
 
 // ── Migration strategies ───────────────────────────────────────────────────────
 
+// Strips sync_rev field removed when schema consolidated to items table.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function stripSyncRev({ sync_rev, ...rest }: Record<string, unknown>) {
+  return rest;
+}
+
 const itemsMigrationStrategies = {
   // Version 2: removed sync_rev, added enum constraints and indexes.
-  2: (oldDoc: Record<string, unknown>) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { sync_rev, ...rest } = oldDoc;
-    return rest;
-  },
+  2: stripSyncRev,
+};
+
+const itemLinksMigrationStrategies = {
+  // Version 2: removed sync_rev, added maxLength to timestamps.
+  2: stripSyncRev,
+};
+
+const itemVersionsMigrationStrategies = {
+  // Version 2: removed sync_rev, added maxLength to timestamps.
+  2: stripSyncRev,
 };
 
 function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
@@ -416,6 +428,8 @@ const timeEntriesMigrationStrategies = {
 
 const tagsMigrationStrategies = {
   1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
+  // Version 2: removed sync_rev, added maxLength to timestamps.
+  2: stripSyncRev,
 };
 
 // ── TypeScript types ──────────────────────────────────────────────────────────
@@ -464,9 +478,11 @@ export async function getDatabase() {
       },
       item_links: {
         schema: itemLinksRxSchema,
+        migrationStrategies: itemLinksMigrationStrategies,
       },
       item_versions: {
         schema: itemVersionsRxSchema,
+        migrationStrategies: itemVersionsMigrationStrategies,
       },
       time_entries: {
         schema: timeEntriesRxSchema,
