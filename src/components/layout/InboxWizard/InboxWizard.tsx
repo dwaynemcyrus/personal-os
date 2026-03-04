@@ -1,9 +1,7 @@
-
-
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import { extractNoteTitle, extractTitleFromFirstLine } from '@/features/notes/noteUtils';
 import styles from './InboxWizard.module.css';
 
@@ -14,41 +12,41 @@ type InboxWizardProps = {
 
 export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const { db, isReady } = useDatabase();
-  const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
-  const [trashedCaptures, setTrashedCaptures] = useState<NoteDocument[]>([]);
+  const [inboxNotes, setInboxNotes] = useState<ItemDocument[]>([]);
+  const [trashedCaptures, setTrashedCaptures] = useState<ItemDocument[]>([]);
   const [editTitle, setEditTitle] = useState('');
 
   // Subscribe to inbox notes
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { inbox_at: { $ne: null }, is_trashed: false },
+        selector: { type: 'note', inbox_at: { $ne: null }, is_trashed: false },
         sort: [{ inbox_at: 'asc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        const nextNotes = docs.map((doc) => doc.toJSON() as NoteDocument);
+        const nextNotes = docs.map((doc) => doc.toJSON() as ItemDocument);
         setInboxNotes(nextNotes);
         if (nextNotes.length === 0) {
           setEditTitle('');
           return;
         }
         const note = nextNotes[0];
-        setEditTitle(extractNoteTitle(note.content, note.title));
+        setEditTitle(extractNoteTitle(note.content ?? null, note.title ?? ''));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
-  // Subscribe to trashed captures
+  // Subscribe to trashed captures (for trash section)
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { note_type: 'capture', is_trashed: true },
+        selector: { type: 'capture', is_trashed: true },
         sort: [{ trashed_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setTrashedCaptures(docs.map((doc) => doc.toJSON() as NoteDocument));
+        setTrashedCaptures(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
@@ -69,18 +67,17 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const remaining = inboxNotes.length;
 
   const advanceToNext = () => {
-    // The reactive subscription will update the list.
-    // Keep currentIndex the same — the processed item will be removed from the list.
+    // The reactive subscription will update the list automatically.
   };
 
   const markCaptureProcessed = async (
     noteId: string,
-    resultType: 'note' | 'task' | 'project' | 'source' | 'discarded',
+    resultType: string,
     resultId: string | null,
     timestamp: string,
   ) => {
     if (!db) return;
-    const capture = await db.captures.findOne({ selector: { result_id: noteId } }).exec();
+    const capture = await db.items.findOne({ selector: { type: 'capture', result_id: noteId } }).exec();
     if (capture) {
       await capture.patch({
         processed: true,
@@ -95,12 +92,12 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const handleKeep = async () => {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
-    const doc = await db.notes.findOne(currentNote.id).exec();
+    const doc = await db.items.findOne(currentNote.id).exec();
     if (!doc) return;
     await doc.patch({
       title: editTitle.trim() || 'Untitled',
       inbox_at: null,
-      note_type: null,
+      subtype: null,
       updated_at: timestamp,
     });
     await markCaptureProcessed(currentNote.id, 'note', currentNote.id, timestamp);
@@ -111,33 +108,28 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
     const taskId = uuidv4();
-    await db.tasks.insert({
+    await db.items.insert({
       id: taskId,
-      project_id: null,
-      area_id: null,
+      type: 'task',
+      parent_id: null,
       title: editTitle.trim() || 'Untitled',
-      description: currentNote.content,
-      completed: false,
-      is_someday: false,
-      is_next: false,
-      is_waiting: false,
-      waiting_note: null,
-      waiting_started_at: null,
-      start_date: null,
-      due_date: null,
+      content: currentNote.content ?? null,
       tags: [],
-      content: null,
-      priority: null,
-      depends_on: null,
-      okr_id: null,
+      is_pinned: false,
+      item_status: 'backlog',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
       trashed_at: null,
     });
-    const doc = await db.notes.findOne(currentNote.id).exec();
+    const doc = await db.items.findOne(currentNote.id).exec();
     if (doc) {
-      await doc.patch({ inbox_at: null, updated_at: timestamp });
+      await doc.patch({ inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     }
     await markCaptureProcessed(currentNote.id, 'task', taskId, timestamp);
     advanceToNext();
@@ -147,20 +139,29 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
     const sourceId = uuidv4();
-    await db.sources.insert({
+    await db.items.insert({
       id: sourceId,
-      url: currentNote.content?.trim() ?? '',
+      type: 'source',
+      parent_id: null,
       title: editTitle.trim() || null,
-      content_type: 'article',
+      url: currentNote.content?.trim() ?? '',
+      content_type: 'text',
       read_status: 'inbox',
+      is_pinned: false,
+      item_status: 'active',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
       trashed_at: null,
     });
-    const doc = await db.notes.findOne(currentNote.id).exec();
+    const doc = await db.items.findOne(currentNote.id).exec();
     if (doc) {
-      await doc.patch({ inbox_at: null, updated_at: timestamp });
+      await doc.patch({ inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     }
     await markCaptureProcessed(currentNote.id, 'source', sourceId, timestamp);
     advanceToNext();
@@ -170,23 +171,26 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
     const projectId = uuidv4();
-    await db.projects.insert({
+    await db.items.insert({
       id: projectId,
+      type: 'project',
+      parent_id: null,
       title: editTitle.trim() || 'Untitled',
-      description: null,
-      status: 'backlog',
-      area_id: null,
-      okr_id: null,
-      start_date: null,
-      due_date: null,
+      item_status: 'backlog',
+      is_pinned: false,
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
       trashed_at: null,
     });
-    const doc = await db.notes.findOne(currentNote.id).exec();
+    const doc = await db.items.findOne(currentNote.id).exec();
     if (doc) {
-      await doc.patch({ inbox_at: null, updated_at: timestamp });
+      await doc.patch({ inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     }
     await markCaptureProcessed(currentNote.id, 'project', projectId, timestamp);
     advanceToNext();
@@ -195,7 +199,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
   const handleTrash = async () => {
     if (!db || !currentNote) return;
     const timestamp = new Date().toISOString();
-    const doc = await db.notes.findOne(currentNote.id).exec();
+    const doc = await db.items.findOne(currentNote.id).exec();
     if (doc) {
       await doc.patch({
         is_trashed: true,
@@ -210,7 +214,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
 
   const handleExtractTitle = () => {
     if (!currentNote) return;
-    setEditTitle(extractTitleFromFirstLine(currentNote.content));
+    setEditTitle(extractTitleFromFirstLine(currentNote.content ?? null));
   };
 
   // Empty state
@@ -245,10 +249,10 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
             <div className={styles.trashSection}>
               <span className={styles.trashSectionTitle}>Inbox Trash</span>
               <div className={styles.trashList}>
-                {trashedCaptures.map((note) => (
-                  <div key={note.id} className={styles.trashItem}>
+                {trashedCaptures.map((capture) => (
+                  <div key={capture.id} className={styles.trashItem}>
                     <span className={styles.trashItemContent}>
-                      {note.content?.trim() || '(empty)'}
+                      {capture.body?.trim() || '(empty)'}
                     </span>
                   </div>
                 ))}

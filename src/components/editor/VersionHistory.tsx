@@ -8,9 +8,10 @@ import {
   SheetTitle,
   SheetClose,
 } from '@/components/ui/Sheet';
-import type { DatabaseCollections, NoteVersionDocument } from '@/lib/db';
+import type { DatabaseCollections, ItemVersionDocument } from '@/lib/db';
 import { getVersions, restoreVersion } from '@/lib/versions';
 import { formatRelativeTime } from '@/features/notes/noteUtils';
+import { BackIcon, CloseIcon, ChevronRightIcon } from '@/components/ui/icons';
 import styles from './VersionHistory.module.css';
 
 type VersionHistoryProps = {
@@ -30,8 +31,8 @@ export function VersionHistory({
   db,
   onRestore,
 }: VersionHistoryProps) {
-  const [versions, setVersions] = useState<NoteVersionDocument[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState<NoteVersionDocument | null>(null);
+  const [versions, setVersions] = useState<ItemVersionDocument[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<ItemVersionDocument | null>(null);
   const [currentContent, setCurrentContent] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [isRestoring, setIsRestoring] = useState(false);
@@ -43,7 +44,7 @@ export function VersionHistory({
     const loadData = async () => {
       const [versionList, noteDoc] = await Promise.all([
         getVersions(db, noteId),
-        db.notes.findOne(noteId).exec(),
+        db.items.findOne(noteId).exec(),
       ]);
       setVersions(versionList);
       setCurrentContent(noteDoc?.content ?? '');
@@ -60,7 +61,7 @@ export function VersionHistory({
     }
   }, [open]);
 
-  const handleSelectVersion = useCallback((version: NoteVersionDocument) => {
+  const handleSelectVersion = useCallback((version: ItemVersionDocument) => {
     setSelectedVersion(version);
     setViewMode('preview');
   }, []);
@@ -128,7 +129,7 @@ export function VersionHistory({
               {formatRelativeTime(version.created_at)}
             </span>
           </div>
-          <ChevronIcon />
+          <ChevronRightIcon className={styles.chevron} />
         </button>
       ))}
 
@@ -149,7 +150,7 @@ export function VersionHistory({
             className={styles.backButton}
             onClick={handleBackToList}
           >
-            <BackIcon />
+            <BackIcon className={styles.backIcon} />
             Back
           </button>
           <span className={styles.previewTitle}>
@@ -195,7 +196,7 @@ export function VersionHistory({
             className={styles.backButton}
             onClick={() => setViewMode('preview')}
           >
-            <BackIcon />
+            <BackIcon className={styles.backIcon} />
             Back
           </button>
           <span className={styles.previewTitle}>Compare</span>
@@ -247,7 +248,7 @@ export function VersionHistory({
               className={styles.close}
               aria-label="Close version history"
             >
-              <CloseIcon />
+              <CloseIcon className={styles.icon} />
             </button>
           </SheetClose>
         </header>
@@ -260,50 +261,3 @@ export function VersionHistory({
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.icon}
-    >
-      <path d="M6 6l12 12M18 6l-12 12" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.chevron}
-    >
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.backIcon}
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}

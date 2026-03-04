@@ -5,24 +5,24 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
-import type { ContentType, ReadStatus, SourceDocument } from '@/lib/db';
+import type { ContentType, ReadStatus, ItemDocument } from '@/lib/db';
 import { contentTypes, readStatuses } from '@/lib/db';
+import { CloseIcon } from '@/components/ui/icons';
 import styles from './SourceDetailSheet.module.css';
 
 type SourceDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  source: SourceDocument;
-  onSave: (updates: Partial<SourceDocument>) => Promise<void>;
+  source: ItemDocument;
+  onSave: (updates: Partial<ItemDocument>) => Promise<void>;
   onDelete: () => Promise<void>;
 };
 
 const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
-  article: 'Article',
-  book: 'Book',
+  audio: 'Audio',
   video: 'Video',
-  podcast: 'Podcast',
-  other: 'Other',
+  text: 'Text',
+  live: 'Live',
 };
 
 const READ_STATUS_LABELS: Record<ReadStatus, string> = {
@@ -39,19 +39,19 @@ export function SourceDetailSheet({
   onDelete,
 }: SourceDetailSheetProps) {
   const [title, setTitle] = useState(source.title ?? '');
-  const [url, setUrl] = useState(source.url);
-  const [contentType, setContentType] = useState<ContentType>(source.content_type);
-  const [readStatus, setReadStatus] = useState<ReadStatus>(source.read_status);
+  const [url, setUrl] = useState(source.url ?? '');
+  const [contentType, setContentType] = useState<ContentType>((source.content_type ?? 'text') as ContentType);
+  const [readStatus, setReadStatus] = useState<ReadStatus>((source.read_status ?? 'inbox') as ReadStatus);
   const [editingUrl, setEditingUrl] = useState(false);
-  const pendingRef = useRef<Partial<SourceDocument>>({});
+  const pendingRef = useRef<Partial<ItemDocument>>({});
 
-  const accumulate = (updates: Partial<SourceDocument>) => {
+  const accumulate = (updates: Partial<ItemDocument>) => {
     pendingRef.current = { ...pendingRef.current, ...updates };
   };
 
   const handleOpenChange = async (next: boolean) => {
     if (!next) {
-      const updates: Partial<SourceDocument> = {
+      const updates: Partial<ItemDocument> = {
         title: title.trim() || null,
         url,
         content_type: contentType,
@@ -89,7 +89,7 @@ export function SourceDetailSheet({
               className={styles.closeButton}
               aria-label="Close source"
             >
-              <CloseIcon />
+              <CloseIcon className={styles.icon} />
             </button>
           </SheetClose>
         </header>
@@ -184,24 +184,6 @@ export function SourceDetailSheet({
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      className={styles.icon}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M18 6L6 18M6 6l12 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function EditIcon() {
   return (

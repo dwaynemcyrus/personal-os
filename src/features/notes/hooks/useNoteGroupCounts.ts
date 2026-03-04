@@ -1,20 +1,7 @@
-
-
 import { useEffect, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument } from '@/lib/db';
 import type { NoteGroup } from './useGroupedNotes';
-
-function isTodayNote(note: NoteDocument): boolean {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayIso = todayStart.toISOString();
-  return note.updated_at >= todayIso || note.created_at >= todayIso;
-}
-
-function isTodoNote(note: NoteDocument): boolean {
-  return (note.content ?? '').includes('- [ ]');
-}
+import { isTodayNote, isTodoNote } from '../noteUtils';
 
 type GroupCounts = Record<NoteGroup, number>;
 
@@ -32,11 +19,11 @@ export function useNoteGroupCounts(): GroupCounts {
   useEffect(() => {
     if (!db || !isReady) return;
 
-    // Subscribe to all non-trashed, non-capture notes for most counts
-    const subActive = db.notes
-      .find({ selector: { is_trashed: false, inbox_at: null, note_type: null } })
+    // Active notes (not trashed, not in inbox)
+    const subActive = db.items
+      .find({ selector: { type: 'note', is_trashed: false, inbox_at: null } })
       .$.subscribe((docs) => {
-        const notes = docs.map((d) => d.toJSON() as NoteDocument);
+        const notes = docs.map((d) => d.toJSON() as ItemDocument);
         setCounts((prev) => ({
           ...prev,
           all: notes.length,
@@ -47,12 +34,11 @@ export function useNoteGroupCounts(): GroupCounts {
         }));
       });
 
-    // Subscribe to trashed notes, excluding captures (they live in InboxWizard trash)
-    const subTrash = db.notes
-      .find({ selector: { is_trashed: true } })
+    // Trashed notes count
+    const subTrash = db.items
+      .find({ selector: { type: 'note', is_trashed: true } })
       .$.subscribe((docs) => {
-        const count = docs.filter((d) => d.note_type !== 'capture').length;
-        setCounts((prev) => ({ ...prev, trash: count }));
+        setCounts((prev) => ({ ...prev, trash: docs.length }));
       });
 
     return () => {

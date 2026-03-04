@@ -22,23 +22,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    let mounted = true;
+
+    // Fall back to login after 10 s if the token refresh times out or
+    // the network is unreachable (avoids indefinite loading state).
+    const fallbackTimer = setTimeout(() => {
+      if (mounted && session === undefined) setSession(null);
+    }, 10_000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (mounted) { clearTimeout(fallbackTimer); setSession(session); }
+      })
+      .catch(() => {
+        // AbortError from React Strict Mode double-invoke or network failure.
+        // Fall through — fallbackTimer will trigger login view.
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (mounted) { clearTimeout(fallbackTimer); setSession(session); }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(fallbackTimer);
+      subscription.unsubscribe();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  // Still resolving — render nothing to avoid flash
-  if (session === undefined) return null;
+  // Still resolving — render dark shell to avoid off-white flash
+  if (session === undefined) return <div style={{ height: '100dvh', background: '#282828' }} />;
 
   if (!session) return <LoginView />;
 

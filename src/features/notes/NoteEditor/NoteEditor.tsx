@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument, NoteProperties } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import {
   Dropdown,
   DropdownContent,
@@ -21,10 +21,10 @@ import {
   parseFrontmatter,
   replaceFrontmatterBlock,
 } from '@/lib/markdown/frontmatter';
+import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
+import { BackIcon } from '@/components/ui/icons';
 import styles from './NoteEditor.module.css';
-
-const nowIso = () => new Date().toISOString();
 const SAVE_DEBOUNCE_MS = 1000;
 const TITLE_REVEAL_SCROLL_PX = 64;
 
@@ -35,7 +35,7 @@ type NoteEditorProps = {
 
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
-  const [note, setNote] = useState<NoteDocument | null>(null);
+  const [note, setNote] = useState<ItemDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -53,9 +53,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   useEffect(() => {
     if (!db || !isReady || !noteId) return;
 
-    const subscription = db.notes.findOne(noteId).$.subscribe((doc) => {
+    const subscription = db.items.findOne(noteId).$.subscribe((doc) => {
       setHasLoaded(true);
-      const nextNote = doc ? (doc.toJSON() as NoteDocument) : null;
+      const nextNote = doc ? (doc.toJSON() as ItemDocument) : null;
       setNote(nextNote);
       if (nextNote && !isDirtyRef.current) {
         const nextContent = nextNote.content ?? '';
@@ -77,7 +77,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   const handleDelete = async () => {
     if (!db || !note) return;
-    const doc = await db.notes.findOne(note.id).exec();
+    const doc = await db.items.findOne(note.id).exec();
     if (!doc) return;
     const timestamp = nowIso();
     await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
@@ -86,7 +86,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   const handleTogglePinned = async () => {
     if (!db || !note) return;
-    const doc = await db.notes.findOne(note.id).exec();
+    const doc = await db.items.findOne(note.id).exec();
     if (!doc) return;
     await doc.patch({ is_pinned: !note.is_pinned, updated_at: nowIso() });
   };
@@ -99,12 +99,11 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       setIsDirty(false);
       return;
     }
-    const doc = await db.notes.findOne(noteId).exec();
+    const doc = await db.items.findOne(noteId).exec();
     if (!doc) return;
     const timestamp = nowIso();
     let title = extractNoteTitle(nextContent, note?.title);
     let contentToSave = nextContent;
-    let propertiesToSave = note?.properties ?? null;
 
     const frontmatterResult = parseFrontmatter(nextContent);
     if (frontmatterResult.errors.length > 0) {
@@ -113,7 +112,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     } else {
       const parsedProperties = frontmatterResult.properties ?? null;
       const hasProperties = parsedProperties && Object.keys(parsedProperties).length > 0;
-      propertiesToSave = hasProperties ? (parsedProperties as NoteProperties) : null;
 
       if (!hasProperties && frontmatterResult.hasFrontmatter) {
         contentToSave = replaceFrontmatterBlock(nextContent, null);
@@ -121,13 +119,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       }
     }
 
-    await doc.patch({ title, content: contentToSave, properties: propertiesToSave, updated_at: timestamp });
+    await doc.patch({ title, content: contentToSave, updated_at: timestamp });
     lastSavedContentRef.current = contentToSave;
     if (contentToSave !== nextContent) setContent(contentToSave);
     setIsDirty(false);
 
     if (shouldAutoSaveVersion(noteId)) {
-      saveVersion(db, noteId, contentToSave, propertiesToSave, 'auto', 'Auto-save').catch(() => {});
+      saveVersion(db, noteId, contentToSave, null, 'auto', 'Auto-save').catch(() => {});
     }
   };
 
@@ -160,7 +158,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const handleSaveVersion = useCallback(async () => {
     if (!db || !noteId || !note) return;
     if (isDirtyRef.current) await saveContentRef.current?.(content);
-    await saveVersion(db, noteId, note.content, note.properties, 'manual', 'Manual save');
+    await saveVersion(db, noteId, note.content ?? null, null, 'manual', 'Manual save');
   }, [db, noteId, note, content]);
 
   const handleVersionRestore = useCallback(() => {
@@ -197,7 +195,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               aria-label="Go back"
               onClick={handleClose}
             >
-              <BackIcon />
+              <BackIcon className={styles.actionIcon} />
             </button>
             <div
               className={styles.headerTitle}
@@ -282,23 +280,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   );
 }
 
-function BackIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={styles.actionIcon}
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
 
 function MoreIcon() {
   return (

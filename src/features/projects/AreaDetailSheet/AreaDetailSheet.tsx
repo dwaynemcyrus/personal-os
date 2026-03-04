@@ -5,13 +5,14 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
-import type { AreaDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
+import { CloseIcon } from '@/components/ui/icons';
 import styles from './AreaDetailSheet.module.css';
 
 type AreaDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  area: AreaDocument | null;
+  area: ItemDocument | null;
   onSave: (areaId: string, title: string) => Promise<void> | void;
   onDelete: (areaId: string) => Promise<void> | void;
 };
@@ -56,7 +57,7 @@ export function AreaDetailSheet({
               className={styles['area-detail__close']}
               aria-label="Close area"
             >
-              <CloseIcon />
+              <CloseIcon className={styles['area-detail__icon']} />
             </button>
           </SheetClose>
         </header>
@@ -93,21 +94,3 @@ export function AreaDetailSheet({
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      className={styles['area-detail__icon']}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M18 6L6 18M6 6l12 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}

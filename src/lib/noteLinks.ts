@@ -8,8 +8,29 @@ import { v4 as uuidv4 } from 'uuid';
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections } from './db';
 import { parseWikiLinks } from './markdown/wikilinks';
+import { nowIso } from './time';
 
-const nowIso = () => new Date().toISOString();
+// ── Title cache ────────────────────────────────────────────────────────────────
+// Populated once and invalidated whenever any note changes, so syncNoteLinks
+// doesn't fetch all notes on every save.
+
+let noteTitleCache: Map<string, string> | null = null;
+
+export function initNoteTitleCache(db: RxDatabase<DatabaseCollections>): () => void {
+  const subscription = db.items
+    .find({ selector: { type: 'note', is_trashed: false } })
+    .$.subscribe((docs) => {
+      noteTitleCache = new Map(docs.map((d) => [(d.title ?? '').toLowerCase(), d.id]));
+    });
+  return () => subscription.unsubscribe();
+}
+
+async function getNoteTitleMap(db: RxDatabase<DatabaseCollections>): Promise<Map<string, string>> {
+  if (noteTitleCache) return noteTitleCache;
+  const docs = await db.items.find({ selector: { type: 'note', is_trashed: false } }).exec();
+  noteTitleCache = new Map(docs.map((d) => [(d.title ?? '').toLowerCase(), d.id]));
+  return noteTitleCache;
+}
 
 /**
  * Extract and save wiki-links from a note's content
@@ -18,7 +39,7 @@ const nowIso = () => new Date().toISOString();
  * It will:
  * 1. Parse all [[wiki-links]] from the content
  * 2. Resolve link targets to existing notes
- * 3. Store the links in the note_links collection
+ * 3. Store the links in the item_links collection
  * 4. Remove any links that no longer exist
  */
 export async function syncNoteLinks(
@@ -27,20 +48,10 @@ export async function syncNoteLinks(
   content: string
 ): Promise<void> {
   const links = parseWikiLinks(content);
-
-  // Get all existing notes for link resolution
-  const allNotes = await db.notes
-    .find({ selector: { is_trashed: false } })
-    .exec();
-
-  // Create a map of lowercase title -> note id
-  const notesByTitle = new Map<string, string>();
-  for (const doc of allNotes) {
-    notesByTitle.set(doc.title.toLowerCase(), doc.id);
-  }
+  const notesByTitle = await getNoteTitleMap(db);
 
   // Get existing links for this source note
-  const existingLinks = await db.note_links
+  const existingLinks = await db.item_links
     .find({ selector: { source_id: sourceNoteId, is_trashed: false } })
     .exec();
 
@@ -72,7 +83,7 @@ export async function syncNoteLinks(
       }
     } else {
       // Create new link
-      await db.note_links.insert({
+      await db.item_links.insert({
         id: uuidv4(),
         source_id: sourceNoteId,
         target_id: targetNoteId,
@@ -107,7 +118,7 @@ export async function getBacklinks(
   db: RxDatabase<DatabaseCollections>,
   noteId: string
 ): Promise<Array<{ sourceId: string; title: string; position: number }>> {
-  const links = await db.note_links
+  const links = await db.item_links
     .find({
       selector: {
         target_id: noteId,
@@ -119,13 +130,13 @@ export async function getBacklinks(
   // Get source note titles
   const sourceIds = [...new Set(links.map((l) => l.source_id))];
   const sourceNotes = await Promise.all(
-    sourceIds.map((id) => db.notes.findOne(id).exec())
+    sourceIds.map((id) => db.items.findOne(id).exec())
   );
 
   const noteTitles = new Map<string, string>();
   for (const note of sourceNotes) {
     if (note) {
-      noteTitles.set(note.id, note.title);
+      noteTitles.set(note.id, note.title ?? '');
     }
   }
 
@@ -151,7 +162,7 @@ export async function getOutgoingLinks(
     resolved: boolean;
   }>
 > {
-  const links = await db.note_links
+  const links = await db.item_links
     .find({
       selector: {
         source_id: sourceNoteId,
@@ -179,7 +190,7 @@ export async function updateLinksOnNoteRename(
   noteId: string,
   newTitle: string
 ): Promise<void> {
-  const links = await db.note_links
+  const links = await db.item_links
     .find({
       selector: {
         target_id: noteId,
@@ -213,8 +224,8 @@ export async function findUnlinkedMentions(
     positions: number[];
   }> = [];
 
-  const notes = await db.notes
-    .find({ selector: { is_trashed: false } })
+  const notes = await db.items
+    .find({ selector: { type: 'note', is_trashed: false } })
     .exec();
 
   const searchTerm = noteTitle.toLowerCase();
@@ -244,7 +255,7 @@ export async function findUnlinkedMentions(
     if (positions.length > 0) {
       mentions.push({
         noteId: note.id,
-        noteTitle: note.title,
+        noteTitle: note.title ?? '',
         positions,
       });
     }

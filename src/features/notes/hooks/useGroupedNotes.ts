@@ -1,62 +1,57 @@
-
-
 import { useEffect, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
+import { isTodayNote } from '../noteUtils';
 
 export type NoteGroup = 'all' | 'todo' | 'today' | 'locked' | 'pinned' | 'trash';
 
-function isTodayNote(note: NoteDocument): boolean {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayIso = todayStart.toISOString();
-  return note.updated_at >= todayIso || note.created_at >= todayIso;
-}
-
-function isTodoNote(note: NoteDocument): boolean {
-  return (note.content ?? '').includes('- [ ]');
+function getTodayIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
 export function useGroupedNotes(group: NoteGroup): {
-  notes: NoteDocument[];
+  notes: ItemDocument[];
   isLoading: boolean;
 } {
   const { db, isReady } = useDatabase();
-  const [notes, setNotes] = useState<NoteDocument[]>([]);
+  const [notes, setNotes] = useState<ItemDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!db || !isReady) return;
 
-    // Locked group has no real data
     if (group === 'locked') {
       setNotes([]);
       setIsLoading(false);
       return;
     }
 
+    const baseActive = { type: 'note' as const, is_trashed: false, inbox_at: null };
+
     const selector =
       group === 'trash'
-        ? { is_trashed: true }
+        ? { type: 'note' as const, is_trashed: true }
         : group === 'pinned'
-          ? { is_pinned: true, is_trashed: false, inbox_at: null, note_type: null }
-          : { is_trashed: false, inbox_at: null, note_type: null };
+          ? { type: 'note' as const, is_pinned: true, is_trashed: false, inbox_at: null }
+          : group === 'today'
+            ? { ...baseActive, updated_at: { $gte: getTodayIso() } }
+            : group === 'todo'
+              ? { ...baseActive, content: { $regex: '- \\[ \\]' } }
+              : baseActive;
 
-    const subscription = db.notes
+    const subscription = db.items
       .find({
         selector,
         sort: [{ is_pinned: 'desc' }, { updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        let result = docs.map((doc) => doc.toJSON() as NoteDocument);
+        let result = docs.map((doc) => doc.toJSON() as ItemDocument);
 
-        // Exclude trashed captures from the notes trash view
-        if (group === 'trash') {
-          result = result.filter((n) => n.note_type !== 'capture');
-        } else if (group === 'today') {
+        // 'today' pre-filter narrows by updated_at but also needs created_at check
+        if (group === 'today') {
           result = result.filter(isTodayNote);
-        } else if (group === 'todo') {
-          result = result.filter(isTodoNote);
         }
 
         setNotes(result);

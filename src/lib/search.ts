@@ -1,4 +1,4 @@
-import type { NoteDocument } from './db';
+import type { ItemDocument } from './db';
 
 const SNIPPET_LENGTH = 120;
 const MAX_RESULTS = 20;
@@ -8,7 +8,7 @@ function normalize(str: string): string {
 }
 
 export type SearchResult = {
-  note: NoteDocument;
+  note: ItemDocument;
   matchField: 'title' | 'content';
   snippet: string;
 };
@@ -30,7 +30,7 @@ function buildSnippet(text: string, query: string): string {
 }
 
 export function searchNotes(
-  notes: NoteDocument[],
+  notes: ItemDocument[],
   query: string
 ): SearchResult[] {
   const normalizedQuery = normalize(query);

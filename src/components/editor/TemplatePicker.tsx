@@ -8,8 +8,9 @@ import {
   SheetClose,
 } from '@/components/ui/Sheet';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { TemplateDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import { replaceTemplateVariables } from '@/lib/templates';
+import { CloseIcon } from '@/components/ui/icons';
 import styles from './TemplatePicker.module.css';
 
 type TemplatePickerProps = {
@@ -28,7 +29,7 @@ export function TemplatePicker({
   customTitle,
 }: TemplatePickerProps) {
   const { db, isReady } = useDatabase();
-  const [templates, setTemplates] = useState<TemplateDocument[]>([]);
+  const [templates, setTemplates] = useState<ItemDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORY);
 
@@ -37,13 +38,13 @@ export function TemplatePicker({
     if (!db || !isReady) return;
 
     setIsLoading(true);
-    const subscription = db.templates
+    const subscription = db.items
       .find({
-        selector: { is_trashed: false },
-        sort: [{ category: 'asc' }, { sort_order: 'asc' }, { title: 'asc' }],
+        selector: { type: 'template' as const, is_trashed: false },
+        sort: [{ updated_at: 'asc' }, { title: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setTemplates(docs.map((doc) => doc.toJSON() as TemplateDocument));
+        setTemplates(docs.map((doc) => doc.toJSON() as ItemDocument));
         setIsLoading(false);
       });
 
@@ -69,9 +70,9 @@ export function TemplatePicker({
     return templates.filter((t) => t.category === selectedCategory);
   }, [templates, selectedCategory]);
 
-  const handleSelect = (template: TemplateDocument) => {
-    const processedContent = replaceTemplateVariables(template.content, {
-      title: customTitle || template.title,
+  const handleSelect = (template: ItemDocument) => {
+    const processedContent = replaceTemplateVariables(template.content ?? '', {
+      title: customTitle || (template.title ?? ''),
       date: new Date(),
     });
     onSelect(processedContent);
@@ -93,7 +94,7 @@ export function TemplatePicker({
               className={styles.close}
               aria-label="Close templates"
             >
-              <CloseIcon />
+              <CloseIcon className={styles.icon} />
             </button>
           </SheetClose>
         </header>
@@ -162,18 +163,3 @@ function formatCategoryLabel(category: string): string {
     .join(' ');
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.icon}
-    >
-      <path d="M6 6l12 12M18 6l-12 12" />
-    </svg>
-  );
-}

@@ -11,6 +11,8 @@ import {
   formatNoteTitle,
   formatRelativeTime,
 } from '../noteUtils';
+import { nowIso } from '@/lib/time';
+import { BackIcon, PlusIcon } from '@/components/ui/icons';
 import styles from './NotesList.module.css';
 
 const GROUP_LABELS: Record<NoteGroup, string> = {
@@ -21,8 +23,6 @@ const GROUP_LABELS: Record<NoteGroup, string> = {
   pinned: 'Pinned',
   trash: 'Trash',
 };
-
-const nowIso = () => new Date().toISOString();
 
 type NotesListProps = {
   group: NoteGroup;
@@ -41,14 +41,21 @@ export function NotesList({ group }: NotesListProps) {
     if (!db) return;
     const timestamp = nowIso();
     const noteId = uuidv4();
-    await db.notes.insert({
+    await db.items.insert({
       id: noteId,
+      type: 'note',
+      parent_id: null,
       title: 'Untitled',
       content: '',
       inbox_at: null,
-      note_type: null,
+      subtype: null,
       is_pinned: false,
-      properties: null,
+      item_status: 'active',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,
@@ -98,8 +105,8 @@ export function NotesList({ group }: NotesListProps) {
           <p className={styles.empty}>No notes here yet.</p>
         ) : (
           notes.map((note) => {
-            const title = formatNoteTitle(extractNoteTitle(note.content, note.title));
-            const snippet = extractNoteSnippet(note.content);
+            const title = formatNoteTitle(extractNoteTitle(note.content ?? null, note.title ?? ''));
+            const snippet = extractNoteSnippet(note.content ?? null);
             const updatedLabel = formatRelativeTime(note.updated_at);
             return (
               <button
@@ -129,36 +136,3 @@ export function NotesList({ group }: NotesListProps) {
   );
 }
 
-function BackIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}

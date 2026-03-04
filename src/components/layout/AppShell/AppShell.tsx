@@ -16,10 +16,13 @@ import { ToastHost } from '@/components/ui/Toast';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import type { NavigationLayer } from '@/lib/navigation/types';
+import { BackIcon } from '@/components/ui/icons';
 import styles from './AppShell.module.css';
 
 type AppShellProps = {
   children: React.ReactNode;
+  isInboxOpen: boolean;
+  onInboxOpenChange: (open: boolean) => void;
 };
 
 const LONG_PRESS_MS = 500;
@@ -56,13 +59,12 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
   }
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellProps) {
   const { stack } = useNavigationState();
   const { goBack } = useNavigationActions();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isTaskDetailSheetOpen, setIsTaskDetailSheetOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
-  const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
 
   const longPressTimerRef = useRef<number | undefined>(undefined);
@@ -187,16 +189,6 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, []);
 
-  useEffect(() => {
-    const handleOpenInbox = () => {
-      setIsInboxOpen(true);
-    };
-
-    window.addEventListener('inbox-wizard:open', handleOpenInbox);
-    return () => {
-      window.removeEventListener('inbox-wizard:open', handleOpenInbox);
-    };
-  }, []);
 
   useEffect(() => {
     const handleTaskDetailOpenChange = (event: Event) => {
@@ -250,7 +242,7 @@ export function AppShell({ children }: AppShellProps) {
                 onClick={handleBack}
                 aria-label="Go back"
               >
-                <BackIcon />
+                <BackIcon className={styles['app-shell__icon']} />
               </button>
             )}
           </div>
@@ -338,7 +330,7 @@ export function AppShell({ children }: AppShellProps) {
             )}
 
             <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
-            <InboxWizard open={isInboxOpen} onOpenChange={setIsInboxOpen} />
+            <InboxWizard open={isInboxOpen} onOpenChange={onInboxOpenChange} />
             <ContextSheet
               open={isContextSheetOpen}
               onOpenChange={setIsContextSheetOpen}
@@ -350,22 +342,6 @@ export function AppShell({ children }: AppShellProps) {
   );
 }
 
-function BackIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={styles['app-shell__icon']}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
 
 function FabIcon() {
   return (

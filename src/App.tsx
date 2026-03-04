@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppShell } from '@/components/layout/AppShell';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import {
   Sheet,
@@ -8,25 +9,27 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
+import { CloseIcon, GearIcon } from '@/components/ui/icons';
 import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
 import { TaskList } from '@/features/tasks/TaskList/TaskList';
+import { PlansView } from '@/features/plans/PlansView';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { NoteDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
 
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(false);
+function useTodayDate() {
+  const [today, setToday] = useState(() => new Date());
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return isDesktop;
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const timer = setTimeout(() => setToday(new Date()), tomorrow.getTime() - now.getTime());
+    return () => clearTimeout(timer);
+  }, [today]);
+  return today;
 }
+
 
 function NotesShell() {
   const isDesktop = useIsDesktop();
@@ -34,16 +37,8 @@ function NotesShell() {
   return <NotesMobileShell />;
 }
 
-function PlansView() {
-  return (
-    <section className={styles.placeholder}>
-      <h1 className={styles.placeholderTitle}>Plans</h1>
-      <p className={styles.placeholderBody}>Plans view coming soon.</p>
-    </section>
-  );
-}
 
-function NowView() {
+function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
   const { db, isReady } = useDatabase();
   const { pushLayer } = useNavigationActions();
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
@@ -73,32 +68,30 @@ function NowView() {
     window.location.reload();
   };
 
-  const handleOpenInbox = () => {
-    window.dispatchEvent(new CustomEvent('inbox-wizard:open'));
-  };
 
-  const nowLabel = useMemo(() => {
-    const d = new Date();
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
-  }, []);
-
-  const nowIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useTodayDate();
+  const nowLabel = today.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const nowIso = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
   const nowNoteType = `daily:${nowIso}`;
   const nowTitle = `daily_${nowIso}`;
 
-  const [nowNote, setNowNote] = useState<NoteDocument | null>(null);
+  const [nowNote, setNowNote] = useState<ItemDocument | null>(null);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .findOne({
-        selector: { note_type: nowNoteType, is_trashed: false },
+        selector: { type: 'note', subtype: nowNoteType, is_trashed: false },
       })
       .$.subscribe((doc) => {
-        setNowNote(doc ? (doc.toJSON() as NoteDocument) : null);
+        setNowNote(doc ? (doc.toJSON() as ItemDocument) : null);
       });
     return () => subscription.unsubscribe();
   }, [db, isReady, nowNoteType]);
@@ -107,22 +100,29 @@ function NowView() {
     if (!db) return;
     // Re-query immediately before insert — handles the race where sync pulls
     // the note between the reactive state firing (null) and the user tapping.
-    const existing = nowNote ?? await db.notes.findOne({
-      selector: { note_type: nowNoteType, is_trashed: false },
+    const existing = nowNote ?? await db.items.findOne({
+      selector: { type: 'note', subtype: nowNoteType, is_trashed: false },
     }).exec();
     if (existing) {
       pushLayer({ view: 'note-detail', noteId: existing.id });
     } else {
       const noteId = uuidv4();
       const timestamp = new Date().toISOString();
-      await db.notes.insert({
+      await db.items.insert({
         id: noteId,
+        type: 'note',
+        parent_id: null,
         title: nowTitle,
         content: `# ${nowTitle}\n`,
         inbox_at: null,
-        note_type: nowNoteType,
+        subtype: nowNoteType,
         is_pinned: false,
-        properties: null,
+        item_status: 'active',
+        completed: false,
+        is_next: false,
+        is_someday: false,
+        is_waiting: false,
+        processed: false,
         created_at: timestamp,
         updated_at: timestamp,
         is_trashed: false,
@@ -132,29 +132,29 @@ function NowView() {
     }
   };
 
-  const [inboxNotes, setInboxNotes] = useState<NoteDocument[]>([]);
+  const [inboxNotes, setInboxNotes] = useState<ItemDocument[]>([]);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { inbox_at: { $ne: null }, is_trashed: false },
+        selector: { type: 'note', inbox_at: { $ne: null }, is_trashed: false },
       })
       .$.subscribe((docs) => {
-        setInboxNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
+        setInboxNotes(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
 
-  const [workbenchNotes, setWorkbenchNotes] = useState<NoteDocument[]>([]);
+  const [workbenchNotes, setWorkbenchNotes] = useState<ItemDocument[]>([]);
   useEffect(() => {
     if (!db || !isReady) return;
-    const subscription = db.notes
+    const subscription = db.items
       .find({
-        selector: { is_pinned: true, is_trashed: false },
+        selector: { type: 'note', is_pinned: true, is_trashed: false },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setWorkbenchNotes(docs.map((doc) => doc.toJSON() as NoteDocument));
+        setWorkbenchNotes(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
     return () => subscription.unsubscribe();
   }, [db, isReady]);
@@ -232,7 +232,7 @@ function NowView() {
       <button
         type="button"
         className={styles.homeInboxLink}
-        onClick={handleOpenInbox}
+        onClick={onOpenInbox}
         aria-label="Process inbox"
       >
         <span className={styles.homeInboxTitle}>Process inbox</span>
@@ -273,7 +273,7 @@ function NowView() {
                 className={styles.workbenchClose}
                 aria-label="Close workbench"
               >
-                <CloseIcon />
+                <CloseIcon className={styles.workbenchCloseIcon} />
               </button>
             </SheetClose>
           </header>
@@ -319,7 +319,7 @@ function NowView() {
             <SheetTitle className={styles.workbenchSheetTitle}>Settings</SheetTitle>
             <SheetClose asChild>
               <button type="button" className={styles.workbenchClose} aria-label="Close settings">
-                <CloseIcon />
+                <CloseIcon className={styles.workbenchCloseIcon} />
               </button>
             </SheetClose>
           </header>
@@ -340,44 +340,16 @@ function NowView() {
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={styles.workbenchCloseIcon}
-    >
-      <path d="M6 6l12 12M18 6l-12 12" />
-    </svg>
-  );
-}
 
-function GearIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      width="18"
-      height="18"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
+function ActiveView({
+  topLayer,
+  onOpenInbox,
+}: {
+  topLayer: NavigationLayer | undefined;
+  onOpenInbox: () => void;
+}) {
   if (!topLayer) {
-    return <NowView />;
+    return <NowView onOpenInbox={onOpenInbox} />;
   }
 
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') {
@@ -392,16 +364,17 @@ function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
     return <PlansView />;
   }
 
-  return <NowView />;
+  return <NowView onOpenInbox={onOpenInbox} />;
 }
 
 export function App() {
   const { stack } = useNavigationState();
   const topLayer = stack[stack.length - 1];
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
 
   return (
-    <AppShell>
-      <ActiveView topLayer={topLayer} />
+    <AppShell isInboxOpen={isInboxOpen} onInboxOpenChange={setIsInboxOpen}>
+      <ActiveView topLayer={topLayer} onOpenInbox={() => setIsInboxOpen(true)} />
     </AppShell>
   );
 }

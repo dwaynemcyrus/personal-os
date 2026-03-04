@@ -6,7 +6,7 @@ import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections, NoteDocument } from '@/lib/db';
+import type { DatabaseCollections, ItemDocument } from '@/lib/db';
 import styles from './CodeMirrorEditor.module.css';
 
 // --- Wikilink autocomplete ---
@@ -113,15 +113,14 @@ export function CodeMirrorEditor({
   // Keep note index and tag list in sync with DB
   useEffect(() => {
     if (!db) return;
-    const subscription = db.notes
-      .find({ selector: { is_trashed: false } })
+    const subscription = db.items
+      .find({ selector: { type: 'note', is_trashed: false } })
       .$.subscribe((docs) => {
-        const notes = docs.map(doc => doc.toJSON() as NoteDocument);
-        noteEntriesRef.current = buildNoteIndex(notes.map(n => ({ title: n.title })));
+        const notes = docs.map(doc => doc.toJSON() as ItemDocument);
+        noteEntriesRef.current = buildNoteIndex(notes.map(n => ({ title: n.title ?? '' })));
 
         const tagSet = new Set<string>();
         for (const note of notes) {
-          for (const tag of note.properties?.tags ?? []) tagSet.add(tag);
           const matches = (note.content ?? '').matchAll(/#([\w/-]+)/g);
           for (const m of matches) tagSet.add(m[1]);
         }

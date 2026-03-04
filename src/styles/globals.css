@@ -9,7 +9,7 @@ body {
 
 body {
   color: var(--color-ink-900);
-  background: var(--color-paper);
+  background: #282828;
   font-family: var(--font-family-primary);
   font-size: var(--font-base);
   line-height: var(--leading-normal);

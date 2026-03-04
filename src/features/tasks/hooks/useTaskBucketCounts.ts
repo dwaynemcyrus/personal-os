@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
-import type { TaskDocument } from '@/lib/db';
+import type { ItemDocument } from '@/lib/db';
 import {
   getTaskBucketCounts,
   type TaskBucketCounts,
@@ -17,17 +17,18 @@ const EMPTY_COUNTS: TaskBucketCounts = {
 
 export function useTaskBucketCounts(): TaskBucketCounts {
   const { db, isReady } = useDatabase();
-  const [tasks, setTasks] = useState<TaskDocument[]>([]);
+  const [tasks, setTasks] = useState<ItemDocument[]>([]);
 
   useEffect(() => {
     if (!db || !isReady) return;
 
-    const subscription = db.tasks
+    const subscription = db.items
       .find({
+        selector: { type: 'task' },
         sort: [{ updated_at: 'desc' }, { id: 'asc' }],
       })
       .$.subscribe((docs) => {
-        setTasks(docs.map((doc) => doc.toJSON()));
+        setTasks(docs.map((doc) => doc.toJSON() as ItemDocument));
       });
 
     return () => subscription.unsubscribe();
