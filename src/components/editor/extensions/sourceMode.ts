@@ -14,11 +14,9 @@ import { mathMarkdownConfig } from './syntaxMath';
 // targets light backgrounds) so marks, headings, and inline formatting are
 // visible on the #282828 editor background.
 const darkMarkdownStyle = HighlightStyle.define([
-  // Headings — soft violet, bold, scaled by level
-  { tag: tags.heading1, color: '#c792ea', fontWeight: 'bold', fontSize: '1.4em' },
-  { tag: tags.heading2, color: '#c792ea', fontWeight: 'bold', fontSize: '1.2em' },
-  { tag: tags.heading3, color: '#c792ea', fontWeight: 'bold', fontSize: '1.1em' },
-  { tag: [tags.heading4, tags.heading5, tags.heading6], color: '#c792ea', fontWeight: 'bold' },
+  // Headings — soft violet, bold, flat size (IA Writer style: hierarchy via
+  // colour + weight only; size scaling belongs in rendered mode)
+  { tag: [tags.heading1, tags.heading2, tags.heading3, tags.heading4, tags.heading5, tags.heading6], color: '#c792ea', fontWeight: 'bold' },
   // Inline formatting — no colour change, just typographic treatment
   { tag: tags.strong, fontWeight: 'bold' },
   { tag: tags.emphasis, fontStyle: 'italic' },
