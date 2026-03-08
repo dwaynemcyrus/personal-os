@@ -7,6 +7,11 @@ import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections, ItemDocument } from '@/lib/db';
 import { sourceModeExtension } from './extensions/sourceMode';
 import { layoutBaseExtension } from './extensions/layoutBase';
+import { syntaxHighlightExtension } from './extensions/syntaxHighlight';
+import { syntaxUnderlineExtension } from './extensions/syntaxUnderline';
+import { syntaxSuperSubExtension } from './extensions/syntaxSuperSub';
+import { syntaxFootnoteExtension } from './extensions/syntaxFootnote';
+import { syntaxMathExtension } from './extensions/syntaxMath';
 import styles from './CodeMirrorEditor.module.css';
 
 // --- Wikilink autocomplete ---
@@ -166,6 +171,13 @@ export function CodeMirrorEditor({
 
         // Markdown language + GFM + syntax highlighting
         sourceModeExtension(),
+
+        // Extended syntax highlight styles (each independently Compartment-wrapped)
+        syntaxHighlightExtension(),
+        syntaxUnderlineExtension(),
+        syntaxSuperSubExtension(),
+        syntaxFootnoteExtension(),
+        syntaxMathExtension(),
 
         // Autocomplete
         autocompletion({
