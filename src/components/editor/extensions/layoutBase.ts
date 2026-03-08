@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 
 // The gutter column is a fixed 32px wide. All content (headings, lists,
 // paragraphs) starts at the same left edge after the gutter.
-export const GUTTER_WIDTH = 32;
+export const GUTTER_WIDTH = 40;
 // Gap between the gutter edge and the start of text.
 export const CONTENT_PADDING_LEFT = 8;
 
