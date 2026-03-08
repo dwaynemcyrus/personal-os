@@ -6,12 +6,18 @@ import { autocompletion, type CompletionContext } from '@codemirror/autocomplete
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections, ItemDocument } from '@/lib/db';
 import { sourceModeExtension } from './extensions/sourceMode';
-import { layoutBaseExtension } from './extensions/layoutBase';
+import {
+  layoutBaseCompartment,
+  layoutSourceTheme,
+  layoutRenderedTheme,
+} from './extensions/layoutBase';
 import { syntaxHighlightExtension } from './extensions/syntaxHighlight';
 import { syntaxUnderlineExtension } from './extensions/syntaxUnderline';
 import { syntaxSuperSubExtension } from './extensions/syntaxSuperSub';
 import { syntaxFootnoteExtension } from './extensions/syntaxFootnote';
 import { syntaxMathExtension } from './extensions/syntaxMath';
+import { gutterIconsCompartment, gutterIconsExtension } from './extensions/gutterIcons';
+import { blockBackspaceCompartment, blockBackspaceExtension } from './extensions/blockBackspace';
 import styles from './CodeMirrorEditor.module.css';
 
 // --- Wikilink autocomplete ---
@@ -94,7 +100,7 @@ type CodeMirrorEditorProps = {
 export function CodeMirrorEditor({
   initialContent,
   content,
-  mode: _mode,
+  mode,
   onChange,
   onBlur,
   onSaveVersion,
@@ -112,6 +118,8 @@ export function CodeMirrorEditor({
   const dbRef = useRef(db);
   const noteEntriesRef = useRef<NoteEntry[]>([]);
   const tagsArrayRef = useRef<string[]>([]);
+  // Track mode without triggering re-mount
+  const modeRef = useRef(mode);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
@@ -139,8 +147,11 @@ export function CodeMirrorEditor({
     return () => subscription.unsubscribe();
   }, [db]);
 
+  // Mount editor once
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const initialMode = modeRef.current;
 
     const updateListener = EditorView.updateListener.of(update => {
       if (update.docChanged) onChangeRef.current(update.state.doc.toString());
@@ -162,17 +173,23 @@ export function CodeMirrorEditor({
         // Undo/redo
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-
-        // Custom keybindings
         saveKeymap,
 
-        // Layout: two-column gutter + content structure
-        layoutBaseExtension(),
+        // Layout — compartment set based on initial mode
+        layoutBaseCompartment.of(
+          initialMode === 'rendered' ? layoutRenderedTheme() : layoutSourceTheme()
+        ),
 
-        // Markdown language + GFM + syntax highlighting
+        // Gutter icons + Bear backspace — enabled only in rendered mode
+        gutterIconsCompartment.of(
+          initialMode === 'rendered' ? gutterIconsExtension() : []
+        ),
+        blockBackspaceCompartment.of(
+          initialMode === 'rendered' ? blockBackspaceExtension() : []
+        ),
+
+        // Markdown language + GFM + syntax highlighting (always active)
         sourceModeExtension(),
-
-        // Extended syntax highlight styles (each independently Compartment-wrapped)
         syntaxHighlightExtension(),
         syntaxUnderlineExtension(),
         syntaxSuperSubExtension(),
@@ -251,6 +268,32 @@ export function CodeMirrorEditor({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // React to mode changes without remounting
+  useEffect(() => {
+    if (mode === modeRef.current) return;
+    modeRef.current = mode;
+    const view = viewRef.current;
+    if (!view) return;
+
+    if (mode === 'rendered') {
+      view.dispatch({
+        effects: [
+          layoutBaseCompartment.reconfigure(layoutRenderedTheme()),
+          gutterIconsCompartment.reconfigure(gutterIconsExtension()),
+          blockBackspaceCompartment.reconfigure(blockBackspaceExtension()),
+        ],
+      });
+    } else {
+      view.dispatch({
+        effects: [
+          layoutBaseCompartment.reconfigure(layoutSourceTheme()),
+          gutterIconsCompartment.reconfigure([]),
+          blockBackspaceCompartment.reconfigure([]),
+        ],
+      });
+    }
+  }, [mode]);
 
   const setContent = useCallback((newContent: string) => {
     const view = viewRef.current;
