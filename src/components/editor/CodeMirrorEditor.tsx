@@ -1,12 +1,12 @@
-
-
 import { useEffect, useRef, useCallback } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { history, historyKeymap, defaultKeymap } from '@codemirror/commands';
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
-import { markdown } from '@codemirror/lang-markdown';
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections, ItemDocument } from '@/lib/db';
+import { sourceModeExtension } from './extensions/sourceMode';
+import { layoutBaseExtension } from './extensions/layoutBase';
 import styles from './CodeMirrorEditor.module.css';
 
 // --- Wikilink autocomplete ---
@@ -71,9 +71,12 @@ function tagCompletions(tags: string[]) {
 
 // --- Component ---
 
+export type EditorMode = 'source' | 'rendered';
+
 type CodeMirrorEditorProps = {
   initialContent: string;
   content?: string;
+  mode: EditorMode;
   onChange: (content: string) => void;
   onBlur?: () => void;
   onSaveVersion?: () => void;
@@ -86,6 +89,7 @@ type CodeMirrorEditorProps = {
 export function CodeMirrorEditor({
   initialContent,
   content,
+  mode: _mode,
   onChange,
   onBlur,
   onSaveVersion,
@@ -150,14 +154,27 @@ export function CodeMirrorEditor({
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
+        // Undo/redo
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+
+        // Custom keybindings
         saveKeymap,
-        markdown(),
+
+        // Layout: two-column gutter + content structure
+        layoutBaseExtension(),
+
+        // Markdown language + GFM + syntax highlighting
+        sourceModeExtension(),
+
+        // Autocomplete
         autocompletion({
           override: [
             wikilinkCompletions(noteEntriesRef),
             tagCompletions(tagsArrayRef.current),
           ],
         }),
+
         placeholder(placeholderText),
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({
@@ -167,24 +184,20 @@ export function CodeMirrorEditor({
         }),
         updateListener,
         blurHandler,
+
+        // Base editor appearance
         EditorView.theme({
           '&': {
             height: '100%',
             backgroundColor: '#282828',
             color: '#fcfbf8',
           },
-          '.cm-content': {
+          '.cm-scroller': {
+            overflowY: 'auto',
+            overflowX: 'hidden',
             fontFamily: 'var(--font-family-primary)',
             fontSize: '16px',
-            padding: '0 20px',
-            paddingTop: '16px',
-            paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
-            lineHeight: 'normal',
-            caretColor: '#fcfbf8',
-          },
-          '.cm-line': {
-            padding: '0',
-            wordBreak: 'break-word',
+            lineHeight: '1.6',
           },
           '.cm-cursor': {
             borderLeftColor: '#fcfbf8',
@@ -197,12 +210,8 @@ export function CodeMirrorEditor({
             backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
           },
           '.cm-placeholder': {
-            color: 'rgba(252, 251, 248, 0.55)',
+            color: 'rgba(252, 251, 248, 0.45)',
             fontStyle: 'italic',
-          },
-          '.cm-scroller': {
-            overflowY: 'auto',
-            overflowX: 'hidden',
           },
           '&.cm-focused': { outline: 'none' },
         }),

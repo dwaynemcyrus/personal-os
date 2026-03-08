@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/Dropdown';
 import { showToast } from '@/components/ui/Toast';
 import { CodeMirrorEditor, VersionHistory } from '@/components/editor';
+import type { EditorMode } from '@/components/editor/CodeMirrorEditor';
 import {
   saveVersion,
   shouldAutoSaveVersion,
@@ -42,6 +43,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isHeaderTitleVisible, setIsHeaderTitleVisible] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  const [editorMode, setEditorMode] = useState<EditorMode>('rendered');
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -205,6 +207,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               {headerTitle}
             </div>
             <div className={styles.headerRight}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                aria-label={editorMode === 'rendered' ? 'Switch to source mode' : 'Switch to rendered mode'}
+                onClick={() => setEditorMode(m => m === 'rendered' ? 'source' : 'rendered')}
+              >
+                {editorMode === 'rendered' ? <SourceModeIcon className={styles.actionIcon} /> : <RenderedModeIcon className={styles.actionIcon} />}
+              </button>
               <Dropdown>
                 <DropdownTrigger asChild>
                   <button
@@ -259,6 +269,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           key={editorKey}
           initialContent={content}
           content={isDirty ? undefined : content}
+          mode={editorMode}
           onChange={handleChange}
           onBlur={handleBlur}
           onScrollPositionChange={handleEditorScroll}
@@ -280,6 +291,46 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   );
 }
 
+
+// Shown when in rendered mode — clicking switches to source
+function SourceModeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </svg>
+  );
+}
+
+// Shown when in source mode — clicking switches to rendered
+function RenderedModeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
 
 function MoreIcon() {
   return (
