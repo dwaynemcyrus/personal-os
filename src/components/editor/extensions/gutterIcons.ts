@@ -7,17 +7,40 @@ import {
   Decoration,
   DecorationSet,
   GutterMarker,
+  WidgetType,
   gutter,
 } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNodeRef } from '@lezer/common';
 import { GUTTER_WIDTH, CONTENT_PADDING_LEFT } from './layoutBase';
 
+// ─── Task token model ─────────────────────────────────────────────────────────
+
+const TASK_CYCLE = [' ', 'x', 'i', '!', '?', '*', '>', '<'] as const;
+type TaskToken = typeof TASK_CYCLE[number];
+
+const TASK_META: Record<string, { emoji: string; label: string }> = {
+  ' ': { emoji: '⬜️', label: 'Incomplete task' },
+  'x': { emoji: '✅', label: 'Completed task' },
+  'i': { emoji: '🧠', label: 'Idea' },
+  '!': { emoji: '⚠️', label: 'Urgent' },
+  '?': { emoji: '❓', label: 'Question' },
+  '*': { emoji: '⭐', label: 'Important' },
+  '>': { emoji: '➡️', label: 'Forwarded' },
+  '<': { emoji: '📅', label: 'Scheduled' },
+};
+
+function nextTaskToken(current: string): string {
+  const idx = TASK_CYCLE.indexOf(current as TaskToken);
+  return TASK_CYCLE[(idx === -1 ? 0 : idx + 1) % TASK_CYCLE.length];
+}
+
 // ─── Block type model ────────────────────────────────────────────────────────
 
 export type BlockType =
   | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-  | 'bullet' | 'ordered' | 'task-open' | 'task-done'
+  | 'bullet' | 'ordered'
+  | 'task' // token stored separately
   | 'blockquote' | 'frontmatter';
 
 export interface LineBlock {
@@ -25,6 +48,87 @@ export interface LineBlock {
   /** Document ranges of the raw mark characters to suppress. */
   marks: Array<{ from: number; to: number }>;
   orderNum?: number;
+  /** For type === 'task': the raw token character (' ', 'x', 'i', etc.) */
+  taskToken?: string;
+}
+
+// ─── Inline widget types ──────────────────────────────────────────────────────
+
+class BulletWidget extends WidgetType {
+  toDOM() {
+    const el = document.createElement('span');
+    el.className = 'cm-bear-bullet-widget';
+    el.textContent = '●';
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  }
+  eq() { return true; }
+}
+
+const bulletWidgetInstance = new BulletWidget();
+
+class OrderedWidget extends WidgetType {
+  constructor(private num: number) { super(); }
+  toDOM() {
+    const el = document.createElement('span');
+    el.className = 'cm-bear-ordered-widget';
+    el.textContent = `${this.num}.`;
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  }
+  eq(other: OrderedWidget) { return other.num === this.num; }
+}
+
+const orderedWidgetCache = new Map<number, OrderedWidget>();
+function getOrderedWidget(num: number) {
+  if (!orderedWidgetCache.has(num)) orderedWidgetCache.set(num, new OrderedWidget(num));
+  return orderedWidgetCache.get(num)!;
+}
+
+class TaskWidget extends WidgetType {
+  constructor(
+    private token: string,
+    private lineFrom: number,
+  ) { super(); }
+
+  toDOM(view: EditorView) {
+    const meta = TASK_META[this.token] ?? TASK_META[' '];
+    const el = document.createElement('span');
+    el.className = 'cm-bear-task-widget';
+    el.textContent = meta.emoji;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', meta.label);
+    el.setAttribute('title', meta.label);
+
+    el.addEventListener('mousedown', (e) => {
+      // Prevent focus loss on click
+      e.preventDefault();
+    });
+
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const line = view.state.doc.lineAt(this.lineFrom);
+      // Match `prefix[token]` to find the exact bracket content position
+      const m = line.text.match(/^(\s*(?:[-*+]|\d+\.)\s+\[)([ xXiI!?*><])/);
+      if (!m) return;
+      const tokenPos = line.from + m[1].length;
+      const next = nextTaskToken(this.token);
+      view.dispatch({
+        changes: { from: tokenPos, to: tokenPos + 1, insert: next },
+      });
+    });
+
+    return el;
+  }
+
+  eq(other: TaskWidget) {
+    return other.token === this.token && other.lineFrom === this.lineFrom;
+  }
+
+  // Allow CM to process events (cursor positioning) but our click handler
+  // calls stopPropagation so CM won't receive it after the toggle
+  ignoreEvent() { return false; }
 }
 
 // ─── Syntax tree helpers ─────────────────────────────────────────────────────
@@ -71,12 +175,17 @@ export function getLineBlock(state: EditorState, lineFrom: number): LineBlock | 
           const taskMarker = task?.getChild('TaskMarker');
           if (taskMarker) {
             const markerText = state.doc.sliceString(taskMarker.from, taskMarker.to);
-            const isDone = /\[x\]/i.test(markerText);
+            const tokenMatch = markerText.match(/\[([ xXiI!?*><])\]/);
+            const token = tokenMatch ? tokenMatch[1].toLowerCase() : ' ';
+            // Include trailing space after TaskMarker so blockBackspace knows
+            // where text starts (matches the widget's replacement range).
+            const trailingEnd = Math.min(taskMarker.to + 1, line.to);
             result = {
-              type: isDone ? 'task-done' : 'task-open',
+              type: 'task',
+              taskToken: token,
               marks: [
                 { from: node.from, to: node.to },
-                { from: taskMarker.from, to: taskMarker.to },
+                { from: taskMarker.from, to: trailingEnd },
               ],
             };
           } else {
@@ -109,7 +218,6 @@ function detectFrontmatter(state: EditorState, lineFrom: number): LineBlock | nu
   const firstLine = state.doc.line(1);
   if (firstLine.text.trim() !== '---') return null;
   if (lineFrom !== firstLine.from) return null;
-  // Confirm there is a closing --- within a reasonable range
   for (let i = 2; i <= Math.min(state.doc.lines, 60); i++) {
     const ln = state.doc.line(i);
     if (ln.text.trim() === '---' || ln.text.trim() === '...') {
@@ -119,7 +227,7 @@ function detectFrontmatter(state: EditorState, lineFrom: number): LineBlock | nu
   return null;
 }
 
-// ─── Gutter markers ──────────────────────────────────────────────────────────
+// ─── Gutter markers (headings + frontmatter only) ─────────────────────────────
 
 function makeMarkerEl(label: string, ariaLabel: string, extraClass = ''): HTMLElement {
   const el = document.createElement('div');
@@ -130,18 +238,6 @@ function makeMarkerEl(label: string, ariaLabel: string, extraClass = ''): HTMLEl
   return el;
 }
 
-class SimpleGutterMarker extends GutterMarker {
-  constructor(
-    private label: string,
-    private ariaLabel: string,
-    private extraClass = '',
-  ) { super(); }
-  toDOM() { return makeMarkerEl(this.label, this.ariaLabel, this.extraClass); }
-  eq(other: SimpleGutterMarker) {
-    return other.label === this.label && other.extraClass === this.extraClass;
-  }
-}
-
 class HeadingGutterMarker extends GutterMarker {
   constructor(private level: number) { super(); }
   toDOM() {
@@ -150,49 +246,17 @@ class HeadingGutterMarker extends GutterMarker {
   eq(other: HeadingGutterMarker) { return other.level === this.level; }
 }
 
-class OrderedGutterMarker extends GutterMarker {
-  constructor(private num: number) { super(); }
-  toDOM() {
-    return makeMarkerEl(`${this.num}.`, `Ordered list item ${this.num}`, 'cm-bear-gutter-ordered');
-  }
-  eq(other: OrderedGutterMarker) { return other.num === this.num; }
+class FrontmatterGutterMarker extends GutterMarker {
+  toDOM() { return makeMarkerEl('⋯', 'Frontmatter', 'cm-bear-gutter-frontmatter'); }
+  eq(other: FrontmatterGutterMarker) { return other instanceof FrontmatterGutterMarker; }
 }
 
-// Singletons for fixed icons
-const bulletMarker      = new SimpleGutterMarker('●', 'Bullet list item', 'cm-bear-gutter-bullet');
-const taskOpenMarker    = new SimpleGutterMarker('☐', 'Incomplete task', 'cm-bear-gutter-task');
-const taskDoneMarker    = new SimpleGutterMarker('☑', 'Completed task',  'cm-bear-gutter-task');
-const blockquoteMarker  = new SimpleGutterMarker('▏', 'Blockquote',       'cm-bear-gutter-blockquote');
-const frontmatterMarker = new SimpleGutterMarker('⋯', 'Frontmatter',      'cm-bear-gutter-frontmatter');
+const frontmatterMarkerInstance = new FrontmatterGutterMarker();
 
 const headingMarkerCache: HeadingGutterMarker[] = [
   null!,
   ...Array.from({ length: 6 }, (_, i) => new HeadingGutterMarker(i + 1)),
 ];
-
-const orderedMarkerCache = new Map<number, OrderedGutterMarker>();
-function getOrderedMarker(num: number) {
-  if (!orderedMarkerCache.has(num)) orderedMarkerCache.set(num, new OrderedGutterMarker(num));
-  return orderedMarkerCache.get(num)!;
-}
-
-function blockToMarker(block: LineBlock): GutterMarker | null {
-  switch (block.type) {
-    case 'h1': return headingMarkerCache[1];
-    case 'h2': return headingMarkerCache[2];
-    case 'h3': return headingMarkerCache[3];
-    case 'h4': return headingMarkerCache[4];
-    case 'h5': return headingMarkerCache[5];
-    case 'h6': return headingMarkerCache[6];
-    case 'bullet':     return bulletMarker;
-    case 'ordered':    return getOrderedMarker(block.orderNum ?? 1);
-    case 'task-open':  return taskOpenMarker;
-    case 'task-done':  return taskDoneMarker;
-    case 'blockquote': return blockquoteMarker;
-    case 'frontmatter':return frontmatterMarker;
-    default:           return null;
-  }
-}
 
 // ─── Atomic decorations + line class decorations ─────────────────────────────
 
@@ -207,10 +271,8 @@ const blockquoteLineDeco = Decoration.line({ class: 'cm-bear-blockquote' });
 function buildDecorations(view: EditorView): DecorationSet {
   const { state } = view;
   const tree = syntaxTree(state);
-  // Collect ranges; use a flat array then sort before building the set.
   const decos: { from: number; to: number; deco: Decoration }[] = [];
 
-  // Helper: add one entry, avoiding duplicates on same position+type
   function addDeco(from: number, to: number | undefined, deco: Decoration) {
     decos.push({ from, to: to ?? from, deco });
   }
@@ -235,28 +297,52 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (list?.name === 'BulletList') {
           const task = listItem?.getChild('Task');
           const taskMarker = task?.getChild('TaskMarker');
+
           if (taskMarker) {
             const markerText = state.doc.sliceString(taskMarker.from, taskMarker.to);
-            const isDone = /\[x\]/i.test(markerText);
-            // Suppress ListMark (-) and TaskMarker ([ ] or [x])
-            addDeco(node.from, node.to, atomicMark);
-            addDeco(taskMarker.from, taskMarker.to, atomicMark);
+            const tokenMatch = markerText.match(/\[([ xXiI!?*><])\]/);
+            const token = tokenMatch ? tokenMatch[1].toLowerCase() : ' ';
+
+            // Replace ListMark + gap + TaskMarker + trailing space with TaskWidget
             const line = state.doc.lineAt(node.from);
-            if (isDone) addDeco(line.from, undefined, taskDoneLineDeco);
+            // widgetEnd: taskMarker.to covers `[ ]`, +1 for the trailing space
+            const trailingSpaceEnd = taskMarker.to + 1;
+            const widgetEnd = trailingSpaceEnd <= line.to ? trailingSpaceEnd : taskMarker.to;
+            addDeco(
+              node.from,
+              widgetEnd,
+              Decoration.replace({ widget: new TaskWidget(token, line.from) }),
+            );
+
+            if (token === 'x') {
+              addDeco(line.from, undefined, taskDoneLineDeco);
+            }
           } else {
-            addDeco(node.from, node.to, atomicMark);
+            // Plain bullet: replace ListMark with ● widget
+            addDeco(
+              node.from,
+              node.to,
+              Decoration.replace({ widget: bulletWidgetInstance }),
+            );
           }
           return false;
         }
 
         if (list?.name === 'OrderedList') {
-          addDeco(node.from, node.to, atomicMark);
+          const markText = state.doc.sliceString(node.from, node.to);
+          const num = parseInt(markText.trim(), 10);
+          addDeco(
+            node.from,
+            node.to,
+            Decoration.replace({ widget: getOrderedWidget(isNaN(num) ? 1 : num) }),
+          );
           return false;
         }
       }
 
       if (node.name === 'QuoteMark') {
         const line = state.doc.lineAt(node.from);
+        // Hide the `>` mark atomically, line class provides border-left
         addDeco(node.from, node.to, atomicMark);
         addDeco(line.from, undefined, blockquoteLineDeco);
         return false;
@@ -282,7 +368,7 @@ class GutterIconsPlugin {
     this.decorations = buildDecorations(view);
   }
   update(update: ViewUpdate) {
-    if (update.docChanged || update.viewportChanged) {
+    if (update.docChanged || update.viewportChanged || update.selectionSet) {
       this.decorations = buildDecorations(update.view);
     }
   }
@@ -292,13 +378,23 @@ const gutterIconsPlugin = ViewPlugin.fromClass(GutterIconsPlugin, {
   decorations: (v) => v.decorations,
 });
 
-// ─── CM6 gutter ──────────────────────────────────────────────────────────────
+// ─── CM6 gutter (headings + frontmatter only) ─────────────────────────────────
 
 const bearGutter = gutter({
   class: 'cm-bear-gutter',
   lineMarker(view, line) {
     const block = getLineBlock(view.state, line.from);
-    return block ? blockToMarker(block) : null;
+    if (!block) return null;
+    switch (block.type) {
+      case 'h1': return headingMarkerCache[1];
+      case 'h2': return headingMarkerCache[2];
+      case 'h3': return headingMarkerCache[3];
+      case 'h4': return headingMarkerCache[4];
+      case 'h5': return headingMarkerCache[5];
+      case 'h6': return headingMarkerCache[6];
+      case 'frontmatter': return frontmatterMarkerInstance;
+      default: return null;
+    }
   },
   lineMarkerChange(update) {
     return update.docChanged;
@@ -334,11 +430,9 @@ const gutterTheme = EditorView.theme({
     letterSpacing: '0',
   },
   // Per-type colour accents
-  '.cm-bear-gutter-heading': { color: '#c792ea', fontSize: '10px', fontWeight: '700' },
-  '.cm-bear-gutter-bullet':  { color: 'rgba(252,251,248,0.55)', fontSize: '10px' },
-  '.cm-bear-gutter-task':    { color: 'rgba(252,251,248,0.55)', fontSize: '16px' },
-  '.cm-bear-gutter-blockquote': { color: 'rgba(252,251,248,0.38)', fontSize: '16px' },
+  '.cm-bear-gutter-heading':    { color: '#c792ea', fontSize: '10px', fontWeight: '700' },
   '.cm-bear-gutter-frontmatter': { color: 'rgba(252,251,248,0.38)', fontSize: '14px' },
+
   // Heading line decorations — size scaling in rendered mode
   '.cm-bear-heading-1': { fontSize: '1.5em',  fontWeight: 'bold', color: '#c792ea', lineHeight: '1.3' },
   '.cm-bear-heading-2': { fontSize: '1.3em',  fontWeight: 'bold', color: '#c792ea', lineHeight: '1.3' },
@@ -346,15 +440,47 @@ const gutterTheme = EditorView.theme({
   '.cm-bear-heading-4': { fontWeight: 'bold', color: '#c792ea' },
   '.cm-bear-heading-5': { fontWeight: 'bold', color: '#c792ea' },
   '.cm-bear-heading-6': { fontWeight: 'bold', color: '#c792ea' },
+
+  // Inline bullet widget
+  '.cm-bear-bullet-widget': {
+    color: 'rgba(252,251,248,0.55)',
+    fontSize: '10px',
+    display: 'inline-block',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    marginRight: '4px',
+  },
+
+  // Inline ordered number widget
+  '.cm-bear-ordered-widget': {
+    color: 'rgba(252,251,248,0.7)',
+    display: 'inline-block',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    marginRight: '4px',
+  },
+
+  // Inline task emoji widget
+  '.cm-bear-task-widget': {
+    fontSize: '1em',
+    lineHeight: '1',
+    display: 'inline-block',
+    cursor: 'pointer',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    marginRight: '4px',
+  },
+
   // Task done — strike through content
   '.cm-bear-task-done': {
     textDecoration: 'line-through',
     color: 'rgba(252,251,248,0.4)',
   },
-  // Blockquote — left accent border
+
+  // Blockquote — full-height left accent border
   '.cm-bear-blockquote': {
     borderLeft: `3px solid rgba(252,251,248,0.22)`,
-    paddingLeft: `${CONTENT_PADDING_LEFT}px`,
+    paddingLeft: `${CONTENT_PADDING_LEFT + 8}px`,
     color: 'rgba(252,251,248,0.7)',
   },
 });
