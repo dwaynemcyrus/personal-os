@@ -231,8 +231,8 @@ export function CodeMirrorEditor({
             lineHeight: '1.6',
           },
           '.cm-cursor': {
-            borderLeftColor: '#ffffff',
-            borderLeftWidth: '3px',
+            borderLeftColor: '#ffffff !important',
+            borderLeftWidth: '3px !important',
           },
           '.cm-selectionBackground': {
             backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
