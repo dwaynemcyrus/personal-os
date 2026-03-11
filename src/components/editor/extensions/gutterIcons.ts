@@ -457,6 +457,7 @@ const gutterTheme = EditorView.theme({
     fontSize: '0.64em',
     lineHeight: '1',
     display: 'inline-block',
+    verticalAlign: 'middle',
     cursor: 'pointer',
     userSelect: 'none',
     WebkitUserSelect: 'none',
