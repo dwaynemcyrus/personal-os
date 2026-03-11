@@ -1,6 +1,7 @@
 
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/react';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
 import {
@@ -11,8 +12,8 @@ import {
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
 import { showToast } from '@/components/ui/Toast';
-import { CodeMirrorEditor, VersionHistory } from '@/components/editor';
-import type { EditorMode } from '@/components/editor/CodeMirrorEditor';
+import { TipTapEditor, EditorToolbar, VersionHistory } from '@/components/editor';
+import type { EditorMode } from '@/components/editor/TipTapEditor';
 import {
   saveVersion,
   shouldAutoSaveVersion,
@@ -21,6 +22,7 @@ import {
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
 import { BackIcon } from '@/components/ui/icons';
+import { useNavigationActions } from '@/components/providers/NavigationProvider';
 import styles from './NoteEditor.module.css';
 const SAVE_DEBOUNCE_MS = 1000;
 const TITLE_REVEAL_SCROLL_PX = 64;
@@ -32,6 +34,7 @@ type NoteEditorProps = {
 
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
+  const { pushLayer } = useNavigationActions();
   const [note, setNote] = useState<ItemDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
@@ -40,6 +43,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isHeaderTitleVisible, setIsHeaderTitleVisible] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [editorMode, setEditorMode] = useState<EditorMode>('rendered');
+  const [tipTapEditor, setTipTapEditor] = useState<Editor | null>(null);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -154,6 +158,39 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     setIsHeaderTitleVisible(scrollTop >= TITLE_REVEAL_SCROLL_PX);
   }, []);
 
+  const handleWikilinkNavigate = useCallback(async (title: string) => {
+    if (!db) return;
+    const docs = await db.items
+      .find({ selector: { type: 'note', is_trashed: false, title } })
+      .exec();
+    if (docs.length > 0) {
+      pushLayer({ view: 'note-detail', noteId: docs[0].id });
+    } else {
+      // Note not found — create it
+      const { v4: uuidv4 } = await import('uuid');
+      const id = uuidv4();
+      const timestamp = nowIso();
+      await db.items.insert({
+        id,
+        type: 'note',
+        title,
+        content: `# ${title}\n`,
+        is_trashed: false,
+        is_pinned: false,
+        parent_id: null,
+        item_status: 'active',
+        completed: false,
+        is_next: false,
+        is_someday: false,
+        is_waiting: false,
+        processed: false,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+      pushLayer({ view: 'note-detail', noteId: id });
+    }
+  }, [db, pushLayer]);
+
   if (!noteId) {
     return <section className={styles.editor}><p className={styles.empty}>Note not found.</p></section>;
   }
@@ -247,7 +284,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       </header>
 
       <div className={styles.editorPane}>
-        <CodeMirrorEditor
+        <TipTapEditor
           key={editorKey}
           initialContent={content}
           content={isDirty ? undefined : content}
@@ -256,6 +293,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           onBlur={handleBlur}
           onScrollPositionChange={handleEditorScroll}
           onSaveVersion={handleSaveVersion}
+          onEditorReady={setTipTapEditor}
+          onWikilinkNavigate={handleWikilinkNavigate}
           placeholderText="Start writing..."
           autoFocus
           db={db}
@@ -269,6 +308,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         db={db}
         onRestore={handleVersionRestore}
       />
+
+      <EditorToolbar editor={tipTapEditor} mode={editorMode} />
     </section>
   );
 }
