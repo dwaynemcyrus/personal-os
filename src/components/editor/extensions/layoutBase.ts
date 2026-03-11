@@ -29,8 +29,7 @@ export function layoutSourceTheme(): Extension {
   });
 }
 
-// Rendered mode: real CM6 gutter element provides the 40px column,
-// so cm-content only needs the smaller content-gap padding.
+// Rendered mode: no gutter element, same padding as source mode.
 export function layoutRenderedTheme(): Extension {
   return EditorView.theme({
     '&': {
@@ -38,7 +37,7 @@ export function layoutRenderedTheme(): Extension {
       '--editor-content-padding': `${CONTENT_PADDING_LEFT}px`,
     },
     '.cm-content': {
-      paddingLeft: `${CONTENT_PADDING_LEFT}px`,
+      paddingLeft: `${GUTTER_WIDTH + CONTENT_PADDING_LEFT}px`,
       paddingRight: '20px',
       paddingTop: '16px',
       paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',

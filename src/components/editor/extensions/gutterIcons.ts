@@ -6,13 +6,11 @@ import {
   ViewUpdate,
   Decoration,
   DecorationSet,
-  GutterMarker,
   WidgetType,
-  gutter,
 } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNodeRef } from '@lezer/common';
-import { GUTTER_WIDTH, CONTENT_PADDING_LEFT } from './layoutBase';
+import { CONTENT_PADDING_LEFT } from './layoutBase';
 
 // ─── Task token model ─────────────────────────────────────────────────────────
 
@@ -227,37 +225,6 @@ function detectFrontmatter(state: EditorState, lineFrom: number): LineBlock | nu
   return null;
 }
 
-// ─── Gutter markers (headings + frontmatter only) ─────────────────────────────
-
-function makeMarkerEl(label: string, ariaLabel: string, extraClass = ''): HTMLElement {
-  const el = document.createElement('div');
-  el.className = `cm-bear-gutter-marker${extraClass ? ` ${extraClass}` : ''}`;
-  el.setAttribute('aria-label', ariaLabel);
-  el.setAttribute('role', 'img');
-  el.textContent = label;
-  return el;
-}
-
-class HeadingGutterMarker extends GutterMarker {
-  constructor(private level: number) { super(); }
-  toDOM() {
-    return makeMarkerEl(`H${this.level}`, `Heading level ${this.level}`, 'cm-bear-gutter-heading');
-  }
-  eq(other: HeadingGutterMarker) { return other.level === this.level; }
-}
-
-class FrontmatterGutterMarker extends GutterMarker {
-  toDOM() { return makeMarkerEl('⋯', 'Frontmatter', 'cm-bear-gutter-frontmatter'); }
-  eq(other: FrontmatterGutterMarker) { return other instanceof FrontmatterGutterMarker; }
-}
-
-const frontmatterMarkerInstance = new FrontmatterGutterMarker();
-
-const headingMarkerCache: HeadingGutterMarker[] = [
-  null!,
-  ...Array.from({ length: 6 }, (_, i) => new HeadingGutterMarker(i + 1)),
-];
-
 // ─── Atomic decorations + line class decorations ─────────────────────────────
 
 const atomicMark = Decoration.replace({ atomic: true });
@@ -380,61 +347,9 @@ const gutterIconsPlugin = ViewPlugin.fromClass(GutterIconsPlugin, {
   decorations: (v) => v.decorations,
 });
 
-// ─── CM6 gutter (headings + frontmatter only) ─────────────────────────────────
-
-const bearGutter = gutter({
-  class: 'cm-bear-gutter',
-  lineMarker(view, line) {
-    const block = getLineBlock(view.state, line.from);
-    if (!block) return null;
-    switch (block.type) {
-      case 'h1': return headingMarkerCache[1];
-      case 'h2': return headingMarkerCache[2];
-      case 'h3': return headingMarkerCache[3];
-      case 'h4': return headingMarkerCache[4];
-      case 'h5': return headingMarkerCache[5];
-      case 'h6': return headingMarkerCache[6];
-      case 'frontmatter': return frontmatterMarkerInstance;
-      default: return null;
-    }
-  },
-  lineMarkerChange(update) {
-    return update.docChanged;
-  },
-  renderEmptyElements: false,
-});
-
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const gutterTheme = EditorView.theme({
-  // Gutter column sizing
-  '.cm-bear-gutter': {
-    minWidth: `${GUTTER_WIDTH}px`,
-    width: `${GUTTER_WIDTH}px`,
-  },
-  '.cm-gutters': {
-    border: 'none',
-    background: 'transparent',
-  },
-  // Marker base style — min 44px touch target height
-  '.cm-bear-gutter-marker': {
-    width: `${GUTTER_WIDTH}px`,
-    minHeight: '44px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '11px',
-    fontWeight: '600',
-    color: 'rgba(252,251,248,0.38)',
-    cursor: 'default',
-    userSelect: 'none',
-    WebkitUserSelect: 'none',
-    letterSpacing: '0',
-  },
-  // Per-type colour accents
-  '.cm-bear-gutter-heading':    { color: '#c792ea', fontSize: '10px', fontWeight: '700' },
-  '.cm-bear-gutter-frontmatter': { color: 'rgba(252,251,248,0.38)', fontSize: '14px' },
-
   // Heading line decorations — size scaling in rendered mode
   '.cm-bear-heading-1': { fontSize: '1.5em',  fontWeight: 'bold', color: '#c792ea', lineHeight: '1.3' },
   '.cm-bear-heading-2': { fontSize: '1.3em',  fontWeight: 'bold', color: '#c792ea', lineHeight: '1.3' },
@@ -485,5 +400,5 @@ export const gutterIconsCompartment = new Compartment();
 
 /** Inner extension — pass to gutterIconsCompartment.of() or .reconfigure(). */
 export function gutterIconsExtension(): Extension {
-  return [bearGutter, gutterIconsPlugin, gutterTheme];
+  return [gutterIconsPlugin, gutterTheme];
 }
