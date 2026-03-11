@@ -16,6 +16,7 @@ import { syntaxUnderlineExtension } from './extensions/syntaxUnderline';
 import { syntaxSuperSubExtension } from './extensions/syntaxSuperSub';
 import { syntaxFootnoteExtension } from './extensions/syntaxFootnote';
 import { syntaxMathExtension } from './extensions/syntaxMath';
+import { syntaxFrontmatterExtension } from './extensions/syntaxFrontmatter';
 import { gutterIconsCompartment, gutterIconsExtension } from './extensions/gutterIcons';
 import { blockBackspaceCompartment, blockBackspaceExtension } from './extensions/blockBackspace';
 import styles from './CodeMirrorEditor.module.css';
@@ -195,6 +196,7 @@ export function CodeMirrorEditor({
         syntaxSuperSubExtension(),
         syntaxFootnoteExtension(),
         syntaxMathExtension(),
+        syntaxFrontmatterExtension(),
 
         // Autocomplete
         autocompletion({
@@ -229,8 +231,8 @@ export function CodeMirrorEditor({
             lineHeight: '1.6',
           },
           '.cm-cursor': {
-            borderLeftColor: '#fcfbf8',
-            borderLeftWidth: '2px',
+            borderLeftColor: '#ffffff',
+            borderLeftWidth: '3px',
           },
           '.cm-selectionBackground': {
             backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
