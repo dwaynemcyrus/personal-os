@@ -1,12 +1,23 @@
-
-
 import { useEffect, useRef, useCallback } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { history, historyKeymap, defaultKeymap } from '@codemirror/commands';
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
-import { markdown } from '@codemirror/lang-markdown';
 import type { RxDatabase } from 'rxdb';
 import type { DatabaseCollections, ItemDocument } from '@/lib/db';
+import { sourceModeExtension } from './extensions/sourceMode';
+import {
+  layoutBaseCompartment,
+  layoutSourceTheme,
+  layoutRenderedTheme,
+} from './extensions/layoutBase';
+import { syntaxHighlightExtension } from './extensions/syntaxHighlight';
+import { syntaxUnderlineExtension } from './extensions/syntaxUnderline';
+import { syntaxSuperSubExtension } from './extensions/syntaxSuperSub';
+import { syntaxFootnoteExtension } from './extensions/syntaxFootnote';
+import { syntaxMathExtension } from './extensions/syntaxMath';
+import { gutterIconsCompartment, gutterIconsExtension } from './extensions/gutterIcons';
+import { blockBackspaceCompartment, blockBackspaceExtension } from './extensions/blockBackspace';
 import styles from './CodeMirrorEditor.module.css';
 
 // --- Wikilink autocomplete ---
@@ -71,9 +82,12 @@ function tagCompletions(tags: string[]) {
 
 // --- Component ---
 
+export type EditorMode = 'source' | 'rendered';
+
 type CodeMirrorEditorProps = {
   initialContent: string;
   content?: string;
+  mode: EditorMode;
   onChange: (content: string) => void;
   onBlur?: () => void;
   onSaveVersion?: () => void;
@@ -86,6 +100,7 @@ type CodeMirrorEditorProps = {
 export function CodeMirrorEditor({
   initialContent,
   content,
+  mode,
   onChange,
   onBlur,
   onSaveVersion,
@@ -103,6 +118,8 @@ export function CodeMirrorEditor({
   const dbRef = useRef(db);
   const noteEntriesRef = useRef<NoteEntry[]>([]);
   const tagsArrayRef = useRef<string[]>([]);
+  // Track mode without triggering re-mount
+  const modeRef = useRef(mode);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
@@ -130,8 +147,11 @@ export function CodeMirrorEditor({
     return () => subscription.unsubscribe();
   }, [db]);
 
+  // Mount editor once
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const initialMode = modeRef.current;
 
     const updateListener = EditorView.updateListener.of(update => {
       if (update.docChanged) onChangeRef.current(update.state.doc.toString());
@@ -150,14 +170,40 @@ export function CodeMirrorEditor({
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
+        // Undo/redo
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
         saveKeymap,
-        markdown(),
+
+        // Layout — compartment set based on initial mode
+        layoutBaseCompartment.of(
+          initialMode === 'rendered' ? layoutRenderedTheme() : layoutSourceTheme()
+        ),
+
+        // Gutter icons + Bear backspace — enabled only in rendered mode
+        gutterIconsCompartment.of(
+          initialMode === 'rendered' ? gutterIconsExtension() : []
+        ),
+        blockBackspaceCompartment.of(
+          initialMode === 'rendered' ? blockBackspaceExtension() : []
+        ),
+
+        // Markdown language + GFM + syntax highlighting (always active)
+        sourceModeExtension(),
+        syntaxHighlightExtension(),
+        syntaxUnderlineExtension(),
+        syntaxSuperSubExtension(),
+        syntaxFootnoteExtension(),
+        syntaxMathExtension(),
+
+        // Autocomplete
         autocompletion({
           override: [
             wikilinkCompletions(noteEntriesRef),
             tagCompletions(tagsArrayRef.current),
           ],
         }),
+
         placeholder(placeholderText),
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({
@@ -167,28 +213,20 @@ export function CodeMirrorEditor({
         }),
         updateListener,
         blurHandler,
+
+        // Base editor appearance
         EditorView.theme({
           '&': {
             height: '100%',
             backgroundColor: '#282828',
             color: '#fcfbf8',
           },
-          '.cm-content': {
+          '.cm-scroller': {
+            overflowY: 'auto',
+            overflowX: 'hidden',
             fontFamily: 'var(--font-family-primary)',
             fontSize: '16px',
-            padding: '0 20px',
-            paddingTop: '16px',
-            paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
-            lineHeight: 'normal',
-            caretColor: '#fcfbf8',
-          },
-          '.cm-line': {
-            padding: '0',
-            wordBreak: 'break-word',
-          },
-          '.cm-cursor': {
-            borderLeftColor: '#fcfbf8',
-            borderLeftWidth: '2px',
+            lineHeight: '1.6',
           },
           '.cm-selectionBackground': {
             backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
@@ -197,12 +235,8 @@ export function CodeMirrorEditor({
             backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
           },
           '.cm-placeholder': {
-            color: 'rgba(252, 251, 248, 0.55)',
+            color: 'rgba(252, 251, 248, 0.45)',
             fontStyle: 'italic',
-          },
-          '.cm-scroller': {
-            overflowY: 'auto',
-            overflowX: 'hidden',
           },
           '&.cm-focused': { outline: 'none' },
         }),
@@ -230,6 +264,32 @@ export function CodeMirrorEditor({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // React to mode changes without remounting
+  useEffect(() => {
+    if (mode === modeRef.current) return;
+    modeRef.current = mode;
+    const view = viewRef.current;
+    if (!view) return;
+
+    if (mode === 'rendered') {
+      view.dispatch({
+        effects: [
+          layoutBaseCompartment.reconfigure(layoutRenderedTheme()),
+          gutterIconsCompartment.reconfigure(gutterIconsExtension()),
+          blockBackspaceCompartment.reconfigure(blockBackspaceExtension()),
+        ],
+      });
+    } else {
+      view.dispatch({
+        effects: [
+          layoutBaseCompartment.reconfigure(layoutSourceTheme()),
+          gutterIconsCompartment.reconfigure([]),
+          blockBackspaceCompartment.reconfigure([]),
+        ],
+      });
+    }
+  }, [mode]);
 
   const setContent = useCallback((newContent: string) => {
     const view = viewRef.current;

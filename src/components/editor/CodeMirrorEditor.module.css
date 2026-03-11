@@ -22,6 +22,7 @@
   -webkit-user-select: text;
   user-select: text;
   touch-action: pan-y;
+  caretColor: #fcfbf8;
 }
 
 .editor :global(.cm-line) {
