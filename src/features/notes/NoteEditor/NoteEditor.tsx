@@ -18,10 +18,6 @@ import {
   shouldAutoSaveVersion,
   markVersionSaved,
 } from '@/lib/versions';
-import {
-  parseFrontmatter,
-  replaceFrontmatterBlock,
-} from '@/lib/markdown/frontmatter';
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
 import { BackIcon } from '@/components/ui/icons';
@@ -106,20 +102,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     const timestamp = nowIso();
     let title = extractNoteTitle(nextContent, note?.title);
     let contentToSave = nextContent;
-
-    const frontmatterResult = parseFrontmatter(nextContent);
-    if (frontmatterResult.errors.length > 0) {
-      showToast('Frontmatter is invalid. Fix YAML to sync properties.');
-      console.error('Frontmatter parse error', frontmatterResult.errors);
-    } else {
-      const parsedProperties = frontmatterResult.properties ?? null;
-      const hasProperties = parsedProperties && Object.keys(parsedProperties).length > 0;
-
-      if (!hasProperties && frontmatterResult.hasFrontmatter) {
-        contentToSave = replaceFrontmatterBlock(nextContent, null);
-        title = extractNoteTitle(contentToSave, note?.title);
-      }
-    }
 
     await doc.patch({ title, content: contentToSave, updated_at: timestamp });
     lastSavedContentRef.current = contentToSave;
