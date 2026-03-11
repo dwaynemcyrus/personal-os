@@ -454,7 +454,7 @@ const gutterTheme = EditorView.theme({
 
   // Inline task emoji widget
   '.cm-bear-task-widget': {
-    fontSize: '1em',
+    fontSize: '0.8em',
     lineHeight: '1',
     display: 'inline-block',
     cursor: 'pointer',
