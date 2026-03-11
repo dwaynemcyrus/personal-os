@@ -7,9 +7,6 @@ import {
   Decoration,
   DecorationSet,
 } from '@codemirror/view';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { tags } from '@lezer/highlight';
-
 // ─── Mark decorations ─────────────────────────────────────────────────────────
 
 const d = {
