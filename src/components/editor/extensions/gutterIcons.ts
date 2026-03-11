@@ -54,19 +54,6 @@ export interface LineBlock {
 
 // ─── Inline widget types ──────────────────────────────────────────────────────
 
-class BulletWidget extends WidgetType {
-  toDOM() {
-    const el = document.createElement('span');
-    el.className = 'cm-bear-bullet-widget';
-    el.textContent = '●';
-    el.setAttribute('aria-hidden', 'true');
-    return el;
-  }
-  eq() { return true; }
-}
-
-const bulletWidgetInstance = new BulletWidget();
-
 class OrderedWidget extends WidgetType {
   constructor(private num: number) { super(); }
   toDOM() {
@@ -174,11 +161,10 @@ export function getLineBlock(state: EditorState, lineFrom: number): LineBlock | 
           const task = listItem?.getChild('Task');
           const taskMarker = task?.getChild('TaskMarker');
           if (taskMarker) {
+            // Lezer recognises [ ] and [x] as GFM TaskMarker
             const markerText = state.doc.sliceString(taskMarker.from, taskMarker.to);
             const tokenMatch = markerText.match(/\[([ xXiI!?*><])\]/);
             const token = tokenMatch ? tokenMatch[1].toLowerCase() : ' ';
-            // Include trailing space after TaskMarker so blockBackspace knows
-            // where text starts (matches the widget's replacement range).
             const trailingEnd = Math.min(taskMarker.to + 1, line.to);
             result = {
               type: 'task',
@@ -189,10 +175,24 @@ export function getLineBlock(state: EditorState, lineFrom: number): LineBlock | 
               ],
             };
           } else {
-            result = {
-              type: 'bullet',
-              marks: [{ from: node.from, to: node.to }],
-            };
+            // Lezer does NOT recognise custom tokens ([i], [!], etc.) as TaskMarker.
+            // Fall back to regex on the raw line text.
+            const customMatch = line.text.match(/^(\s*[-*+]\s+)(\[[ xXiI!?*><]\])/);
+            if (customMatch) {
+              const token = customMatch[2][1].toLowerCase();
+              const markerFrom = line.from + customMatch[1].length;
+              const markerTo   = markerFrom + customMatch[2].length;
+              const trailingEnd = Math.min(markerTo + 1, line.to);
+              result = {
+                type: 'task',
+                taskToken: token,
+                marks: [
+                  { from: node.from, to: node.to },
+                  { from: markerFrom, to: trailingEnd },
+                ],
+              };
+            }
+            // else: plain bullet — no result, raw `-` stays visible
           }
           return false;
         }
@@ -297,33 +297,35 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (list?.name === 'BulletList') {
           const task = listItem?.getChild('Task');
           const taskMarker = task?.getChild('TaskMarker');
+          const line = state.doc.lineAt(node.from);
 
           if (taskMarker) {
+            // Lezer-recognised GFM task ([ ] or [x])
             const markerText = state.doc.sliceString(taskMarker.from, taskMarker.to);
             const tokenMatch = markerText.match(/\[([ xXiI!?*><])\]/);
             const token = tokenMatch ? tokenMatch[1].toLowerCase() : ' ';
-
-            // Replace ListMark + gap + TaskMarker + trailing space with TaskWidget
-            const line = state.doc.lineAt(node.from);
-            // widgetEnd: taskMarker.to covers `[ ]`, +1 for the trailing space
-            const trailingSpaceEnd = taskMarker.to + 1;
-            const widgetEnd = trailingSpaceEnd <= line.to ? trailingSpaceEnd : taskMarker.to;
+            const widgetEnd = Math.min(taskMarker.to + 1, line.to);
             addDeco(
               node.from,
               widgetEnd,
               Decoration.replace({ widget: new TaskWidget(token, line.from) }),
             );
-
-            if (token === 'x') {
-              addDeco(line.from, undefined, taskDoneLineDeco);
-            }
+            if (token === 'x') addDeco(line.from, undefined, taskDoneLineDeco);
           } else {
-            // Plain bullet: replace ListMark with ● widget
-            addDeco(
-              node.from,
-              node.to,
-              Decoration.replace({ widget: bulletWidgetInstance }),
-            );
+            // Custom task token not recognised by Lezer — check raw line text
+            const customMatch = line.text.match(/^(\s*[-*+]\s+)(\[[ xXiI!?*><]\])/);
+            if (customMatch) {
+              const token = customMatch[2][1].toLowerCase();
+              const markerFrom = line.from + customMatch[1].length;
+              const markerTo   = markerFrom + customMatch[2].length;
+              const widgetEnd  = Math.min(markerTo + 1, line.to);
+              addDeco(
+                node.from,
+                widgetEnd,
+                Decoration.replace({ widget: new TaskWidget(token, line.from) }),
+              );
+            }
+            // else: plain bullet — leave raw `-` visible, no decoration
           }
           return false;
         }
@@ -440,16 +442,6 @@ const gutterTheme = EditorView.theme({
   '.cm-bear-heading-4': { fontWeight: 'bold', color: '#c792ea' },
   '.cm-bear-heading-5': { fontWeight: 'bold', color: '#c792ea' },
   '.cm-bear-heading-6': { fontWeight: 'bold', color: '#c792ea' },
-
-  // Inline bullet widget
-  '.cm-bear-bullet-widget': {
-    color: 'rgba(252,251,248,0.55)',
-    fontSize: '10px',
-    display: 'inline-block',
-    userSelect: 'none',
-    WebkitUserSelect: 'none',
-    marginRight: '4px',
-  },
 
   // Inline ordered number widget
   '.cm-bear-ordered-widget': {
