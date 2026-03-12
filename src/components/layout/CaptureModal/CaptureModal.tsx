@@ -91,14 +91,10 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     }));
   }, [isSearching, searchResults, recentNotes]);
 
-  // Auto-focus textarea on open
-  useEffect(() => {
-    if (!open) return;
-    const id = requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [open]);
+  const handleOpenAutoFocus = useCallback((e: Event) => {
+    e.preventDefault(); // prevent Radix focusing the first focusable element
+    textareaRef.current?.focus();
+  }, []);
 
   const handleClose = useCallback(() => {
     setText('');
@@ -252,6 +248,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
         side="bottom"
         ariaLabel="Quick capture"
         className={styles.sheet}
+        onOpenAutoFocus={handleOpenAutoFocus}
       >
         <div className={styles.content}>
           <div className={styles.actions}>
