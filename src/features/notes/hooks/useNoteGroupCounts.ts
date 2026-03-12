@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDatabase } from '@/hooks/useDatabase';
+import type { ItemDocument } from '@/lib/db';
 import type { NoteGroup } from './useGroupedNotes';
 import { isTodayNote, isTodoNote } from '../noteUtils';
 

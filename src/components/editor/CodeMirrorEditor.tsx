@@ -1,308 +1,124 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, placeholder } from '@codemirror/view';
-import { history, historyKeymap, defaultKeymap } from '@codemirror/commands';
-import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
-import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections, ItemDocument } from '@/lib/db';
-import { sourceModeExtension } from './extensions/sourceMode';
 import {
-  layoutBaseCompartment,
-  layoutSourceTheme,
-  layoutRenderedTheme,
-} from './extensions/layoutBase';
-import { syntaxHighlightExtension } from './extensions/syntaxHighlight';
-import { syntaxUnderlineExtension } from './extensions/syntaxUnderline';
-import { syntaxSuperSubExtension } from './extensions/syntaxSuperSub';
-import { syntaxFootnoteExtension } from './extensions/syntaxFootnote';
-import { syntaxMathExtension } from './extensions/syntaxMath';
-import { gutterIconsCompartment, gutterIconsExtension } from './extensions/gutterIcons';
-import { blockBackspaceCompartment, blockBackspaceExtension } from './extensions/blockBackspace';
-import styles from './CodeMirrorEditor.module.css';
+  EditorView,
+  keymap,
+  placeholder as cmPlaceholder,
+} from '@codemirror/view';
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from '@codemirror/commands';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { searchKeymap } from '@codemirror/search';
 
-// --- Wikilink autocomplete ---
+const baseTheme = EditorView.theme({
+  '&': {
+    height: '100%',
+    backgroundColor: 'transparent',
+  },
+  '&.cm-focused': {
+    outline: 'none',
+  },
+  '.cm-scroller': {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
+    fontSize: '17px',
+    lineHeight: '1.75',
+    overflow: 'auto',
+  },
+  '.cm-content': {
+    padding: '20px 20px 120px',
+    caretColor: 'var(--color-accent)',
+    color: 'var(--color-ink)',
+    minHeight: '100%',
+  },
+  '.cm-line': {
+    padding: '0',
+  },
+  '.cm-cursor, .cm-dropCursor': {
+    borderLeftColor: 'var(--color-accent)',
+    borderLeftWidth: '2px',
+  },
+  '.cm-placeholder': {
+    color: 'var(--color-ink-faint, #b0a898)',
+  },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+    backgroundColor: 'var(--color-highlight, rgba(255, 220, 50, 0.4))',
+  },
+  '.cm-gutters': {
+    display: 'none',
+  },
+});
 
-type NoteEntry = { title: string; normalized: string };
-
-function buildNoteIndex(notes: { title: string }[]): NoteEntry[] {
-  return notes.map(n => ({ title: n.title, normalized: n.title.toLowerCase() }));
-}
-
-function searchNotes(entries: NoteEntry[], query: string): NoteEntry[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return entries;
-  return entries
-    .map(e => ({ entry: e, score: e.normalized.indexOf(q) }))
-    .filter(({ score }) => score !== -1)
-    .sort((a, b) => a.score - b.score)
-    .map(({ entry }) => entry);
-}
-
-function wikilinkCompletions(noteEntriesRef: { current: NoteEntry[] }) {
-  return (context: CompletionContext) => {
-    const match = context.matchBefore(/\[\[[^\]]*$/);
-    if (!match) return null;
-    const query = match.text.slice(2);
-    const results = searchNotes(noteEntriesRef.current, query);
-    return {
-      from: match.from + 2,
-      options: results.map(r => ({
-        label: r.title,
-        apply: `${r.title}]]`,
-        type: 'text',
-      })),
-      validFor: /^[^\]]*$/,
-    };
-  };
-}
-
-// --- Tag autocomplete ---
-
-function tagCompletions(tags: string[]) {
-  return (context: CompletionContext) => {
-    const match = context.matchBefore(/#[\w/-]*$/);
-    if (!match) return null;
-    const lineText = context.state.doc.lineAt(match.from).text;
-    if (/^#{1,6}\s/.test(lineText)) return null;
-    const query = match.text.slice(1).toLowerCase();
-    const filtered = tags
-      .filter(t => t.toLowerCase().includes(query))
-      .sort((a, b) => {
-        const aStart = a.toLowerCase().startsWith(query) ? 0 : 1;
-        const bStart = b.toLowerCase().startsWith(query) ? 0 : 1;
-        return aStart !== bStart ? aStart - bStart : a.localeCompare(b);
-      });
-    return {
-      from: match.from,
-      options: filtered.map(t => ({ label: `#${t}`, apply: `#${t}`, type: 'keyword' })),
-      validFor: /^#[\w/-]*$/,
-    };
-  };
-}
-
-// --- Component ---
-
-export type EditorMode = 'source' | 'rendered';
-
-type CodeMirrorEditorProps = {
-  initialContent: string;
-  content?: string;
-  mode: EditorMode;
-  onChange: (content: string) => void;
+type Props = {
+  initialBody: string;
+  onChange?: (value: string) => void;
   onBlur?: () => void;
-  onSaveVersion?: () => void;
   onScrollPositionChange?: (scrollTop: number) => void;
-  placeholderText?: string;
+  placeholder?: string;
   autoFocus?: boolean;
-  db?: RxDatabase<DatabaseCollections> | null;
 };
 
 export function CodeMirrorEditor({
-  initialContent,
-  content,
-  mode,
+  initialBody,
   onChange,
   onBlur,
-  onSaveVersion,
   onScrollPositionChange,
-  placeholderText = 'Start writing...',
-  autoFocus = true,
-  db = null,
-}: CodeMirrorEditorProps) {
+  placeholder: placeholderText,
+  autoFocus = false,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
-  const onSaveVersionRef = useRef(onSaveVersion);
-  const onScrollPositionChangeRef = useRef(onScrollPositionChange);
-  const dbRef = useRef(db);
-  const noteEntriesRef = useRef<NoteEntry[]>([]);
-  const tagsArrayRef = useRef<string[]>([]);
-  // Track mode without triggering re-mount
-  const modeRef = useRef(mode);
+  const onScrollRef = useRef(onScrollPositionChange);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
-  useEffect(() => { onSaveVersionRef.current = onSaveVersion; }, [onSaveVersion]);
-  useEffect(() => { onScrollPositionChangeRef.current = onScrollPositionChange; }, [onScrollPositionChange]);
-  useEffect(() => { dbRef.current = db; }, [db]);
+  useEffect(() => { onScrollRef.current = onScrollPositionChange; }, [onScrollPositionChange]);
 
-  // Keep note index and tag list in sync with DB
-  useEffect(() => {
-    if (!db) return;
-    const subscription = db.items
-      .find({ selector: { type: 'note', is_trashed: false } })
-      .$.subscribe((docs) => {
-        const notes = docs.map(doc => doc.toJSON() as ItemDocument);
-        noteEntriesRef.current = buildNoteIndex(notes.map(n => ({ title: n.title ?? '' })));
-
-        const tagSet = new Set<string>();
-        for (const note of notes) {
-          const matches = (note.content ?? '').matchAll(/#([\w/-]+)/g);
-          for (const m of matches) tagSet.add(m[1]);
-        }
-        const next = Array.from(tagSet).sort();
-        tagsArrayRef.current.splice(0, tagsArrayRef.current.length, ...next);
-      });
-    return () => subscription.unsubscribe();
-  }, [db]);
-
-  // Mount editor once
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const initialMode = modeRef.current;
+    const extensions = [
+      history(),
+      EditorView.lineWrapping,
+      markdown({ base: markdownLanguage }),
+      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+      baseTheme,
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          onChangeRef.current?.(update.state.doc.toString());
+        }
+      }),
+      EditorView.domEventHandlers({
+        blur: () => {
+          onBlurRef.current?.();
+          return false;
+        },
+      }),
+    ];
 
-    const updateListener = EditorView.updateListener.of(update => {
-      if (update.docChanged) onChangeRef.current(update.state.doc.toString());
-    });
+    if (placeholderText) extensions.push(cmPlaceholder(placeholderText));
 
-    const blurHandler = EditorView.domEventHandlers({
-      blur: () => { onBlurRef.current?.(); return false; },
-    });
-
-    const saveKeymap = keymap.of([{
-      key: 'Mod-s',
-      run: () => { onSaveVersionRef.current?.(); return true; },
-      preventDefault: true,
-    }]);
-
-    const state = EditorState.create({
-      doc: initialContent,
-      extensions: [
-        // Undo/redo
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        saveKeymap,
-
-        // Layout — compartment set based on initial mode
-        layoutBaseCompartment.of(
-          initialMode === 'rendered' ? layoutRenderedTheme() : layoutSourceTheme()
-        ),
-
-        // Gutter icons + Bear backspace — enabled only in rendered mode
-        gutterIconsCompartment.of(
-          initialMode === 'rendered' ? gutterIconsExtension() : []
-        ),
-        blockBackspaceCompartment.of(
-          initialMode === 'rendered' ? blockBackspaceExtension() : []
-        ),
-
-        // Markdown language + GFM + syntax highlighting (always active)
-        sourceModeExtension(),
-        syntaxHighlightExtension(),
-        syntaxUnderlineExtension(),
-        syntaxSuperSubExtension(),
-        syntaxFootnoteExtension(),
-        syntaxMathExtension(),
-
-        // Autocomplete
-        autocompletion({
-          override: [
-            wikilinkCompletions(noteEntriesRef),
-            tagCompletions(tagsArrayRef.current),
-          ],
-        }),
-
-        placeholder(placeholderText),
-        EditorView.lineWrapping,
-        EditorView.contentAttributes.of({
-          spellcheck: 'true',
-          autocorrect: 'on',
-          autocapitalize: 'sentences',
-        }),
-        updateListener,
-        blurHandler,
-
-        // Base editor appearance
-        EditorView.theme({
-          '&': {
-            height: '100%',
-            backgroundColor: '#282828',
-            color: '#fcfbf8',
-          },
-          '.cm-scroller': {
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            fontFamily: 'var(--font-family-primary)',
-            fontSize: '16px',
-            lineHeight: '1.6',
-          },
-          '.cm-selectionBackground': {
-            backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
-          },
-          '&.cm-focused .cm-selectionBackground': {
-            backgroundColor: 'rgba(252, 251, 248, 0.22) !important',
-          },
-          '.cm-placeholder': {
-            color: 'rgba(252, 251, 248, 0.45)',
-            fontStyle: 'italic',
-          },
-          '&.cm-focused': { outline: 'none' },
-        }),
-      ],
-    });
-
+    const state = EditorState.create({ doc: initialBody, extensions });
     const view = new EditorView({ state, parent: containerRef.current });
     viewRef.current = view;
 
-    view.scrollDOM.setAttribute('data-scroll-lock-scrollable', '');
-    const handleScroll = () => {
-      onScrollPositionChangeRef.current?.(view.scrollDOM.scrollTop);
-    };
+    const handleScroll = () => onScrollRef.current?.(view.scrollDOM.scrollTop);
     view.scrollDOM.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
 
-    if (autoFocus) {
-      requestAnimationFrame(() => view.focus());
-    }
+    if (autoFocus) requestAnimationFrame(() => view.focus());
 
     return () => {
       view.scrollDOM.removeEventListener('scroll', handleScroll);
       view.destroy();
       viewRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // React to mode changes without remounting
-  useEffect(() => {
-    if (mode === modeRef.current) return;
-    modeRef.current = mode;
-    const view = viewRef.current;
-    if (!view) return;
-
-    if (mode === 'rendered') {
-      view.dispatch({
-        effects: [
-          layoutBaseCompartment.reconfigure(layoutRenderedTheme()),
-          gutterIconsCompartment.reconfigure(gutterIconsExtension()),
-          blockBackspaceCompartment.reconfigure(blockBackspaceExtension()),
-        ],
-      });
-    } else {
-      view.dispatch({
-        effects: [
-          layoutBaseCompartment.reconfigure(layoutSourceTheme()),
-          gutterIconsCompartment.reconfigure([]),
-          blockBackspaceCompartment.reconfigure([]),
-        ],
-      });
-    }
-  }, [mode]);
-
-  const setContent = useCallback((newContent: string) => {
-    const view = viewRef.current;
-    if (!view) return;
-    const current = view.state.doc.toString();
-    if (current === newContent) return;
-    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newContent } });
-  }, []);
-
-  useEffect(() => {
-    if (content === undefined) return;
-    setContent(content);
-  }, [content, setContent]);
-
-  return <div ref={containerRef} className={styles.editor} />;
+  return <div ref={containerRef} className="h-full w-full overflow-hidden" />;
 }

@@ -1,7 +1,4 @@
-
-
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Editor } from '@tiptap/react';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
 import {
@@ -11,19 +8,13 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { showToast } from '@/components/ui/Toast';
-import { TipTapEditor, EditorToolbar, VersionHistory } from '@/components/editor';
-import type { EditorMode } from '@/components/editor/TipTapEditor';
-import {
-  saveVersion,
-  shouldAutoSaveVersion,
-  markVersionSaved,
-} from '@/lib/versions';
+import { CodeMirrorEditor } from '@/components/editor';
+import { saveVersion, shouldAutoSaveVersion } from '@/lib/versions';
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatNoteTitle, formatRelativeTime } from '../noteUtils';
 import { BackIcon } from '@/components/ui/icons';
-import { useNavigationActions } from '@/components/providers/NavigationProvider';
 import styles from './NoteEditor.module.css';
+
 const SAVE_DEBOUNCE_MS = 1000;
 const TITLE_REVEAL_SCROLL_PX = 64;
 
@@ -34,16 +25,12 @@ type NoteEditorProps = {
 
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const { db, isReady } = useDatabase();
-  const { pushLayer } = useNavigationActions();
   const [note, setNote] = useState<ItemDocument | null>(null);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isHeaderTitleVisible, setIsHeaderTitleVisible] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
-  const [editorMode, setEditorMode] = useState<EditorMode>('rendered');
-  const [tipTapEditor, setTipTapEditor] = useState<Editor | null>(null);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -104,16 +91,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     const doc = await db.items.findOne(noteId).exec();
     if (!doc) return;
     const timestamp = nowIso();
-    let title = extractNoteTitle(nextContent, note?.title);
-    let contentToSave = nextContent;
+    const title = extractNoteTitle(nextContent, note?.title);
 
-    await doc.patch({ title, content: contentToSave, updated_at: timestamp });
-    lastSavedContentRef.current = contentToSave;
-    if (contentToSave !== nextContent) setContent(contentToSave);
+    await doc.patch({ title, content: nextContent, updated_at: timestamp });
+    lastSavedContentRef.current = nextContent;
     setIsDirty(false);
 
     if (shouldAutoSaveVersion(noteId)) {
-      saveVersion(db, noteId, contentToSave, null, 'auto', 'Auto-save').catch(() => {});
+      saveVersion(db, noteId, nextContent, null, 'auto', 'Auto-save').catch(() => {});
     }
   };
 
@@ -143,53 +128,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     }
   }, []);
 
-  const handleSaveVersion = useCallback(async () => {
-    if (!db || !noteId || !note) return;
-    if (isDirtyRef.current) await saveContentRef.current?.(content);
-    await saveVersion(db, noteId, note.content ?? null, null, 'manual', 'Manual save');
-  }, [db, noteId, note, content]);
-
-  const handleVersionRestore = useCallback(() => {
-    setEditorKey(k => k + 1);
-    markVersionSaved(noteId);
-  }, [noteId]);
-
   const handleEditorScroll = useCallback((scrollTop: number) => {
     setIsHeaderTitleVisible(scrollTop >= TITLE_REVEAL_SCROLL_PX);
   }, []);
-
-  const handleWikilinkNavigate = useCallback(async (title: string) => {
-    if (!db) return;
-    const docs = await db.items
-      .find({ selector: { type: 'note', is_trashed: false, title } })
-      .exec();
-    if (docs.length > 0) {
-      pushLayer({ view: 'note-detail', noteId: docs[0].id });
-    } else {
-      // Note not found — create it
-      const { v4: uuidv4 } = await import('uuid');
-      const id = uuidv4();
-      const timestamp = nowIso();
-      await db.items.insert({
-        id,
-        type: 'note',
-        title,
-        content: `# ${title}\n`,
-        is_trashed: false,
-        is_pinned: false,
-        parent_id: null,
-        item_status: 'active',
-        completed: false,
-        is_next: false,
-        is_someday: false,
-        is_waiting: false,
-        processed: false,
-        created_at: timestamp,
-        updated_at: timestamp,
-      });
-      pushLayer({ view: 'note-detail', noteId: id });
-    }
-  }, [db, pushLayer]);
 
   if (!noteId) {
     return <section className={styles.editor}><p className={styles.empty}>Note not found.</p></section>;
@@ -226,14 +167,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
               {headerTitle}
             </div>
             <div className={styles.headerRight}>
-              <button
-                type="button"
-                className={styles.actionButton}
-                aria-label={editorMode === 'rendered' ? 'Switch to source mode' : 'Switch to rendered mode'}
-                onClick={() => setEditorMode(m => m === 'rendered' ? 'source' : 'rendered')}
-              >
-                {editorMode === 'rendered' ? <SourceModeIcon className={styles.actionIcon} /> : <RenderedModeIcon className={styles.actionIcon} />}
-              </button>
               <Dropdown>
                 <DropdownTrigger asChild>
                   <button
@@ -245,10 +178,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                   </button>
                 </DropdownTrigger>
                 <DropdownContent align="end" sideOffset={12}>
-                  <DropdownItem onSelect={() => setIsVersionHistoryOpen(true)}>
-                    Version History
-                  </DropdownItem>
-                  <DropdownSeparator />
                   <DropdownItem disabled>
                     Created {formatRelativeTime(note.created_at)}
                   </DropdownItem>
@@ -284,74 +213,17 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       </header>
 
       <div className={styles.editorPane}>
-        <TipTapEditor
+        <CodeMirrorEditor
           key={editorKey}
-          initialContent={content}
-          content={isDirty ? undefined : content}
-          mode={editorMode}
+          initialBody={content}
           onChange={handleChange}
           onBlur={handleBlur}
           onScrollPositionChange={handleEditorScroll}
-          onSaveVersion={handleSaveVersion}
-          onEditorReady={setTipTapEditor}
-          onWikilinkNavigate={handleWikilinkNavigate}
-          placeholderText="Start writing..."
+          placeholder="Start writing..."
           autoFocus
-          db={db}
         />
       </div>
-
-      <VersionHistory
-        open={isVersionHistoryOpen}
-        onOpenChange={setIsVersionHistoryOpen}
-        noteId={noteId}
-        db={db}
-        onRestore={handleVersionRestore}
-      />
-
-      <EditorToolbar editor={tipTapEditor} mode={editorMode} />
     </section>
-  );
-}
-
-
-// Shown when in rendered mode — clicking switches to source
-function SourceModeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <polyline points="16 18 22 12 16 6" />
-      <polyline points="8 6 2 12 8 18" />
-    </svg>
-  );
-}
-
-// Shown when in source mode — clicking switches to rendered
-function RenderedModeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
   );
 }
 
