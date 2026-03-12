@@ -12,6 +12,7 @@ import { CodeMirrorEditor } from '@/components/editor';
 import { saveVersion, shouldAutoSaveVersion } from '@/lib/versions';
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatRelativeTime } from '../noteUtils';
+import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 import { useHeaderSlot } from '@/components/layout/AppShell/HeaderSlot';
 import styles from './NoteEditor.module.css';
 
@@ -79,7 +80,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     const doc = await db.items.findOne(noteId).exec();
     if (!doc) return;
     const title = extractNoteTitle(nextContent, note?.title);
-    await doc.patch({ title, content: nextContent, updated_at: nowIso() });
+    const fm = parseFrontmatter(nextContent);
+    const fmProps = fm.properties ?? {};
+    const fmPatch: Partial<ItemDocument> = {};
+    if ('tags' in fmProps) fmPatch.tags = Array.isArray(fmProps.tags) ? fmProps.tags as string[] : undefined;
+    if ('due_date' in fmProps) fmPatch.due_date = typeof fmProps.due_date === 'string' ? fmProps.due_date : null;
+    if ('start_date' in fmProps) fmPatch.start_date = typeof fmProps.start_date === 'string' ? fmProps.start_date : null;
+    if ('priority' in fmProps) fmPatch.priority = typeof fmProps.priority === 'string' ? fmProps.priority as ItemDocument['priority'] : null;
+    await doc.patch({ title, content: nextContent, updated_at: nowIso(), ...fmPatch });
     lastSavedContentRef.current = nextContent;
     setIsDirty(false);
     if (shouldAutoSaveVersion(noteId)) {
