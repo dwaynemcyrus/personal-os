@@ -124,6 +124,29 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     const timestamp = new Date().toISOString();
     const trimmedText = text.trim();
 
+    // Insert note first so the FK constraint (capture.result_id → items.id) is
+    // satisfied when the sync layer pushes both records to Supabase.
+    await db.items.insert({
+      id: noteId,
+      type: 'note',
+      parent_id: null,
+      title: extractTitleFromFirstLine(trimmedText),
+      content: trimmedText,
+      inbox_at: timestamp,
+      subtype: 'capture',
+      is_pinned: false,
+      item_status: 'backlog',
+      completed: false,
+      is_next: false,
+      is_someday: false,
+      is_waiting: false,
+      processed: false,
+      created_at: timestamp,
+      updated_at: timestamp,
+      is_trashed: false,
+      trashed_at: null,
+    });
+
     await db.items.insert({
       id: captureId,
       type: 'capture',
@@ -135,32 +158,11 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       result_type: null,
       result_id: noteId,
       is_pinned: false,
-      item_status: 'active',
+      item_status: 'backlog',
       completed: false,
       is_next: false,
       is_someday: false,
       is_waiting: false,
-      created_at: timestamp,
-      updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
-    });
-
-    await db.items.insert({
-      id: noteId,
-      type: 'note',
-      parent_id: null,
-      title: extractTitleFromFirstLine(trimmedText),
-      content: trimmedText,
-      inbox_at: timestamp,
-      subtype: 'capture',
-      is_pinned: false,
-      item_status: 'active',
-      completed: false,
-      is_next: false,
-      is_someday: false,
-      is_waiting: false,
-      processed: false,
       created_at: timestamp,
       updated_at: timestamp,
       is_trashed: false,

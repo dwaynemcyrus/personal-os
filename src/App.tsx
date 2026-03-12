@@ -117,7 +117,7 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         inbox_at: null,
         subtype: nowNoteType,
         is_pinned: false,
-        item_status: 'active',
+        item_status: 'backlog',
         completed: false,
         is_next: false,
         is_someday: false,
