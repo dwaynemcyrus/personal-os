@@ -80,7 +80,13 @@
       "Bash(supabase migration:*)",
       "Bash(supabase:*)",
       "Bash(cat:*)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(npm outdated:*)",
+      "Bash(supabase --version 2>/dev/null || echo \"not found\"; npm list -g supabase 2>/dev/null || true)",
+      "Bash(npm list:*)",
+      "Bash(brew info:*)",
+      "Bash(ps -p 7999,99609,99758 -o pid,command)",
+      "Bash(kill 7999 99609 99758)"
     ]
   }
 }

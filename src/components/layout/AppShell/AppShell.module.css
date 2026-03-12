@@ -137,6 +137,12 @@
   overflow: hidden;
 }
 
+/* Note editor: inherit base overflow-y:auto — only kill the padding */
+.app-shell__content--note-detail {
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 .app-shell__fab {
   pointer-events: all;
   position: fixed;

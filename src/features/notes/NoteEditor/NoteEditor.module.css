@@ -1,88 +1,23 @@
-.editor {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  background: #282828;
-  color: #fcfbf8;
+.state {
+  padding: 20px;
+  font-size: var(--font-sm);
+  color: var(--color-ink-500);
 }
 
-.header {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  padding: calc(8px + env(safe-area-inset-top))
-    calc(20px + env(safe-area-inset-right))
-    8px
-    calc(20px + env(safe-area-inset-left));
-  background: #282828;
-}
-
-.editorPane {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-}
-
-.headerTitle {
-  min-height: 36px;
-  max-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: var(--font-semibold);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0;
-  transition: opacity var(--duration-160) var(--ease-default);
-  text-align: center;
-  padding: 0 var(--space-12);
-}
-
-.headerTitle[data-visible='true'] {
-  opacity: 1;
-}
-
-.headerRight {
-  display: flex;
-  gap: var(--space-2);
-  justify-self: end;
-  min-height: 36px;
-  max-height: 36px;
-  align-items: center;
-}
-
-.actionButton {
-  min-height: 36px;
-  max-height: 36px;
-  min-width: 36px;
-  max-width: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 18px;
+.actionBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
   border: none;
   background: transparent;
-  color: #fcfbf8;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
-.actionButton:focus-visible {
-  outline: 2px solid #fcfbf8;
+.actionBtn:focus-visible {
+  outline: 2px solid currentColor;
   outline-offset: 2px;
-}
-
-.actionIcon {
-  width: 20px;
-  height: 20px;
-}
-
-.empty {
-  font-size: var(--font-sm);
-  color: rgba(252, 251, 248, 0.74);
-  padding: var(--space-4);
 }

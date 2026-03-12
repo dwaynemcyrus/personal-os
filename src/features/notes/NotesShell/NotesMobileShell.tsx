@@ -12,16 +12,16 @@ export function NotesMobileShell() {
 
   const topLayer = stack[stack.length - 1];
 
+  // Note detail: no overflow:hidden wrappers — AppShell content area scrolls
+  if (topLayer?.view === 'note-detail') {
+    return <NoteDetailPage noteId={topLayer.noteId} />;
+  }
+
   return (
     <div className={styles.shell}>
       {topLayer?.view === 'notes-list' && (
         <div className={styles.page}>
           <NotesList group={topLayer.group} />
-        </div>
-      )}
-      {topLayer?.view === 'note-detail' && (
-        <div className={styles.page}>
-          <NoteDetailPage noteId={topLayer.noteId} />
         </div>
       )}
     </div>

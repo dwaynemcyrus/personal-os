@@ -16,7 +16,6 @@ import { searchKeymap } from '@codemirror/search';
 
 const baseTheme = EditorView.theme({
   '&': {
-    height: '100%',
     backgroundColor: 'transparent',
   },
   '&.cm-focused': {
@@ -27,13 +26,12 @@ const baseTheme = EditorView.theme({
       '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
     fontSize: '17px',
     lineHeight: '1.75',
-    overflow: 'auto',
+    overflow: 'visible',
   },
   '.cm-content': {
     padding: '20px 20px 120px',
     caretColor: 'var(--color-accent)',
     color: 'var(--color-ink)',
-    minHeight: '100%',
   },
   '.cm-line': {
     padding: '0',
@@ -57,7 +55,6 @@ type Props = {
   initialBody: string;
   onChange?: (value: string) => void;
   onBlur?: () => void;
-  onScrollPositionChange?: (scrollTop: number) => void;
   placeholder?: string;
   autoFocus?: boolean;
 };
@@ -66,7 +63,6 @@ export function CodeMirrorEditor({
   initialBody,
   onChange,
   onBlur,
-  onScrollPositionChange,
   placeholder: placeholderText,
   autoFocus = false,
 }: Props) {
@@ -74,11 +70,9 @@ export function CodeMirrorEditor({
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
-  const onScrollRef = useRef(onScrollPositionChange);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
-  useEffect(() => { onScrollRef.current = onScrollPositionChange; }, [onScrollPositionChange]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -95,10 +89,7 @@ export function CodeMirrorEditor({
         }
       }),
       EditorView.domEventHandlers({
-        blur: () => {
-          onBlurRef.current?.();
-          return false;
-        },
+        blur: () => { onBlurRef.current?.(); return false; },
       }),
     ];
 
@@ -108,17 +99,14 @@ export function CodeMirrorEditor({
     const view = new EditorView({ state, parent: containerRef.current });
     viewRef.current = view;
 
-    const handleScroll = () => onScrollRef.current?.(view.scrollDOM.scrollTop);
-    view.scrollDOM.addEventListener('scroll', handleScroll, { passive: true });
-
     if (autoFocus) requestAnimationFrame(() => view.focus());
 
     return () => {
-      view.scrollDOM.removeEventListener('scroll', handleScroll);
       view.destroy();
       viewRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <div ref={containerRef} className="h-full w-full overflow-hidden" />;
+  // Plain block div — the AppShell content area handles scrolling
+  return <div ref={containerRef} />;
 }

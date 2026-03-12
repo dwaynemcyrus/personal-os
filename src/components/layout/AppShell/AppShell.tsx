@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { HeaderSlotCtx, type HeaderSlot } from './HeaderSlot';
 import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
 import { ContextSheet } from '@/components/layout/ContextSheet/ContextSheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
@@ -85,11 +86,17 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
     stop,
   } = useTimer();
 
+  const [headerSlot, setHeaderSlotState] = useState<HeaderSlot>({});
+  const setSlot = useCallback((s: HeaderSlot) => setHeaderSlotState(s), []);
+
   const topLayer = stack[stack.length - 1];
   const isRoot = stack.length === 0;
-  const isNotesRoute = topLayer?.view.startsWith('note') ?? false;
+  const isNotesList = topLayer?.view === 'notes-list';
+  const isNoteDetail = topLayer?.view === 'note-detail';
+  const isNotesRoute = isNotesList || isNoteDetail;
   const isTasksRoute = topLayer?.view.startsWith('task') ?? false;
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
+  const hideTopbar = isNotesList || isTasksRoute;
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
@@ -226,12 +233,13 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   const portalTarget = hydrated ? document.body : null;
 
   return (
+    <HeaderSlotCtx.Provider value={{ setSlot }}>
     <>
       <ToastHost />
       <div className={styles['app-shell']}>
         <header
           className={`${styles['app-shell__topbar']} ${
-            isNotesRoute || isTasksRoute ? styles['app-shell__topbar--hidden'] : ''
+            hideTopbar ? styles['app-shell__topbar--hidden'] : ''
           }`}
         >
           <div className={styles['app-shell__topbar-left']}>
@@ -248,6 +256,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
           </div>
           <div className={styles['app-shell__topbar-title']} aria-hidden="true" />
           <div className={styles['app-shell__topbar-right']}>
+            {isNoteDetail && headerSlot.right}
             {showFocusChip ? (
               <button
                 type="button"
@@ -266,16 +275,17 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
             ) : null}
           </div>
         </header>
-        {!isNotesRoute && !isTasksRoute && (
+        {!hideTopbar && (
           <div className={styles['app-shell__topbar-spacer']} aria-hidden="true" />
         )}
 
         <main
-          className={`${styles['app-shell__content']} ${
-            isNotesRoute ? styles['app-shell__content--notes'] : ''
-          } ${
-            isTasksRoute ? styles['app-shell__content--tasks'] : ''
-          }`}
+          className={[
+            styles['app-shell__content'],
+            isNoteDetail   ? styles['app-shell__content--note-detail']  : '',
+            isNotesList    ? styles['app-shell__content--notes']         : '',
+            isTasksRoute   ? styles['app-shell__content--tasks']         : '',
+          ].filter(Boolean).join(' ')}
         >
           {children}
         </main>
@@ -339,6 +349,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
           portalTarget
         )}
     </>
+    </HeaderSlotCtx.Provider>
   );
 }
 
