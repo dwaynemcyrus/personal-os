@@ -87,6 +87,7 @@ export const itemSchema = z.object({
   depends_on: z.array(z.string().uuid()).readonly().nullable().optional(),
 
   // Note-specific
+  slug: z.string().nullable().optional(),
   inbox_at: z.string().nullable().optional(),
   subtype: z.string().nullable().optional(),
 
@@ -210,7 +211,7 @@ const baseRequired = [
 ] as const;
 
 const itemsRxSchema = {
-  version: 2,
+  version: 3,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -238,6 +239,7 @@ const itemsRxSchema = {
     depends_on: { type: ['array', 'null'], items: { type: 'string', maxLength: 36 } },
 
     // Note
+    slug: { type: ['string', 'null'] },
     inbox_at: { type: ['string', 'null'], maxLength: 32 },
     subtype: { type: ['string', 'null'] },
 
@@ -395,6 +397,8 @@ const itemsMigrationStrategies = {
   1: passthrough,
   // Version 2: removed sync_rev, added enum constraints and indexes.
   2: stripSyncRev,
+  // Version 3: added slug field (nullable, no backfill needed).
+  3: passthrough,
 };
 
 const itemLinksMigrationStrategies = {

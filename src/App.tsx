@@ -16,6 +16,7 @@ import { TaskList } from '@/features/tasks/TaskList/TaskList';
 import { PlansView } from '@/features/plans/PlansView';
 import { useDatabase } from '@/hooks/useDatabase';
 import type { ItemDocument } from '@/lib/db';
+import { generateSlug } from '@/lib/slug';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
 
@@ -114,6 +115,7 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         parent_id: null,
         title: nowTitle,
         content: `# ${nowTitle}\n`,
+        slug: generateSlug(nowTitle),
         inbox_at: null,
         subtype: nowNoteType,
         is_pinned: false,

@@ -12,6 +12,7 @@ import {
   formatRelativeTime,
 } from '../noteUtils';
 import { nowIso } from '@/lib/time';
+import { generateSlug } from '@/lib/slug';
 import { BackIcon, PlusIcon } from '@/components/ui/icons';
 import styles from './NotesList.module.css';
 
@@ -46,6 +47,7 @@ export function NotesList({ group }: NotesListProps) {
       type: 'note',
       parent_id: null,
       title: 'Untitled',
+      slug: generateSlug('Untitled'),
       content: '',
       inbox_at: null,
       subtype: null,

@@ -39,6 +39,7 @@ const collectionConfig = {
       'waiting_note',
       'waiting_started_at',
       'depends_on',
+      'slug',
       'inbox_at',
       'subtype',
       'url',

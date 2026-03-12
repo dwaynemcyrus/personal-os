@@ -13,6 +13,7 @@ import { saveVersion, shouldAutoSaveVersion } from '@/lib/versions';
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatRelativeTime } from '../noteUtils';
 import { parseFrontmatter } from '@/lib/markdown/frontmatter';
+import { generateSlug } from '@/lib/slug';
 import { useHeaderSlot } from '@/components/layout/AppShell/HeaderSlot';
 import styles from './NoteEditor.module.css';
 
@@ -30,6 +31,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [hasDuplicateTitle, setHasDuplicateTitle] = useState(false);
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
@@ -57,6 +59,17 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     };
   }, []);
 
+  // Warn when another note shares the same title (export filename collision)
+  useEffect(() => {
+    if (!db || !isReady || !note?.title) { setHasDuplicateTitle(false); return; }
+    const sub = db.items.find({
+      selector: { type: 'note', is_trashed: false, title: note.title },
+    }).$.subscribe((docs) => {
+      setHasDuplicateTitle(docs.some((d) => d.id !== note.id));
+    });
+    return () => sub.unsubscribe();
+  }, [db, isReady, note?.title, note?.id]);
+
   const handleDelete = useCallback(async () => {
     if (!db || !note) return;
     const doc = await db.items.findOne(note.id).exec();
@@ -79,10 +92,20 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     if (nextContent === lastSavedContentRef.current) { setIsDirty(false); return; }
     const doc = await db.items.findOne(noteId).exec();
     if (!doc) return;
-    const title = extractNoteTitle(nextContent, note?.title);
     const fm = parseFrontmatter(nextContent);
     const fmProps = fm.properties ?? {};
-    const fmPatch: Partial<ItemDocument> = {};
+
+    // Frontmatter title: takes priority over extracted heading
+    const title = typeof fmProps.title === 'string' && fmProps.title.trim()
+      ? fmProps.title.trim()
+      : extractNoteTitle(nextContent, note?.title);
+
+    // Slug: frontmatter slug: → keep existing → generate from title (one-time init)
+    const slug = typeof fmProps.slug === 'string' && fmProps.slug.trim()
+      ? fmProps.slug.trim()
+      : (note?.slug ?? generateSlug(title));
+
+    const fmPatch: Partial<ItemDocument> = { slug };
     if ('tags' in fmProps) fmPatch.tags = Array.isArray(fmProps.tags) ? fmProps.tags as string[] : undefined;
     if ('due_date' in fmProps) fmPatch.due_date = typeof fmProps.due_date === 'string' ? fmProps.due_date : null;
     if ('start_date' in fmProps) fmPatch.start_date = typeof fmProps.start_date === 'string' ? fmProps.start_date : null;
@@ -152,13 +175,20 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   }
 
   return (
-    <CodeMirrorEditor
-      initialBody={content}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      placeholder="Start writing…"
-      autoFocus
-    />
+    <>
+      {hasDuplicateTitle && (
+        <p className={styles.duplicateWarning}>
+          Another note shares this title — export filenames may conflict.
+        </p>
+      )}
+      <CodeMirrorEditor
+        initialBody={content}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder="Start writing…"
+        autoFocus
+      />
+    </>
   );
 }
 

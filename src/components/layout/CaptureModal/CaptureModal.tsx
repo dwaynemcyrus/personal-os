@@ -19,6 +19,7 @@ import {
   formatNoteTitle,
   formatRelativeTime,
 } from '@/features/notes/noteUtils';
+import { generateSlug } from '@/lib/slug';
 import styles from './CaptureModal.module.css';
 
 type CaptureModalProps = {
@@ -122,11 +123,13 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
 
     // Insert note first so the FK constraint (capture.result_id → items.id) is
     // satisfied when the sync layer pushes both records to Supabase.
+    const noteTitle = extractTitleFromFirstLine(trimmedText);
     await db.items.insert({
       id: noteId,
       type: 'note',
       parent_id: null,
-      title: extractTitleFromFirstLine(trimmedText),
+      title: noteTitle,
+      slug: generateSlug(noteTitle),
       content: trimmedText,
       inbox_at: timestamp,
       subtype: 'capture',
