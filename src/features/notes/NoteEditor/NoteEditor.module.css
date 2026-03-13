@@ -30,3 +30,84 @@
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+
+.sheet {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sheetTitle {
+  padding: 16px 20px 12px;
+  font-size: var(--font-sm);
+  color: var(--color-ink);
+  border-bottom: 1px solid var(--color-border-200);
+  margin: 0;
+}
+
+.sheetList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
+.sheetItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-200);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheetItem:active {
+  background: var(--color-border-200);
+}
+
+.sheetItemTitle {
+  font-size: var(--font-sm);
+  color: var(--color-ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheetItemMeta {
+  font-size: var(--font-xs, 12px);
+  color: var(--color-ink-500);
+  flex-shrink: 0;
+}
+
+.sheetActions {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  justify-content: flex-end;
+}
+
+.sheetBtnCancel {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-200);
+  background: transparent;
+  color: var(--color-ink);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.sheetBtnCreate {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  cursor: pointer;
+}

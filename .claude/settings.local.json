@@ -86,7 +86,8 @@
       "Bash(npm list:*)",
       "Bash(brew info:*)",
       "Bash(ps -p 7999,99609,99758 -o pid,command)",
-      "Bash(kill 7999 99609 99758)"
+      "Bash(kill 7999 99609 99758)",
+      "Bash(find /Users/cyrus/Code/personal-os/src/components/providers -type f 2>/dev/null || find /Users/cyrus/Code/personal-os/src -name \"providers*\" -type f 2>/dev/null | head -20)"
     ]
   }
 }
