@@ -21,6 +21,7 @@
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-visually-hidden": "^1.2.4",
     "@supabase/supabase-js": "^2.99.1",
+    "fflate": "^0.8.2",
     "framer-motion": "^12.29.2",
     "lucide-react": "^0.577.0",
     "mermaid": "^11.12.2",

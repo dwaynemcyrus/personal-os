@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from '@/components/ui/Sheet';
 import { CloseIcon, GearIcon } from '@/components/ui/icons';
+import { SettingsSheet } from '@/features/settings/SettingsSheet';
 import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
 import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
 import { TaskList } from '@/features/tasks/TaskList/TaskList';
@@ -45,29 +46,6 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const handleRefreshAndSync = async () => {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
-    if ('databases' in indexedDB) {
-      const dbs = await (indexedDB as typeof indexedDB & { databases: () => Promise<{ name?: string }[]> }).databases();
-      await Promise.all(
-        dbs
-          .filter((d) => d.name?.includes('personalos'))
-          .map((d) => new Promise<void>((resolve) => {
-            const req = indexedDB.deleteDatabase(d.name!);
-            req.onsuccess = () => resolve();
-            req.onerror = () => resolve();
-          }))
-      );
-    }
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((r) => r.unregister()));
-    }
-    window.location.reload();
-  };
 
 
   const today = useTodayDate();
@@ -315,28 +293,7 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <SheetContent side="bottom" className={styles.workbenchSheet} aria-label="Settings">
-          <header className={styles.workbenchSheetHeader}>
-            <SheetTitle className={styles.workbenchSheetTitle}>Settings</SheetTitle>
-            <SheetClose asChild>
-              <button type="button" className={styles.workbenchClose} aria-label="Close settings">
-                <CloseIcon className={styles.workbenchCloseIcon} />
-              </button>
-            </SheetClose>
-          </header>
-          <div className={styles.settingsSection}>
-            <div className={styles.settingsSectionLabel}>Sync</div>
-            <button
-              type="button"
-              className={styles.settingsRow}
-              onClick={handleRefreshAndSync}
-            >
-              Refresh &amp; Sync
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <SettingsSheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
     </section>
   );
