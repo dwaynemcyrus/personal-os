@@ -1,18 +1,18 @@
 import { unzipSync } from 'fflate';
 import { v4 as uuidv4 } from 'uuid';
-import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections, ItemPriority } from './db';
+import type { AbstractPowerSyncDatabase } from '@powersync/web';
 import { parseFrontmatter } from './markdown/frontmatter';
 import { extractNoteTitle } from '../features/notes/noteUtils';
 import { generateSlug } from './slug';
+import { insertItem } from './db';
 import { nowIso } from './time';
 
-const VALID_PRIORITIES = new Set<string>(['low', 'medium', 'high', 'urgent']);
+const VALID_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
 
 export type ImportResult = { imported: number; skipped: number };
 
 async function processMarkdown(
-  db: RxDatabase<DatabaseCollections>,
+  db: AbstractPowerSyncDatabase,
   filename: string,
   content: string
 ): Promise<'imported' | 'skipped'> {
@@ -24,33 +24,31 @@ async function processMarkdown(
       ? fmProps.title.trim()
       : extractNoteTitle(content, undefined);
 
-  const slugFromFile = filename
-    .replace(/\.md$/, '')
-    .split('/')
-    .pop() ?? 'untitled';
-  const slug =
-    typeof fmProps.slug === 'string' && fmProps.slug.trim()
-      ? fmProps.slug.trim()
-      : slugFromFile;
+  const filenameFromFile = filename.replace(/\.md$/, '').split('/').pop() ?? 'untitled';
+  const resolvedFilename =
+    typeof fmProps.filename === 'string' && fmProps.filename.trim()
+      ? fmProps.filename.trim()
+      : filenameFromFile;
 
-  // Skip if a non-trashed note with this slug already exists
-  const existing = await db.items
-    .find({ selector: { slug, is_trashed: false } })
-    .exec();
+  // Skip if a note with this filename already exists
+  const existing = await db.getAll(
+    'SELECT id FROM items WHERE filename = ? AND is_trashed = 0 LIMIT 1',
+    [resolvedFilename]
+  );
   if (existing.length > 0) return 'skipped';
 
   const timestamp = nowIso();
-  const rawPriority =
+  const priority =
     typeof fmProps.priority === 'string' && VALID_PRIORITIES.has(fmProps.priority)
-      ? (fmProps.priority as ItemPriority)
+      ? fmProps.priority
       : null;
 
-  await db.items.insert({
+  await insertItem(db, {
     id: uuidv4(),
     type: 'note',
     parent_id: null,
     title,
-    slug,
+    filename: resolvedFilename,
     content,
     inbox_at: null,
     subtype: null,
@@ -58,10 +56,10 @@ async function processMarkdown(
     item_status: 'backlog',
     tags: Array.isArray(fmProps.tags)
       ? (fmProps.tags as unknown[]).filter((t): t is string => typeof t === 'string')
-      : undefined,
+      : null,
     due_date: typeof fmProps.due_date === 'string' ? fmProps.due_date : null,
     start_date: typeof fmProps.start_date === 'string' ? fmProps.start_date : null,
-    priority: rawPriority,
+    priority,
     completed: false,
     is_next: false,
     is_someday: false,
@@ -69,15 +67,13 @@ async function processMarkdown(
     processed: false,
     created_at: timestamp,
     updated_at: timestamp,
-    is_trashed: false,
-    trashed_at: null,
   });
 
   return 'imported';
 }
 
 export async function importNotesFromFiles(
-  db: RxDatabase<DatabaseCollections>,
+  db: AbstractPowerSyncDatabase,
   files: File[]
 ): Promise<ImportResult> {
   let imported = 0;

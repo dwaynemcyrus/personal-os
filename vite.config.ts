@@ -54,6 +54,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Required for PowerSync (SharedArrayBuffer + WASM workers)
+  optimizeDeps: {
+    exclude: ['@powersync/web'],
+  },
+  worker: {
+    format: 'es',
+  },
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

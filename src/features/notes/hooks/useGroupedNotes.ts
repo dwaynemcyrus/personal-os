@@ -1,65 +1,65 @@
-import { useEffect, useState } from 'react';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument } from '@/lib/db';
+import { useQuery } from '@powersync/react';
+import type { ItemRow } from '@/lib/db';
 import { isTodayNote } from '../noteUtils';
 
 export type NoteGroup = 'all' | 'todo' | 'today' | 'locked' | 'pinned' | 'trash';
 
-function getTodayIso() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+function buildQuery(group: NoteGroup): { sql: string; params: unknown[] } {
+  if (group === 'locked') {
+    return { sql: 'SELECT * FROM items WHERE 0', params: [] };
+  }
+  if (group === 'trash') {
+    return {
+      sql: `SELECT * FROM items WHERE type = 'note' AND is_trashed = 1
+            ORDER BY updated_at DESC`,
+      params: [],
+    };
+  }
+  if (group === 'pinned') {
+    return {
+      sql: `SELECT * FROM items WHERE type = 'note' AND is_pinned = 1
+            AND is_trashed = 0 AND inbox_at IS NULL
+            ORDER BY updated_at DESC`,
+      params: [],
+    };
+  }
+  if (group === 'today') {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    return {
+      sql: `SELECT * FROM items WHERE type = 'note' AND is_trashed = 0
+            AND inbox_at IS NULL AND updated_at >= ?
+            ORDER BY updated_at DESC`,
+      params: [todayIso],
+    };
+  }
+  if (group === 'todo') {
+    return {
+      sql: `SELECT * FROM items WHERE type = 'note' AND is_trashed = 0
+            AND inbox_at IS NULL AND content LIKE '%- [ ]%'
+            ORDER BY is_pinned DESC, updated_at DESC`,
+      params: [],
+    };
+  }
+  // 'all'
+  return {
+    sql: `SELECT * FROM items WHERE type = 'note' AND is_trashed = 0
+          AND inbox_at IS NULL
+          ORDER BY is_pinned DESC, updated_at DESC`,
+    params: [],
+  };
 }
 
 export function useGroupedNotes(group: NoteGroup): {
-  notes: ItemDocument[];
+  notes: ItemRow[];
   isLoading: boolean;
 } {
-  const { db, isReady } = useDatabase();
-  const [notes, setNotes] = useState<ItemDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { sql, params } = buildQuery(group);
+  const { data, isLoading } = useQuery<ItemRow>(sql, params);
 
-  useEffect(() => {
-    if (!db || !isReady) return;
-
-    if (group === 'locked') {
-      setNotes([]);
-      setIsLoading(false);
-      return;
-    }
-
-    const baseActive = { type: 'note' as const, is_trashed: false, inbox_at: null };
-
-    const selector =
-      group === 'trash'
-        ? { type: 'note' as const, is_trashed: true }
-        : group === 'pinned'
-          ? { type: 'note' as const, is_pinned: true, is_trashed: false, inbox_at: null }
-          : group === 'today'
-            ? { ...baseActive, updated_at: { $gte: getTodayIso() } }
-            : group === 'todo'
-              ? { ...baseActive, content: { $regex: '- \\[ \\]' } }
-              : baseActive;
-
-    const subscription = db.items
-      .find({
-        selector,
-        sort: [{ is_pinned: 'desc' }, { updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        let result = docs.map((doc) => doc.toJSON() as ItemDocument);
-
-        // 'today' pre-filter narrows by updated_at but also needs created_at check
-        if (group === 'today') {
-          result = result.filter(isTodayNote);
-        }
-
-        setNotes(result);
-        setIsLoading(false);
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady, group]);
+  let notes = data;
+  if (group === 'today') {
+    notes = data.filter(isTodayNote);
+  }
 
   return { notes, isLoading };
 }

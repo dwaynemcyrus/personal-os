@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useDatabase } from '@/hooks/useDatabase';
+import { usePowerSync } from '@powersync/react';
 import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
 import { useGroupedNotes } from '../hooks/useGroupedNotes';
@@ -13,6 +13,7 @@ import {
 } from '../noteUtils';
 import { nowIso } from '@/lib/time';
 import { generateSlug } from '@/lib/slug';
+import { insertItem } from '@/lib/db';
 import { BackIcon, PlusIcon } from '@/components/ui/icons';
 import styles from './NotesList.module.css';
 
@@ -30,7 +31,7 @@ type NotesListProps = {
 };
 
 export function NotesList({ group }: NotesListProps) {
-  const { db, isReady } = useDatabase();
+  const db = usePowerSync();
   const { pushLayer, goBack } = useNavigationActions();
   const { notes, isLoading } = useGroupedNotes(group);
 
@@ -39,15 +40,14 @@ export function NotesList({ group }: NotesListProps) {
   };
 
   const handleCreateNote = async () => {
-    if (!db) return;
     const timestamp = nowIso();
     const noteId = uuidv4();
-    await db.items.insert({
+    await insertItem(db, {
       id: noteId,
       type: 'note',
       parent_id: null,
       title: 'Untitled',
-      slug: generateSlug('Untitled'),
+      filename: generateSlug('Untitled'),
       content: '',
       inbox_at: null,
       subtype: null,
@@ -60,8 +60,6 @@ export function NotesList({ group }: NotesListProps) {
       processed: false,
       created_at: timestamp,
       updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
     });
     pushLayer({ view: 'note-detail', noteId });
   };
@@ -92,7 +90,6 @@ export function NotesList({ group }: NotesListProps) {
             type="button"
             className={styles.newButton}
             onClick={handleCreateNote}
-            disabled={!db || !isReady}
             aria-label="New note"
           >
             <PlusIcon />
@@ -137,4 +134,3 @@ export function NotesList({ group }: NotesListProps) {
     </div>
   );
 }
-

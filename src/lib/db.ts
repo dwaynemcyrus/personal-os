@@ -1,514 +1,344 @@
-import { createRxDatabase, addRxPlugin, RxCollection, RxDatabase } from 'rxdb';
-import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
-import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
-import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
-import { wrappedValidateZSchemaStorage } from 'rxdb/plugins/validate-z-schema';
-import { z } from 'zod';
+// ── Row types (what PowerSync / SQLite returns) ───────────────────────────────
+// Booleans are 0|1 integers. Arrays are JSON strings.
 
-addRxPlugin(RxDBMigrationSchemaPlugin);
-
-// Only in development
-if (import.meta.env.DEV) {
-  disableWarnings();
-  addRxPlugin(RxDBDevModePlugin);
-}
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-export const itemTypes = [
-  'area',
-  'plan',
-  'objective',
-  'key_result',
-  'project',
-  'task',
-  'note',
-  'capture',
-  'source',
-  'habit',
-  'habit_entry',
-  'template',
-] as const;
-
-export const itemStatuses = [
-  'inbox',
-  'active',
-  'backlog',
-  'someday',
-  'complete',
-  'archived',
-] as const;
-
-export const itemPriorities = ['low', 'medium', 'high', 'urgent'] as const;
-
-export const contentTypes = ['audio', 'video', 'text', 'live'] as const;
-
-export const readStatuses = ['inbox', 'reading', 'read'] as const;
-
-export const habitFrequencies = ['daily', 'weekdays', 'weekly'] as const;
-
-export const captureSources = ['quick', 'voice', 'email'] as const;
-
-// ── Zod schemas ───────────────────────────────────────────────────────────────
-
-const baseFields = {
-  id: z.string().uuid(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  is_trashed: z.boolean(),
-  trashed_at: z.string().nullable().optional(),
-  // Sync fields
-  owner: z.string().uuid().nullable().optional(),
-  device_id: z.string().nullable().optional(),
+export type ItemRow = {
+  id: string;
+  type: string;
+  parent_id: string | null;
+  title: string | null;
+  content: string | null;
+  tags: string | null;
+  is_pinned: number;
+  item_status: string;
+  priority: string | null;
+  due_date: string | null;
+  start_date: string | null;
+  completed: number;
+  is_next: number;
+  is_someday: number;
+  is_waiting: number;
+  waiting_note: string | null;
+  waiting_started_at: string | null;
+  depends_on: string | null;
+  filename: string | null;
+  inbox_at: string | null;
+  subtype: string | null;
+  url: string | null;
+  content_type: string | null;
+  read_status: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  progress: number | null;
+  frequency: string | null;
+  target: number | null;
+  active: number | null;
+  streak: number | null;
+  last_completed_at: string | null;
+  body: string | null;
+  capture_source: string | null;
+  processed: number;
+  processed_at: string | null;
+  result_type: string | null;
+  result_id: string | null;
+  description: string | null;
+  category: string | null;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+  is_trashed: number;
+  trashed_at: string | null;
+  owner: string | null;
 };
 
-export const itemSchema = z.object({
-  ...baseFields,
-  type: z.enum(itemTypes),
-  parent_id: z.string().uuid().nullable(),
+export type ItemLinkRow = {
+  id: string;
+  source_id: string;
+  target_id: string | null;
+  target_title: string;
+  header: string | null;
+  alias: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  is_trashed: number;
+  trashed_at: string | null;
+  owner: string | null;
+};
 
-  // Common
-  title: z.string().nullable().optional(),
-  content: z.string().nullable().optional(),
-  tags: z.array(z.string()).readonly().optional(),
-  is_pinned: z.boolean(),
-  item_status: z.enum(itemStatuses),
-  priority: z.enum(itemPriorities).nullable().optional(),
+export type ItemVersionRow = {
+  id: string;
+  item_id: string;
+  content: string | null;
+  properties: string | null;
+  version_number: number;
+  created_by: string;
+  change_summary: string | null;
+  created_at: string;
+  updated_at: string;
+  is_trashed: number;
+  trashed_at: string | null;
+  owner: string | null;
+};
 
-  // Scheduling (tasks, projects)
-  due_date: z.string().nullable().optional(),
-  start_date: z.string().nullable().optional(),
-  completed: z.boolean(),
-  is_next: z.boolean(),
-  is_someday: z.boolean(),
-  is_waiting: z.boolean(),
-  waiting_note: z.string().nullable().optional(),
-  waiting_started_at: z.string().nullable().optional(),
-  depends_on: z.array(z.string().uuid()).readonly().nullable().optional(),
+// ── Value helpers ─────────────────────────────────────────────────────────────
 
-  // Note-specific
-  slug: z.string().nullable().optional(),
-  inbox_at: z.string().nullable().optional(),
-  subtype: z.string().nullable().optional(),
+/** Convert SQLite integer boolean to JS boolean */
+export function bool(v: number | null | undefined): boolean {
+  return v === 1;
+}
 
-  // Source-specific
-  url: z.string().nullable().optional(),
-  content_type: z.enum(contentTypes).nullable().optional(),
-  read_status: z.enum(readStatuses).nullable().optional(),
+/** Parse a JSON array stored as text */
+export function parseTags(v: string | null | undefined): string[] {
+  if (!v) return [];
+  try { return JSON.parse(v) as string[]; } catch { return []; }
+}
 
-  // OKR / planning
-  period_start: z.string().nullable().optional(),
-  period_end: z.string().nullable().optional(),
-  progress: z.number().int().min(0).max(100).nullable().optional(),
+/** Serialize tags array to JSON string for SQLite storage */
+export function serializeTags(tags: string[] | null | undefined): string | null {
+  if (!tags || tags.length === 0) return null;
+  return JSON.stringify(tags);
+}
 
-  // Habit
-  frequency: z.enum(habitFrequencies).nullable().optional(),
-  target: z.number().int().positive().nullable().optional(),
-  active: z.boolean().nullable().optional(),
-  streak: z.number().int().nonnegative().nullable().optional(),
-  last_completed_at: z.string().nullable().optional(),
+// ── Current user ─────────────────────────────────────────────────────────────
 
-  // Capture
-  body: z.string().nullable().optional(),
-  capture_source: z.enum(captureSources).nullable().optional(),
-  processed: z.boolean(),
-  processed_at: z.string().nullable().optional(),
-  result_type: z.string().nullable().optional(),
-  result_id: z.string().uuid().nullable().optional(),
+import { supabase } from './supabase';
 
-  // Template
-  description: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-  sort_order: z.number().int().nonnegative().nullable().optional(),
-});
+export async function getCurrentUserId(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
+}
 
-export const itemLinkSchema = z.object({
-  ...baseFields,
-  source_id: z.string().uuid(),
-  target_id: z.string().uuid().nullable(),
-  target_title: z.string(),
-  header: z.string().nullable(),
-  alias: z.string().nullable(),
-  position: z.number().int().nonnegative(),
-});
+// ── Item INSERT helper ────────────────────────────────────────────────────────
 
-export const itemVersionSchema = z.object({
-  ...baseFields,
-  item_id: z.string().uuid(),
-  content: z.string().nullable(),
-  properties: z.record(z.string(), z.unknown()).nullable(),
-  version_number: z.number().int().positive(),
-  created_by: z.enum(['auto', 'manual']),
-  change_summary: z.string().nullable(),
-});
+import type { AbstractPowerSyncDatabase } from '@powersync/web';
 
-const timeEntryTypes = ['planned', 'unplanned'] as const;
+export type TimeEntryRow = {
+  id: string;
+  item_id: string | null;
+  session_id: string | null;
+  entry_type: string;
+  label: string | null;
+  label_normalized: string | null;
+  started_at: string;
+  stopped_at: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+  is_trashed: number;
+  trashed_at: string | null;
+  owner: string | null;
+};
 
-const normalizeLabel = (value: string) => value.trim().toLowerCase();
+export type TimeEntryDocument = TimeEntryRow;
 
-export const timeEntrySchema = z.object({
-  ...baseFields,
-  item_id: z.string().uuid().nullable(),
-  session_id: z.string().uuid().nullable(),
-  entry_type: z.enum(timeEntryTypes),
-  label: z.string().nullable(),
-  label_normalized: z.string().nullable(),
-  started_at: z.string(),
-  stopped_at: z.string().nullable(),
-  duration_seconds: z.number().int().nonnegative().nullable(),
-}).superRefine((value, ctx) => {
-  if (value.entry_type === 'unplanned') {
-    if (!value.label?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Unplanned entries require a label.',
-        path: ['label'],
-      });
-    }
-    if (!value.label_normalized?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Unplanned entries require a normalized label.',
-        path: ['label_normalized'],
-      });
-    }
-    if (
-      value.label &&
-      value.label_normalized &&
-      value.label_normalized !== normalizeLabel(value.label)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Normalized label must match the label.',
-        path: ['label_normalized'],
-      });
+export type NewItem = {
+  id: string;
+  type: string;
+  parent_id?: string | null;
+  title?: string | null;
+  content?: string | null;
+  tags?: string[] | null;
+  is_pinned?: boolean;
+  item_status: string;
+  priority?: string | null;
+  due_date?: string | null;
+  start_date?: string | null;
+  completed?: boolean;
+  is_next?: boolean;
+  is_someday?: boolean;
+  is_waiting?: boolean;
+  filename?: string | null;
+  inbox_at?: string | null;
+  subtype?: string | null;
+  url?: string | null;
+  content_type?: string | null;
+  read_status?: string | null;
+  body?: string | null;
+  capture_source?: string | null;
+  processed?: boolean;
+  processed_at?: string | null;
+  result_type?: string | null;
+  result_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function insertItem(db: AbstractPowerSyncDatabase, item: NewItem): Promise<void> {
+  const owner = await getCurrentUserId();
+  await db.execute(
+    `INSERT INTO items (
+      id, type, parent_id, title, content, tags, is_pinned, item_status, priority,
+      due_date, start_date, completed, is_next, is_someday, is_waiting,
+      filename, inbox_at, subtype, url, content_type, read_status,
+      body, capture_source, processed,
+      processed_at, result_type, result_id,
+      created_at, updated_at, is_trashed, trashed_at, owner
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, 0, NULL, ?
+    )`,
+    [
+      item.id, item.type, item.parent_id ?? null,
+      item.title ?? null, item.content ?? null,
+      serializeTags(item.tags),
+      item.is_pinned ? 1 : 0,
+      item.item_status,
+      item.priority ?? null,
+      item.due_date ?? null, item.start_date ?? null,
+      item.completed ? 1 : 0,
+      item.is_next ? 1 : 0,
+      item.is_someday ? 1 : 0,
+      item.is_waiting ? 1 : 0,
+      item.filename ?? null,
+      item.inbox_at ?? null,
+      item.subtype ?? null,
+      item.url ?? null,
+      item.content_type ?? null,
+      item.read_status ?? null,
+      item.body ?? null,
+      item.capture_source ?? null,
+      item.processed ? 1 : 0,
+      item.processed_at ?? null,
+      item.result_type ?? null,
+      item.result_id ?? null,
+      item.created_at, item.updated_at,
+      owner,
+    ]
+  );
+}
+
+// ── Item PATCH helper ─────────────────────────────────────────────────────────
+
+type ScalarValue = string | number | boolean | null | undefined;
+
+type ItemPatch = {
+  title?: string | null;
+  content?: string | null;
+  tags?: string[] | null;
+  is_pinned?: boolean;
+  item_status?: string;
+  priority?: string | null;
+  due_date?: string | null;
+  start_date?: string | null;
+  completed?: boolean;
+  is_next?: boolean;
+  is_someday?: boolean;
+  is_waiting?: boolean;
+  waiting_note?: string | null;
+  filename?: string | null;
+  inbox_at?: string | null;
+  subtype?: string | null;
+  url?: string | null;
+  content_type?: string | null;
+  read_status?: string | null;
+  is_trashed?: boolean;
+  trashed_at?: string | null;
+  processed?: boolean;
+  processed_at?: string | null;
+  result_type?: string | null;
+  result_id?: string | null;
+  parent_id?: string | null;
+  description?: string | null;
+  updated_at?: string;
+};
+
+export async function patchItem(db: AbstractPowerSyncDatabase, id: string, patch: ItemPatch): Promise<void> {
+  const entries = Object.entries(patch) as [keyof ItemPatch, ScalarValue | string[]][];
+  if (entries.length === 0) return;
+
+  const sets: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  for (const [key, val] of entries) {
+    sets.push(`${key} = ?`);
+    if (key === 'tags') {
+      values.push(serializeTags(val as string[] | null));
+    } else if (typeof val === 'boolean') {
+      values.push(val ? 1 : 0);
+    } else {
+      values.push((val as string | number | null | undefined) ?? null);
     }
   }
-});
 
-export const tagSchema = z.object({
-  ...baseFields,
-  name: z.string(),
-});
-
-// ── JSON schemas (RxDB) ───────────────────────────────────────────────────────
-
-const baseProperties = {
-  id: { type: 'string', maxLength: 36 },
-  created_at: { type: 'string', format: 'date-time', maxLength: 32 },
-  updated_at: { type: 'string', format: 'date-time', maxLength: 32 },
-  is_trashed: { type: 'boolean' },
-  trashed_at: { type: ['string', 'null'], format: 'date-time' },
-  owner: { type: ['string', 'null'], maxLength: 36 },
-  device_id: { type: ['string', 'null'] },
-} as const;
-
-const baseRequired = [
-  'id',
-  'created_at',
-  'updated_at',
-  'is_trashed',
-] as const;
-
-const itemsRxSchema = {
-  version: 3,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    type: { type: 'string', maxLength: 20, enum: itemTypes },
-    parent_id: { type: ['string', 'null'], maxLength: 36 },
-
-    // Common
-    title: { type: ['string', 'null'] },
-    content: { type: ['string', 'null'] },
-    tags: { type: 'array', items: { type: 'string' } },
-    is_pinned: { type: 'boolean' },
-    item_status: { type: 'string', enum: itemStatuses },
-    priority: { type: ['string', 'null'], enum: [...itemPriorities, null] },
-
-    // Scheduling
-    due_date: { type: ['string', 'null'] },
-    start_date: { type: ['string', 'null'] },
-    completed: { type: 'boolean' },
-    is_next: { type: 'boolean' },
-    is_someday: { type: 'boolean' },
-    is_waiting: { type: 'boolean' },
-    waiting_note: { type: ['string', 'null'] },
-    waiting_started_at: { type: ['string', 'null'] },
-    depends_on: { type: ['array', 'null'], items: { type: 'string', maxLength: 36 } },
-
-    // Note
-    slug: { type: ['string', 'null'] },
-    inbox_at: { type: ['string', 'null'], maxLength: 32 },
-    subtype: { type: ['string', 'null'] },
-
-    // Source
-    url: { type: ['string', 'null'] },
-    content_type: { type: ['string', 'null'], enum: [...contentTypes, null] },
-    read_status: { type: ['string', 'null'], enum: [...readStatuses, null] },
-
-    // OKR / planning
-    period_start: { type: ['string', 'null'] },
-    period_end: { type: ['string', 'null'] },
-    progress: { type: ['number', 'null'] },
-
-    // Habit
-    frequency: { type: ['string', 'null'], enum: [...habitFrequencies, null] },
-    target: { type: ['number', 'null'] },
-    active: { type: ['boolean', 'null'] },
-    streak: { type: ['number', 'null'] },
-    last_completed_at: { type: ['string', 'null'] },
-
-    // Capture
-    body: { type: ['string', 'null'] },
-    capture_source: { type: ['string', 'null'], enum: [...captureSources, null] },
-    processed: { type: 'boolean' },
-    processed_at: { type: ['string', 'null'] },
-    result_type: { type: ['string', 'null'] },
-    result_id: { type: ['string', 'null'], maxLength: 36 },
-
-    // Template
-    description: { type: ['string', 'null'] },
-    category: { type: ['string', 'null'] },
-    sort_order: { type: ['number', 'null'] },
-  },
-  required: [
-    ...baseRequired,
-    'type',
-    'parent_id',
-    'is_pinned',
-    'item_status',
-    'completed',
-    'is_next',
-    'is_someday',
-    'is_waiting',
-    'processed',
-  ],
-  indexes: [
-    'type',
-    ['type', 'is_trashed'],
-    ['type', 'is_trashed', 'updated_at'],
-  ],
-};
-
-const itemLinksRxSchema = {
-  version: 2,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    source_id: { type: 'string', maxLength: 36 },
-    target_id: { type: ['string', 'null'], maxLength: 36 },
-    target_title: { type: 'string' },
-    header: { type: ['string', 'null'] },
-    alias: { type: ['string', 'null'] },
-    position: { type: 'number' },
-  },
-  required: [
-    ...baseRequired,
-    'source_id',
-    'target_id',
-    'target_title',
-    'header',
-    'alias',
-    'position',
-  ],
-  indexes: ['source_id'],
-};
-
-const itemVersionsRxSchema = {
-  version: 2,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    item_id: { type: 'string', maxLength: 36 },
-    content: { type: ['string', 'null'] },
-    properties: { type: ['object', 'null'] },
-    version_number: { type: 'number' },
-    created_by: { type: 'string', enum: ['auto', 'manual'] },
-    change_summary: { type: ['string', 'null'] },
-  },
-  required: [
-    ...baseRequired,
-    'item_id',
-    'content',
-    'properties',
-    'version_number',
-    'created_by',
-    'change_summary',
-  ],
-  indexes: ['item_id'],
-};
-
-const timeEntriesRxSchema = {
-  version: 6,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    item_id: { type: ['string', 'null'], maxLength: 36 },
-    session_id: { type: ['string', 'null'], maxLength: 36 },
-    entry_type: { type: 'string', enum: timeEntryTypes },
-    label: { type: ['string', 'null'] },
-    label_normalized: { type: ['string', 'null'] },
-    started_at: { type: 'string', format: 'date-time' },
-    stopped_at: { type: ['string', 'null'], format: 'date-time' },
-    duration_seconds: { type: ['number', 'null'] },
-  },
-  required: [
-    ...baseRequired,
-    'item_id',
-    'session_id',
-    'entry_type',
-    'label',
-    'label_normalized',
-    'started_at',
-    'stopped_at',
-    'duration_seconds',
-  ],
-};
-
-const tagsRxSchema = {
-  version: 2,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    ...baseProperties,
-    name: { type: 'string' },
-  },
-  required: [...baseRequired, 'name'],
-};
-
-// ── Migration strategies ───────────────────────────────────────────────────────
-
-// Strips sync_rev field removed when schema consolidated to items table.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function stripSyncRev({ sync_rev, ...rest }: Record<string, unknown>) {
-  return rest;
+  await db.execute(
+    `UPDATE items SET ${sets.join(', ')} WHERE id = ?`,
+    [...values, id]
+  );
 }
 
-// Identity pass-through — required by RxDB dev-mode to fill the gap between
-// the first schema version and the current one for collections that skipped v0.
-const passthrough = (oldDoc: Record<string, unknown>) => ({ ...oldDoc });
+// ── Item link helpers ─────────────────────────────────────────────────────────
 
-const itemsMigrationStrategies = {
-  1: passthrough,
-  // Version 2: removed sync_rev, added enum constraints and indexes.
-  2: stripSyncRev,
-  // Version 3: added slug field (nullable, no backfill needed).
-  3: passthrough,
+export type NewItemLink = {
+  id: string;
+  source_id: string;
+  target_id: string | null;
+  target_title: string;
+  header: string | null;
+  alias: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
 };
 
-const itemLinksMigrationStrategies = {
-  1: passthrough,
-  // Version 2: removed sync_rev, added maxLength to timestamps.
-  2: stripSyncRev,
-};
-
-const itemVersionsMigrationStrategies = {
-  1: passthrough,
-  // Version 2: removed sync_rev, added maxLength to timestamps.
-  2: stripSyncRev,
-};
-
-function migrateSyncV2Fields(oldDoc: Record<string, unknown>) {
-  return {
-    ...oldDoc,
-    owner: null,
-    device_id: null,
-  };
+export async function insertItemLink(db: AbstractPowerSyncDatabase, link: NewItemLink): Promise<void> {
+  const owner = await getCurrentUserId();
+  await db.execute(
+    `INSERT INTO item_links (
+      id, source_id, target_id, target_title, header, alias, position,
+      created_at, updated_at, is_trashed, trashed_at, owner
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
+    [
+      link.id, link.source_id, link.target_id,
+      link.target_title, link.header, link.alias, link.position,
+      link.created_at, link.updated_at,
+      owner,
+    ]
+  );
 }
 
-const timeEntriesMigrationStrategies = {
-  // Versions 1–4 handled old task_id schema; all data is discarded on fresh installs.
-  // Version 5 renames task_id → item_id and adds sync v2 fields.
-  1: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
-  2: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
-  3: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
-  4: (oldDoc: Record<string, unknown>) => ({ ...oldDoc }),
-  5: (oldDoc: Record<string, unknown>) => {
-    const { task_id, ...rest } = oldDoc;
-    return migrateSyncV2Fields({
-      ...rest,
-      item_id: task_id ?? null,
-    });
-  },
-  // Version 6: removed sync_rev, added maxLength to timestamps.
-  6: stripSyncRev,
+// ── Item version helpers ──────────────────────────────────────────────────────
+
+export type NewItemVersion = {
+  id: string;
+  item_id: string;
+  content: string | null;
+  properties: string | null;
+  version_number: number;
+  created_by: 'auto' | 'manual';
+  change_summary: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
-const tagsMigrationStrategies = {
-  1: (oldDoc: Record<string, unknown>) => migrateSyncV2Fields(oldDoc),
-  // Version 2: removed sync_rev, added maxLength to timestamps.
-  2: stripSyncRev,
-};
-
-// ── TypeScript types ──────────────────────────────────────────────────────────
-
-export type ItemDocument = z.infer<typeof itemSchema>;
-export type ItemLinkDocument = z.infer<typeof itemLinkSchema>;
-export type ItemVersionDocument = z.infer<typeof itemVersionSchema>;
-export type TimeEntryDocument = z.infer<typeof timeEntrySchema>;
-export type TagDocument = z.infer<typeof tagSchema>;
-
-export type ContentType = (typeof contentTypes)[number];
-export type ReadStatus = (typeof readStatuses)[number];
-export type ItemType = (typeof itemTypes)[number];
-export type ItemStatus = (typeof itemStatuses)[number];
-export type ItemPriority = (typeof itemPriorities)[number];
-
-// ── DatabaseCollections ───────────────────────────────────────────────────────
-
-export type DatabaseCollections = {
-  items: RxCollection<ItemDocument>;
-  item_links: RxCollection<ItemLinkDocument>;
-  item_versions: RxCollection<ItemVersionDocument>;
-  time_entries: RxCollection<TimeEntryDocument>;
-  tags: RxCollection<TagDocument>;
-};
-
-// ── Database singleton ────────────────────────────────────────────────────────
-
-let dbPromise: Promise<RxDatabase<DatabaseCollections>> | null = null;
-
-export async function getDatabase() {
-  if (dbPromise) return dbPromise;
-
-  dbPromise = (async () => {
-    const db = await createRxDatabase<DatabaseCollections>({
-      name: 'personalos',
-      storage: wrappedValidateZSchemaStorage({
-        storage: getRxStorageDexie(),
-      }),
-    });
-
-    await db.addCollections({
-      items: {
-        schema: itemsRxSchema,
-        migrationStrategies: itemsMigrationStrategies,
-      },
-      item_links: {
-        schema: itemLinksRxSchema,
-        migrationStrategies: itemLinksMigrationStrategies,
-      },
-      item_versions: {
-        schema: itemVersionsRxSchema,
-        migrationStrategies: itemVersionsMigrationStrategies,
-      },
-      time_entries: {
-        schema: timeEntriesRxSchema,
-        migrationStrategies: timeEntriesMigrationStrategies,
-      },
-      tags: {
-        schema: tagsRxSchema,
-        migrationStrategies: tagsMigrationStrategies,
-      },
-    });
-
-    return db;
-  })();
-
-  return dbPromise;
+export async function insertItemVersion(db: AbstractPowerSyncDatabase, v: NewItemVersion): Promise<void> {
+  const owner = await getCurrentUserId();
+  await db.execute(
+    `INSERT INTO item_versions (
+      id, item_id, content, properties, version_number, created_by, change_summary,
+      created_at, updated_at, is_trashed, trashed_at, owner
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
+    [
+      v.id, v.item_id, v.content, v.properties,
+      v.version_number, v.created_by, v.change_summary,
+      v.created_at, v.updated_at,
+      owner,
+    ]
+  );
 }
+
+// ── Legacy type alias (for gradual migration) ─────────────────────────────────
+// Components that previously used ItemDocument can use ItemRow instead.
+export type ItemDocument = ItemRow;
+
+// ── Domain value types ────────────────────────────────────────────────────────
+
+export type ContentType = 'audio' | 'video' | 'text' | 'live';
+export type ReadStatus = 'inbox' | 'reading' | 'read';
+export type ItemStatus = 'backlog' | 'active' | 'someday' | 'archived';
+
+export const contentTypes: ContentType[] = ['audio', 'video', 'text', 'live'];
+export const readStatuses: ReadStatus[] = ['inbox', 'reading', 'read'];

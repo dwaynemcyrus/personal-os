@@ -1,5 +1,2 @@
-import { useDatabaseContext } from '@/components/providers/DatabaseProvider';
-
-export function useDatabase() {
-  return useDatabaseContext();
-}
+// Re-export PowerSync hooks under familiar names for gradual migration
+export { usePowerSync as useDatabase } from '@powersync/react';

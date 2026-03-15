@@ -7,11 +7,12 @@ import {
   useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useDatabase } from '@/hooks/useDatabase';
+import { useQuery, usePowerSync } from '@powersync/react';
 import { useNavigationActions } from '@/components/providers';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { searchNotes, type SearchResult } from '@/lib/search';
-import type { ItemDocument } from '@/lib/db';
+import type { ItemRow } from '@/lib/db';
+import { insertItem } from '@/lib/db';
 import {
   extractNoteTitle,
   extractNoteSnippet,
@@ -20,6 +21,7 @@ import {
   formatRelativeTime,
 } from '@/features/notes/noteUtils';
 import { generateSlug } from '@/lib/slug';
+import { nowIso } from '@/lib/time';
 import styles from './CaptureModal.module.css';
 
 type CaptureModalProps = {
@@ -33,23 +35,13 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { db, isReady } = useDatabase();
+  const db = usePowerSync();
   const { pushLayer } = useNavigationActions();
 
-  // Subscribe to recent notes
-  const [allNotes, setAllNotes] = useState<ItemDocument[]>([]);
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const subscription = db.items
-      .find({
-        selector: { type: 'note', is_trashed: false, inbox_at: null },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setAllNotes(docs.map((doc) => doc.toJSON() as ItemDocument));
-      });
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
+  const { data: allNotes } = useQuery<ItemRow>(
+    `SELECT * FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL
+     ORDER BY updated_at DESC`
+  );
 
   const recentNotes = useMemo(() => allNotes.slice(0, 12), [allNotes]);
 
@@ -61,7 +53,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     return searchNotes(allNotes, deferredQuery);
   }, [allNotes, deferredQuery, isSearching]);
 
-  // Build display list
   type DisplayItem = {
     id: string;
     noteId: string;
@@ -79,7 +70,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
         title: formatNoteTitle(extractNoteTitle(r.note.content, r.note.title)),
         snippet: r.snippet,
         updatedLabel: formatRelativeTime(r.note.updated_at),
-        isPinned: r.note.is_pinned,
+        isPinned: !!r.note.is_pinned,
       }));
     }
     return recentNotes.map((note) => ({
@@ -88,12 +79,12 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       title: formatNoteTitle(extractNoteTitle(note.content, note.title)),
       snippet: extractNoteSnippet(note.content),
       updatedLabel: formatRelativeTime(note.updated_at),
-      isPinned: note.is_pinned,
+      isPinned: !!note.is_pinned,
     }));
   }, [isSearching, searchResults, recentNotes]);
 
   const handleOpenAutoFocus = useCallback((e: Event) => {
-    e.preventDefault(); // prevent Radix focusing the first focusable element
+    e.preventDefault();
     textareaRef.current?.focus();
   }, []);
 
@@ -115,21 +106,20 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   );
 
   const handleSave = useCallback(async () => {
-    if (!text.trim() || !db) return;
+    if (!text.trim()) return;
     const captureId = uuidv4();
     const noteId = uuidv4();
-    const timestamp = new Date().toISOString();
+    const timestamp = nowIso();
     const trimmedText = text.trim();
-
-    // Insert note first so the FK constraint (capture.result_id → items.id) is
-    // satisfied when the sync layer pushes both records to Supabase.
     const noteTitle = extractTitleFromFirstLine(trimmedText);
-    await db.items.insert({
+
+    // Insert note first (FK constraint)
+    await insertItem(db, {
       id: noteId,
       type: 'note',
       parent_id: null,
       title: noteTitle,
-      slug: generateSlug(noteTitle),
+      filename: generateSlug(noteTitle),
       content: trimmedText,
       inbox_at: timestamp,
       subtype: 'capture',
@@ -142,18 +132,15 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       processed: false,
       created_at: timestamp,
       updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
     });
 
-    await db.items.insert({
+    await insertItem(db, {
       id: captureId,
       type: 'capture',
       parent_id: null,
       body: trimmedText,
       capture_source: 'quick',
       processed: false,
-      processed_at: null,
       result_type: null,
       result_id: noteId,
       is_pinned: false,
@@ -164,8 +151,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       is_waiting: false,
       created_at: timestamp,
       updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
     });
 
     setText('');
@@ -181,7 +166,6 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     [onOpenChange, pushLayer]
   );
 
-  // Keyboard navigation
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -196,31 +180,21 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
         }
         return;
       }
-
       if (e.key === 'Tab' && displayItems.length > 0) {
         e.preventDefault();
         setSelectedIndex(0);
         return;
       }
-
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((prev) => {
-          if (prev === null) return 0;
-          return Math.min(prev + 1, displayItems.length - 1);
-        });
+        setSelectedIndex((prev) => (prev === null ? 0 : Math.min(prev + 1, displayItems.length - 1)));
         return;
       }
-
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((prev) => {
-          if (prev === null || prev <= 0) return null;
-          return prev - 1;
-        });
+        setSelectedIndex((prev) => (prev === null || prev <= 0 ? null : prev - 1));
         return;
       }
-
       if (e.key === 'Enter' && !e.shiftKey) {
         if (selectedIndex !== null && displayItems[selectedIndex]) {
           e.preventDefault();
@@ -233,15 +207,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    open,
-    text,
-    selectedIndex,
-    displayItems,
-    handleClose,
-    handleSave,
-    handleOpenNote,
-  ]);
+  }, [open, text, selectedIndex, displayItems, handleClose, handleSave, handleOpenNote]);
 
   const canSave = text.trim().length > 0;
 
@@ -274,33 +240,19 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
               aria-pressed={rapidCapture}
               onClick={() => setRapidCapture((v) => !v)}
             >
-              <span
-                className={`${styles.toggleTrack} ${
-                  rapidCapture ? styles.toggleTrackActive : ''
-                }`}
-              >
-                <span
-                  className={`${styles.toggleThumb} ${
-                    rapidCapture ? styles.toggleThumbActive : ''
-                  }`}
-                />
+              <span className={`${styles.toggleTrack} ${rapidCapture ? styles.toggleTrackActive : ''}`}>
+                <span className={`${styles.toggleThumb} ${rapidCapture ? styles.toggleThumbActive : ''}`} />
               </span>
               <span className={styles.toggleText}>Rapid Entry</span>
             </button>
 
             <div className={styles.actionButtons}>
-              <button
-                type="button"
-                className={styles.button}
-                onClick={handleClose}
-              >
+              <button type="button" className={styles.button} onClick={handleClose}>
                 Cancel
               </button>
               <button
                 type="button"
-                className={`${styles.button} ${styles.buttonPrimary} ${
-                  !canSave ? styles.buttonDisabled : ''
-                }`}
+                className={`${styles.button} ${styles.buttonPrimary} ${!canSave ? styles.buttonDisabled : ''}`}
                 disabled={!canSave}
                 onClick={handleSave}
               >
@@ -319,9 +271,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
                   <li key={item.id} className={styles.listItem}>
                     <button
                       type="button"
-                      className={`${styles.listButton} ${
-                        selectedIndex === index ? styles.listButtonSelected : ''
-                      }`}
+                      className={`${styles.listButton} ${selectedIndex === index ? styles.listButtonSelected : ''}`}
                       onClick={() => handleOpenNote(item.noteId)}
                     >
                       <div className={styles.listItemHeader}>

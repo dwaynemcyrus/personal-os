@@ -71,32 +71,36 @@ export function matchesTaskFilter(
   const { startOfDayMs, endOfDayMs } = window ?? getWindow();
   const dueMs = parseMs(task.due_date);
   const startMs = parseMs(task.start_date);
-  const active = !task.is_trashed && !task.completed;
+  const isTrashed = !!task.is_trashed;
+  const isCompleted = !!task.completed;
+  const isSomeday = !!task.is_someday;
+  const isWaiting = !!task.is_waiting;
+  const active = !isTrashed && !isCompleted;
 
   switch (filter) {
     case 'today':
-      if (active && !task.is_someday && startMs !== null && startMs <= endOfDayMs) return true;
-      if (active && !task.is_someday && task.is_waiting) return true;
+      if (active && !isSomeday && startMs !== null && startMs <= endOfDayMs) return true;
+      if (active && !isSomeday && isWaiting) return true;
       if (active && dueMs !== null && dueMs < startOfDayMs) return true;
       return false;
 
     case 'upcoming':
       if (!active) return false;
-      if (!task.is_someday && startMs !== null && startMs > endOfDayMs) return true;
+      if (!isSomeday && startMs !== null && startMs > endOfDayMs) return true;
       if (dueMs !== null && dueMs > endOfDayMs) return true;
       return false;
 
     case 'backlog':
-      return active && !task.is_someday;
+      return active && !isSomeday;
 
     case 'someday':
-      return !task.is_trashed && !task.completed && task.is_someday;
+      return !isTrashed && !isCompleted && isSomeday;
 
     case 'logbook':
-      return !task.is_trashed && task.completed;
+      return !isTrashed && isCompleted;
 
     case 'trash':
-      return task.is_trashed;
+      return isTrashed;
 
     default:
       return false;

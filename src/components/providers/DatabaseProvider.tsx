@@ -1,51 +1,22 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections } from '@/lib/db';
-import { getDatabase } from '@/lib/db';
-import { setupSync } from '@/lib/sync';
-import { initNoteTitleCache } from '@/lib/noteLinks';
-
-type DatabaseContextValue = {
-  db: RxDatabase<DatabaseCollections> | null;
-  isReady: boolean;
-};
-
-const DatabaseContext = createContext<DatabaseContextValue>({
-  db: null,
-  isReady: false,
-});
+import { useEffect } from 'react';
+import { PowerSyncContext } from '@powersync/react';
+import { psDb, connector } from '@/lib/powersync';
+import { useAuth } from './AuthProvider';
 
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
-  const [db, setDb] = useState<RxDatabase<DatabaseCollections> | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const { session } = useAuth();
 
   useEffect(() => {
-    let mounted = true;
-    let teardownCache: (() => void) | null = null;
-
-    async function init() {
-      const database = await getDatabase();
-      if (!mounted) return;
-      setDb(database);
-      setIsReady(true);
-      setupSync(database).catch(console.error);
-      teardownCache = initNoteTitleCache(database);
+    if (session) {
+      psDb.connect(connector).catch(console.error);
+    } else {
+      psDb.disconnect().catch(console.error);
     }
-
-    init();
-    return () => {
-      mounted = false;
-      teardownCache?.();
-    };
-  }, []);
+  }, [session]);
 
   return (
-    <DatabaseContext.Provider value={{ db, isReady }}>
+    <PowerSyncContext.Provider value={psDb}>
       {children}
-    </DatabaseContext.Provider>
+    </PowerSyncContext.Provider>
   );
-}
-
-export function useDatabaseContext() {
-  return useContext(DatabaseContext);
 }

@@ -9,8 +9,8 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument, ItemStatus } from '@/lib/db';
+import { useQuery } from '@powersync/react';
+import type { ItemDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import { CalendarPicker } from '@/features/tasks/TaskDetailSheet/CalendarPicker';
 import styles from './ProjectDetailSheet.module.css';
@@ -111,8 +111,10 @@ export function ProjectDetailSheet({
   onDeleteTask,
   onCreateTask,
 }: ProjectDetailSheetProps) {
-  const { db, isReady } = useDatabase();
-  const [areas, setAreas] = useState<ItemDocument[]>([]);
+  const { data: areas } = useQuery<ItemDocument>(
+    'SELECT * FROM items WHERE type = ? AND is_trashed = 0 ORDER BY title ASC, id ASC',
+    ['area']
+  );
 
   // Form state
   const [title, setTitle] = useState(project?.title ?? '');
@@ -137,14 +139,6 @@ export function ProjectDetailSheet({
 
   const notesTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
-
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const sub = db.items
-      .find({ selector: { type: 'area', is_trashed: false }, sort: [{ title: 'asc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setAreas(docs.map((d) => d.toJSON() as ItemDocument)));
-    return () => sub.unsubscribe();
-  }, [db, isReady]);
 
   useEffect(() => {
     if (!project) return;
@@ -441,7 +435,7 @@ export function ProjectDetailSheet({
                     <input
                       type="checkbox"
                       className={styles.taskCheckbox}
-                      checked={task.completed}
+                      checked={!!task.completed}
                       onChange={(e) => void onToggleTaskComplete(task.id, e.target.checked)}
                     />
                   </label>

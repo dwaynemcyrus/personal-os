@@ -1,12 +1,7 @@
-
-
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useDatabase } from '@/hooks/useDatabase';
-import type {
-  ItemDocument,
-  TimeEntryDocument,
-} from '@/lib/db';
+import { useQuery, usePowerSync } from '@powersync/react';
+import type { ItemRow, TimeEntryRow } from '@/lib/db';
 
 type FocusState = 'idle' | 'running' | 'paused';
 
@@ -94,8 +89,8 @@ const computeDurationSeconds = (startIso: string, endIso: string) => {
 };
 
 export function useTimer() {
-  const { db, isReady } = useDatabase();
-  const [activeEntry, setActiveEntry] = useState<TimeEntryDocument | null>(null);
+  const db = usePowerSync();
+
   const [pausedFocus, setPausedFocus] = useState<PausedFocus | null>(() => {
     if (typeof window === 'undefined') return null;
     return parsePausedFocus(window.localStorage.getItem(PAUSED_FOCUS_KEY));
@@ -106,16 +101,59 @@ export function useTimer() {
     const parsed = Number(raw);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   });
-  const [tasks, setTasks] = useState<ItemDocument[]>([]);
-  const [projects, setProjects] = useState<ItemDocument[]>([]);
-  const [unplannedEntries, setUnplannedEntries] = useState<TimeEntryDocument[]>(
+  const [tick, setTick] = useState(0);
+
+  // Reactive queries
+  const { data: tasks } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'task' AND is_trashed = 0 ORDER BY updated_at DESC, id ASC"
+  );
+  const { data: projects } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY updated_at DESC, id ASC"
+  );
+
+  const cutoff = useMemo(
+    () => new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  const [tick, setTick] = useState(0);
+  const { data: unplannedEntries } = useQuery<TimeEntryRow>(
+    "SELECT * FROM time_entries WHERE is_trashed = 0 AND entry_type = 'unplanned' AND started_at >= ? ORDER BY started_at DESC, id ASC",
+    [cutoff]
+  );
+  const { data: activeEntries } = useQuery<TimeEntryRow>(
+    "SELECT * FROM time_entries WHERE is_trashed = 0 AND stopped_at IS NULL ORDER BY started_at DESC, id ASC"
+  );
+
+  // Derive the active entry and handle cleanup of extras
+  const activeEntry: TimeEntryRow | null = useMemo(() => {
+    if (activeEntries.length === 0) return null;
+    if (activeEntries.length > 1) {
+      // Stop all but the first — fire and forget
+      const [, ...rest] = activeEntries;
+      for (const entry of rest) {
+        const timestamp = new Date().toISOString();
+        const durationSeconds = computeDurationSeconds(entry.started_at, timestamp);
+        void db?.execute(
+          'UPDATE time_entries SET stopped_at = ?, duration_seconds = ?, updated_at = ? WHERE id = ?',
+          [timestamp, durationSeconds, timestamp, entry.id]
+        );
+      }
+    }
+    return activeEntries[0];
+  }, [activeEntries, db]);
+
+  // Tick timer
+  useMemo(() => {
+    if (!activeEntry) return;
+    const interval = window.setInterval(() => {
+      setTick(Date.now());
+    }, 1000);
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEntry?.id]);
 
   const setPausedFocusState = useCallback((value: PausedFocus | null) => {
     setPausedFocus(value);
-
     if (typeof window === 'undefined') return;
     if (value) {
       window.localStorage.setItem(PAUSED_FOCUS_KEY, JSON.stringify(value));
@@ -127,7 +165,6 @@ export function useTimer() {
   const setAccumulatedSecondsState = useCallback((value: number) => {
     const nextValue = Math.max(0, Math.floor(value));
     setAccumulatedSeconds(nextValue);
-
     if (typeof window === 'undefined') return;
     if (nextValue > 0) {
       window.localStorage.setItem(ACCUMULATED_SECONDS_KEY, String(nextValue));
@@ -135,124 +172,21 @@ export function useTimer() {
       window.localStorage.removeItem(ACCUMULATED_SECONDS_KEY);
     }
   }, []);
-  useEffect(() => {
-    if (!isReady || !db) return;
-
-    const subscription = db.items
-      .find({
-        selector: { type: 'task', is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setTasks(docs.map((doc) => doc.toJSON() as ItemDocument));
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
-
-  useEffect(() => {
-    if (!isReady || !db) return;
-
-    const subscription = db.items
-      .find({
-        selector: { type: 'project', is_trashed: false },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setProjects(docs.map((doc) => doc.toJSON() as ItemDocument));
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
-
-  useEffect(() => {
-    if (!isReady || !db) return;
-
-    const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-    const subscription = db.time_entries
-      .find({
-        selector: {
-          is_trashed: false,
-          entry_type: 'unplanned',
-          started_at: { $gte: cutoff },
-        },
-        sort: [{ started_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setUnplannedEntries(docs.map((doc) => doc.toJSON()));
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
 
   const stopEntry = useCallback(
-    async (entry: TimeEntryDocument) => {
+    async (entry: TimeEntryRow) => {
       if (!db) return null;
       const timestamp = new Date().toISOString();
-      const durationSeconds = computeDurationSeconds(
-        entry.started_at,
-        timestamp
-      );
+      const durationSeconds = computeDurationSeconds(entry.started_at, timestamp);
       const sessionId = entry.session_id ?? uuidv4();
-      const doc = await db.time_entries.findOne(entry.id).exec();
-      if (!doc) return null;
-
-      await doc.patch({
-        stopped_at: timestamp,
-        duration_seconds: durationSeconds,
-        session_id: sessionId,
-        updated_at: timestamp,
-      });
-
+      await db.execute(
+        'UPDATE time_entries SET stopped_at = ?, duration_seconds = ?, session_id = ?, updated_at = ? WHERE id = ?',
+        [timestamp, durationSeconds, sessionId, timestamp, entry.id]
+      );
       return { durationSeconds, stoppedAt: timestamp, sessionId };
     },
     [db]
   );
-
-  useEffect(() => {
-    if (!isReady || !db) return;
-
-    const subscription = db.time_entries
-      .find({
-        selector: { is_trashed: false, stopped_at: null },
-        sort: [{ started_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        const entries = docs.map((doc) => doc.toJSON());
-        if (entries.length > 1) {
-          const [primary, ...rest] = entries;
-          setActiveEntry(primary);
-          setTick(Date.now());
-          if (pausedFocus) {
-            setPausedFocusState(null);
-          }
-          rest.forEach((entry) => {
-            void stopEntry(entry);
-          });
-          return;
-        }
-        const nextEntry = entries[0] ?? null;
-        setActiveEntry(nextEntry);
-        if (nextEntry && pausedFocus) {
-          setTick(Date.now());
-          setPausedFocusState(null);
-        }
-        if (nextEntry && !pausedFocus) {
-          setTick(Date.now());
-        }
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady, pausedFocus, setPausedFocusState, stopEntry]);
-
-  useEffect(() => {
-    if (!activeEntry) return;
-    const interval = window.setInterval(() => {
-      setTick(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(interval);
-  }, [activeEntry]);
 
   const projectMap = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
@@ -297,7 +231,7 @@ export function useTimer() {
 
   const elapsedSeconds = useMemo(() => {
     if (activeEntry) {
-      const timestamp = tick;
+      const timestamp = tick || Date.now();
       const startedAt = new Date(activeEntry.started_at).getTime();
       if (Number.isNaN(startedAt)) return accumulatedSeconds;
       const runningSeconds = Math.max(
@@ -399,23 +333,23 @@ export function useTimer() {
       const label =
         config.entryType === 'unplanned' ? config.label.trim() : null;
       const labelNormalized = label ? normalizeLabel(label) : null;
-      const payload: TimeEntryDocument = {
-        id: uuidv4(),
-        item_id: config.entryType === 'planned' ? config.taskId : null,
-        session_id: sessionId,
-        entry_type: config.entryType,
-        label,
-        label_normalized: labelNormalized,
-        started_at: timestamp,
-        stopped_at: null,
-        duration_seconds: null,
-        created_at: timestamp,
-        updated_at: timestamp,
-        is_trashed: false,
-        trashed_at: null,
-      };
 
-      await db.time_entries.insert(payload);
+      await db.execute(
+        `INSERT INTO time_entries (id, item_id, session_id, entry_type, label, label_normalized, started_at, stopped_at, duration_seconds, created_at, updated_at, is_trashed, trashed_at, owner)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, 0, NULL, NULL)`,
+        [
+          uuidv4(),
+          config.entryType === 'planned' ? config.taskId : null,
+          sessionId,
+          config.entryType,
+          label,
+          labelNormalized,
+          timestamp,
+          timestamp,
+          timestamp,
+        ]
+      );
+
       setPausedFocusState(null);
       if (!options?.preserveAccumulated) {
         setAccumulatedSecondsState(0);
@@ -433,7 +367,7 @@ export function useTimer() {
     const nextAccumulated = accumulatedSeconds + result.durationSeconds;
     setAccumulatedSecondsState(nextAccumulated);
     setPausedFocusState({
-      entryType: activeEntry.entry_type,
+      entryType: activeEntry.entry_type as EntryType,
       taskId: activeEntry.item_id ?? null,
       label: activeEntry.label ?? null,
       sessionId: result.sessionId,
@@ -485,7 +419,7 @@ export function useTimer() {
   ]);
 
   return {
-    isReady,
+    isReady: true,
     state: focusState,
     elapsedSeconds,
     elapsedLabel,

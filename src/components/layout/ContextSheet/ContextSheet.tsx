@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useQuery, usePowerSync } from '@powersync/react';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { showToast } from '@/components/ui/Toast';
 import {
@@ -13,8 +14,8 @@ import { useNoteGroupCounts } from '@/features/notes/hooks/useNoteGroupCounts';
 import type { NoteGroup } from '@/features/notes/hooks/useGroupedNotes';
 import { useTaskBucketCounts } from '@/features/tasks/hooks/useTaskBucketCounts';
 import type { TaskListFilter } from '@/features/tasks/taskBuckets';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument } from '@/lib/db';
+import type { ItemRow } from '@/lib/db';
+import { insertItem, patchItem } from '@/lib/db';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
 import { AreaDetailSheet } from '@/features/projects/AreaDetailSheet/AreaDetailSheet';
 import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDetailSheet';
@@ -62,12 +63,21 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const { pushLayer } = useNavigationActions();
   const noteCounts = useNoteGroupCounts();
   const taskCounts = useTaskBucketCounts();
-  const { db, isReady } = useDatabase();
+  const db = usePowerSync();
 
-  const [projects, setProjects] = useState<ItemDocument[]>([]);
-  const [areas, setAreas] = useState<ItemDocument[]>([]);
-  const [tasks, setTasks] = useState<ItemDocument[]>([]);
-  const [sources, setSources] = useState<ItemDocument[]>([]);
+  const { data: projects } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY title ASC, id ASC"
+  );
+  const { data: areas } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'area' AND is_trashed = 0 ORDER BY title ASC, id ASC"
+  );
+  const { data: tasks } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'task' AND is_trashed = 0"
+  );
+  const { data: sources } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'source' AND is_trashed = 0 ORDER BY updated_at DESC"
+  );
+
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
@@ -75,43 +85,11 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const [createTitle, setCreateTitle] = useState('');
   const submittingRef = useRef(false);
 
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const sub = db.items
-      .find({ selector: { type: 'project', is_trashed: false }, sort: [{ title: 'asc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setProjects(docs.map((d) => d.toJSON() as ItemDocument)));
-    return () => sub.unsubscribe();
-  }, [db, isReady]);
-
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const sub = db.items
-      .find({ selector: { type: 'area', is_trashed: false }, sort: [{ title: 'asc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setAreas(docs.map((d) => d.toJSON() as ItemDocument)));
-    return () => sub.unsubscribe();
-  }, [db, isReady]);
-
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const sub = db.items
-      .find({ selector: { type: 'task', is_trashed: false } })
-      .$.subscribe((docs) => setTasks(docs.map((d) => d.toJSON() as ItemDocument)));
-    return () => sub.unsubscribe();
-  }, [db, isReady]);
-
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const sub = db.items
-      .find({ selector: { type: 'source', is_trashed: false }, sort: [{ updated_at: 'desc' }] })
-      .$.subscribe((docs) => setSources(docs.map((d) => d.toJSON() as ItemDocument)));
-    return () => sub.unsubscribe();
-  }, [db, isReady]);
-
   // Group projects: ungrouped first, then by area
   const { ungroupedProjects, projectsByArea } = useMemo(() => {
     const areaIds = new Set(areas.map((a) => a.id));
     const ungrouped = projects.filter((p) => !p.parent_id || !areaIds.has(p.parent_id));
-    const byArea = new Map<string, ItemDocument[]>();
+    const byArea = new Map<string, ItemRow[]>();
     for (const area of areas) {
       byArea.set(area.id, []);
     }
@@ -158,7 +136,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     if (!trimmed || !db) return;
     const timestamp = nowIso();
     if (mode === 'project') {
-      await db.items.insert({
+      await insertItem(db, {
         id: uuidv4(),
         type: 'project',
         parent_id: null,
@@ -172,11 +150,9 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         processed: false,
         created_at: timestamp,
         updated_at: timestamp,
-        is_trashed: false,
-        trashed_at: null,
       });
     } else {
-      await db.items.insert({
+      await insertItem(db, {
         id: uuidv4(),
         type: 'area',
         parent_id: null,
@@ -190,8 +166,6 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         processed: false,
         created_at: timestamp,
         updated_at: timestamp,
-        is_trashed: false,
-        trashed_at: null,
       });
     }
   };
@@ -229,32 +203,25 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     if (!db) return;
     const trimmed = updates.title.trim();
     if (!trimmed) return;
-    const doc = await db.items.findOne(projectId).exec();
-    if (!doc) return;
-    await doc.patch({
+    await patchItem(db, projectId, {
       title: trimmed,
       content: updates.content.trim() || null,
-      item_status: updates.item_status as ItemDocument['item_status'],
+      item_status: updates.item_status,
       start_date: updates.startDate,
       due_date: updates.dueDate,
-      parent_id: updates.parentId,
       updated_at: nowIso(),
     });
   };
 
   const handleDeleteProject = async (projectId: string) => {
     if (!db) return;
-    const doc = await db.items.findOne(projectId).exec();
-    if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(db, projectId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
   };
 
   const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
     if (!db) return;
-    const doc = await db.items.findOne(taskId).exec();
-    if (!doc) return;
-    await doc.patch({ completed: nextValue, updated_at: nowIso() });
+    await patchItem(db, taskId, { completed: nextValue, updated_at: nowIso() });
   };
 
   const handleSaveTask = async (
@@ -275,29 +242,27 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     if (!db) return;
     const trimmed = updates.title.trim();
     if (!trimmed) return;
-    const doc = await db.items.findOne(taskId).exec();
-    if (!doc) return;
-    await doc.patch({
+    await patchItem(db, taskId, {
       title: trimmed,
       content: updates.description.trim() || null,
-      parent_id: updates.parentId,
+      tags: updates.tags,
       is_next: updates.isNext,
       start_date: updates.startDate,
       due_date: updates.dueDate,
       is_someday: updates.isSomeday,
       is_waiting: updates.isWaiting,
-      waiting_note: updates.waitingNote,
-      tags: updates.tags,
       updated_at: nowIso(),
     });
+    // parent_id is not in ItemPatch — update directly
+    await db.execute('UPDATE items SET parent_id = ? WHERE id = ?', [updates.parentId, taskId]);
+    // waiting_note is not in ItemPatch — update directly
+    await db.execute('UPDATE items SET waiting_note = ? WHERE id = ?', [updates.waitingNote, taskId]);
   };
 
   const handleDeleteTask = async (taskId: string) => {
     if (!db) return;
-    const doc = await db.items.findOne(taskId).exec();
-    if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(db, taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
   };
 
   const handleCreateTask = async (projectId: string, title: string) => {
@@ -305,12 +270,12 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     const trimmed = title.trim();
     if (!trimmed) return;
     const timestamp = nowIso();
-    await db.items.insert({
+    await insertItem(db, {
       id: uuidv4(),
       type: 'task',
       parent_id: projectId,
       title: trimmed,
-      tags: [],
+      tags: null,
       is_pinned: false,
       item_status: 'backlog',
       completed: false,
@@ -320,39 +285,34 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       processed: false,
       created_at: timestamp,
       updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
     });
   };
 
   const handleSaveArea = async (areaId: string, title: string) => {
     if (!db) return;
-    const doc = await db.items.findOne(areaId).exec();
-    if (!doc) return;
-    await doc.patch({ title: title.trim(), updated_at: nowIso() });
+    await patchItem(db, areaId, { title: title.trim(), updated_at: nowIso() });
   };
 
   const handleDeleteArea = async (areaId: string) => {
     if (!db) return;
-    const doc = await db.items.findOne(areaId).exec();
-    if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(db, areaId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
   };
 
-  const handleSaveSource = async (updates: Partial<ItemDocument>) => {
+  const handleSaveSource = async (updates: Partial<ItemRow>) => {
     if (!db || !selectedSourceId) return;
-    const doc = await db.items.findOne(selectedSourceId).exec();
-    if (!doc) return;
-    await doc.patch({ ...updates, updated_at: nowIso() });
+    // Build a patch from the updates object — only pass known patch fields
+    const { title, content, subtype, url } = updates;
+    await db.execute(
+      'UPDATE items SET title = ?, content = ?, subtype = ?, url = ?, updated_at = ? WHERE id = ?',
+      [title ?? null, content ?? null, subtype ?? null, url ?? null, nowIso(), selectedSourceId]
+    );
   };
 
   const handleDeleteSource = async () => {
     if (!db || !selectedSourceId) return;
-    const doc = await db.items.findOne(selectedSourceId).exec();
-    if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(db, selectedSourceId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     setSelectedSourceId(null);
   };
 

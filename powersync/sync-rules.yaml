@@ -1,0 +1,9 @@
+bucket_definitions:
+  user_data:
+    parameters: SELECT request.user_id() AS user_id
+    data:
+      - SELECT * FROM items WHERE owner = bucket.user_id
+      - SELECT * FROM item_links WHERE owner = bucket.user_id
+      - SELECT * FROM item_versions WHERE owner = bucket.user_id
+      - SELECT * FROM time_entries WHERE owner = bucket.user_id
+      - SELECT * FROM tags WHERE owner = bucket.user_id

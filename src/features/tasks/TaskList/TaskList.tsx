@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument } from '@/lib/db';
+import { useQuery, usePowerSync } from '@powersync/react';
+import type { ItemRow } from '@/lib/db';
+import { insertItem, patchItem } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import { formatRelativeTime } from '@/features/notes/noteUtils';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -35,11 +36,8 @@ function isStartDateToday(iso: string | null | undefined): boolean {
 }
 
 export function TaskList() {
-  const { db, isReady } = useDatabase();
-  const [tasks, setTasks] = useState<ItemDocument[]>([]);
-  const [projects, setProjects] = useState<ItemDocument[]>([]);
+  const db = usePowerSync();
   const [showNextOnly, setShowNextOnly] = useState(false);
-
   const pendingTimersRef = useRef<Map<string, number>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
@@ -47,38 +45,20 @@ export function TaskList() {
   const { pushLayer, popLayer, goBack } = useNavigationActions();
 
   const taskDetailLayer = stack.find((layer) => layer.view === 'task-detail');
-  const selectedTaskId =
-    taskDetailLayer && taskDetailLayer.view === 'task-detail'
-      ? taskDetailLayer.taskId
-      : null;
-  const taskListLayer = [...stack]
-    .reverse()
-    .find((layer) => layer.view === 'tasks-list');
-  const layerFilter =
-    taskListLayer && taskListLayer.view === 'tasks-list'
-      ? taskListLayer.filter ?? 'backlog'
-      : 'backlog';
+  const selectedTaskId = taskDetailLayer?.view === 'task-detail' ? taskDetailLayer.taskId : null;
+  const taskListLayer = [...stack].reverse().find((layer) => layer.view === 'tasks-list');
+  const layerFilter = taskListLayer?.view === 'tasks-list' ? (taskListLayer.filter ?? 'backlog') : 'backlog';
   const [filter, setFilter] = useState<TaskListFilter>(layerFilter);
 
-  useEffect(() => {
-    setFilter(layerFilter);
-  }, [layerFilter]);
+  useEffect(() => { setFilter(layerFilter); }, [layerFilter]);
 
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const subscription = db.items
-      .find({ selector: { type: 'task' }, sort: [{ updated_at: 'desc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setTasks(docs.map((doc) => doc.toJSON() as ItemDocument)));
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
+  const { data: tasks } = useQuery<ItemRow>(
+    `SELECT * FROM items WHERE type = 'task' ORDER BY updated_at DESC`
+  );
 
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const subscription = db.items
-      .find({ selector: { type: 'project', is_trashed: false }, sort: [{ updated_at: 'desc' }, { id: 'asc' }] })
-      .$.subscribe((docs) => setProjects(docs.map((doc) => doc.toJSON() as ItemDocument)));
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
+  const { data: projects } = useQuery<ItemRow>(
+    `SELECT * FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY updated_at DESC`
+  );
 
   const projectMap = useMemo(
     () => new Map(projects.map((p) => [p.id, p.title ?? ''])),
@@ -93,8 +73,6 @@ export function TaskList() {
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
     [tasks, selectedTaskId]
   );
-
-  // ─── Sections ────────────────────────────────────────────────────────────
 
   const todaySections = useMemo(() => {
     if (filter !== 'today') return null;
@@ -115,46 +93,30 @@ export function TaskList() {
     return [...base].sort(sortByDeadline);
   }, [filter, tasks, showNextOnly]);
 
-  // ─── Handlers ────────────────────────────────────────────────────────────
-
   const handleCreateTask = async () => {
-    if (!db) return;
     const timestamp = nowIso();
     const taskId = uuidv4();
-    await db.items.insert({
+    await insertItem(db, {
       id: taskId,
       type: 'task',
       parent_id: null,
       title: 'Untitled task',
       content: null,
-      tags: [],
       is_pinned: false,
       item_status: 'backlog',
       completed: false,
       is_next: false,
       is_someday: false,
       is_waiting: false,
-      waiting_note: null,
-      waiting_started_at: null,
-      start_date: null,
-      due_date: null,
-      depends_on: null,
       processed: false,
       created_at: timestamp,
       updated_at: timestamp,
-      is_trashed: false,
-      trashed_at: null,
     });
     pushLayer({ view: 'task-detail', taskId });
   };
 
-  const handleOpenTask = (taskId: string) => {
-    pushLayer({ view: 'task-detail', taskId });
-  };
-
-  const handleDetailOpenChange = (open: boolean) => {
-    if (!open) popLayer();
-  };
+  const handleOpenTask = (taskId: string) => pushLayer({ view: 'task-detail', taskId });
+  const handleDetailOpenChange = (open: boolean) => { if (!open) popLayer(); };
 
   const handleSaveTask = async (
     taskId: string,
@@ -171,12 +133,9 @@ export function TaskList() {
       tags: string[];
     }
   ) => {
-    if (!db) return;
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    const doc = await db.items.findOne(taskId).exec();
-    if (!doc) return;
-    await doc.patch({
+    await patchItem(db, taskId, {
       title: trimmedTitle,
       content: updates.description.trim() || null,
       parent_id: updates.parentId,
@@ -192,18 +151,12 @@ export function TaskList() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!db) return;
-    const doc = await db.items.findOne(taskId).exec();
-    if (!doc) return;
     const timestamp = nowIso();
-    await doc.patch({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(db, taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
   };
 
   const handleToggleComplete = async (taskId: string, nextValue: boolean) => {
-    if (!db) return;
-    const doc = await db.items.findOne(taskId).exec();
-    if (!doc) return;
-    await doc.patch({ completed: nextValue, updated_at: nowIso() });
+    await patchItem(db, taskId, { completed: nextValue, updated_at: nowIso() });
   };
 
   useEffect(() => {
@@ -232,9 +185,7 @@ export function TaskList() {
     }
   };
 
-  // ─── Render helpers ───────────────────────────────────────────────────────
-
-  const renderTaskRow = (task: ItemDocument, dateLabel?: string) => {
+  const renderTaskRow = (task: ItemRow, dateLabel?: string) => {
     const projectLabel = task.parent_id ? projectMap.get(task.parent_id) : null;
     const snippet = task.content?.trim() ?? '';
     const isPending = pendingIds.has(task.id);
@@ -248,48 +199,32 @@ export function TaskList() {
           <input
             type="checkbox"
             className={styles.itemCheckbox}
-            checked={task.completed || isPending}
+            checked={!!task.completed || isPending}
             onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
           />
         </label>
-        <button
-          type="button"
-          className={styles.itemContent}
-          onClick={() => handleOpenTask(task.id)}
-        >
+        <button type="button" className={styles.itemContent} onClick={() => handleOpenTask(task.id)}>
           <div className={styles.itemHeader}>
             <div className={styles.itemTitle}>{task.title}</div>
           </div>
           {snippet ? <div className={styles.itemSnippet}>{snippet}</div> : null}
           <div className={styles.itemMeta}>
-            {dateLabel ? (
-              <span className={styles.itemDateLabel}>{dateLabel}</span>
-            ) : null}
+            {dateLabel ? <span className={styles.itemDateLabel}>{dateLabel}</span> : null}
             {!task.is_waiting && !task.is_someday && isStartDateToday(task.start_date) ? (
               <span className={styles.itemBadge}>Today</span>
             ) : null}
-            {task.is_waiting ? (
-              <span className={styles.itemWaiting}>Waiting</span>
-            ) : null}
-            {task.is_someday ? (
-              <span className={styles.itemBadge}>Someday</span>
-            ) : null}
-            {task.is_next ? (
-              <span className={styles.itemNextBadge}>Next</span>
-            ) : null}
-            {projectLabel ? (
-              <span className={styles.itemProject}>{projectLabel}</span>
-            ) : null}
-            {task.completed ? (
-              <span className={styles.itemCompleted}>{formatRelativeTime(task.updated_at)}</span>
-            ) : null}
+            {task.is_waiting ? <span className={styles.itemWaiting}>Waiting</span> : null}
+            {task.is_someday ? <span className={styles.itemBadge}>Someday</span> : null}
+            {task.is_next ? <span className={styles.itemNextBadge}>Next</span> : null}
+            {projectLabel ? <span className={styles.itemProject}>{projectLabel}</span> : null}
+            {task.completed ? <span className={styles.itemCompleted}>{formatRelativeTime(task.updated_at)}</span> : null}
           </div>
         </button>
       </div>
     );
   };
 
-  const renderSection = (label: string, sectionTasks: ItemDocument[]) => {
+  const renderSection = (label: string, sectionTasks: ItemRow[]) => {
     if (sectionTasks.length === 0) return null;
     return (
       <div key={label} className={styles.section}>
@@ -299,27 +234,14 @@ export function TaskList() {
     );
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={goBack}
-          aria-label="Go back"
-        >
+        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Go back">
           <BackIcon />
         </button>
         <h1 className={styles.title}>Tasks</h1>
-        <button
-          type="button"
-          className={styles.newButton}
-          onClick={handleCreateTask}
-          disabled={!db || !isReady}
-          aria-label="New task"
-        >
+        <button type="button" className={styles.newButton} onClick={handleCreateTask} aria-label="New task">
           <PlusIcon />
         </button>
       </div>
@@ -380,4 +302,3 @@ export function TaskList() {
     </div>
   );
 }
-

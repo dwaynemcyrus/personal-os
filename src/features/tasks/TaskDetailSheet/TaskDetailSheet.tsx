@@ -10,18 +10,21 @@ import {
   DropdownItem,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument, TagDocument } from '@/lib/db';
+import { useQuery, usePowerSync } from '@powersync/react';
+import type { ItemRow } from '@/lib/db';
+import { parseTags } from '@/lib/db';
 import { CalendarPicker } from './CalendarPicker';
 import { nowIso } from '@/lib/time';
 import styles from './TaskDetailSheet.module.css';
+
+type TagDocument = { id: string; name: string; is_trashed: number; trashed_at: string | null; created_at: string; updated_at: string };
 const NOTES_MAX_ROWS = 4;
 
 type TaskDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task: ItemDocument | null;
-  projects: ItemDocument[];
+  task: ItemRow | null;
+  projects: ItemRow[];
   onSave: (taskId: string, updates: {
     title: string;
     description: string;
@@ -101,23 +104,27 @@ export function TaskDetailSheet({
   onToggleComplete,
   variant = 'sheet',
 }: TaskDetailSheetProps) {
-  const { db, isReady } = useDatabase();
+  const db = usePowerSync();
 
   // Form state
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.content ?? '');
   const [parentId, setParentId] = useState(task?.parent_id ?? '');
-  const [isNext, setIsNext] = useState(task?.is_next ?? false);
+  const [isNext, setIsNext] = useState(!!task?.is_next);
   const [startDateInput, setStartDateInput] = useState(toDateInputValue(task?.start_date ?? null));
   const [dueDateInput, setDueDateInput] = useState(toDateInputValue(task?.due_date ?? null));
-  const [isSomeday, setIsSomeday] = useState(task?.is_someday ?? false);
-  const [isWaiting, setIsWaiting] = useState(task?.is_waiting ?? false);
+  const [isSomeday, setIsSomeday] = useState(!!task?.is_someday);
+  const [isWaiting, setIsWaiting] = useState(!!task?.is_waiting);
   const [waitingNote, setWaitingNote] = useState(task?.waiting_note ?? '');
-  const [tags, setTags] = useState<string[]>(dedupeTags(task?.tags ?? []));
+  const [tags, setTags] = useState<string[]>(dedupeTags(parseTags(task?.tags ?? null)));
 
-  // Catalogs
-  const [tagCatalog, setTagCatalog] = useState<TagDocument[]>([]);
-  const [areas, setAreas] = useState<ItemDocument[]>([]);
+  // Catalogs via reactive queries
+  const { data: tagCatalog } = useQuery<TagDocument>(
+    "SELECT * FROM tags WHERE is_trashed = 0 ORDER BY name ASC"
+  );
+  const { data: areas } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'area' AND is_trashed = 0 ORDER BY title ASC"
+  );
 
   // Tag sheet state
   const [tagInput, setTagInput] = useState('');
@@ -166,13 +173,13 @@ export function TaskDetailSheet({
     setTitle(task.title ?? '');
     setDescription(task.content ?? '');
     setParentId(task.parent_id ?? '');
-    setIsNext(task.is_next ?? false);
+    setIsNext(!!task.is_next);
     setStartDateInput(toDateInputValue(task.start_date ?? null));
     setDueDateInput(toDateInputValue(task.due_date ?? null));
-    setIsSomeday(task.is_someday ?? false);
-    setIsWaiting(task.is_waiting ?? false);
+    setIsSomeday(!!task.is_someday);
+    setIsWaiting(!!task.is_waiting);
     setWaitingNote(task.waiting_note ?? '');
-    setTags(dedupeTags(task.tags ?? []));
+    setTags(dedupeTags(parseTags(task.tags ?? null)));
     setTagInput('');
     setShowTagInput(false);
     setIsTagEditMode(false);
@@ -195,17 +202,6 @@ export function TaskDetailSheet({
     };
   }, [open]);
 
-  // Subscribe to catalogs
-  useEffect(() => {
-    if (!db || !isReady) return;
-    const tagSub = db.tags
-      .find({ selector: { is_trashed: false }, sort: [{ name: 'asc' }] })
-      .$.subscribe(docs => setTagCatalog(docs.map(d => d.toJSON() as TagDocument)));
-    const areaSub = db.items
-      .find({ selector: { type: 'area', is_trashed: false }, sort: [{ title: 'asc' }] })
-      .$.subscribe(docs => setAreas(docs.map(d => d.toJSON() as ItemDocument)));
-    return () => { tagSub.unsubscribe(); areaSub.unsubscribe(); };
-  }, [db, isReady]);
 
   // ─── Derived state ───────────────────────────────────────────────────────
 
@@ -237,6 +233,7 @@ export function TaskDetailSheet({
     [projects]
   );
 
+
   // Build a combined parent map for display (projects + areas)
   const parentMap = useMemo(() => {
     const map = new Map<string, { title: string; type: 'project' | 'area' }>();
@@ -257,7 +254,7 @@ export function TaskDetailSheet({
 
   // Map area id → projects belonging to that area
   const areaProjectsMap = useMemo(() => {
-    const map = new Map<string, ItemDocument[]>();
+    const map = new Map<string, ItemRow[]>();
     for (const p of activeProjects) {
       if (p.parent_id && areas.some(a => a.id === p.parent_id)) {
         const list = map.get(p.parent_id) ?? [];
@@ -388,17 +385,14 @@ export function TaskDetailSheet({
   const handleAddTagFromInput = async () => {
     const normalized = normalizeTag(tagInput);
     if (!normalized) return;
-    if (db && isReady) {
+    if (db) {
       const existing = tagCatalog.find(t => t.name.toLowerCase() === normalized.toLowerCase());
       if (!existing) {
-        await db.tags.insert({
-          id: uuidv4(),
-          name: normalized,
-          created_at: nowIso(),
-          updated_at: nowIso(),
-          is_trashed: false,
-          trashed_at: null,
-        });
+        const timestamp = nowIso();
+        await db.execute(
+          'INSERT INTO tags (id, name, created_at, updated_at, is_trashed, trashed_at, owner) VALUES (?, ?, ?, ?, 0, NULL, NULL)',
+          [uuidv4(), normalized, timestamp, timestamp]
+        );
       }
     }
     if (!existingTagKeys.has(normalized.toLowerCase())) {
@@ -442,50 +436,47 @@ export function TaskDetailSheet({
   // ─── Tag catalog management ───────────────────────────────────────────────
 
   const handleRenameTag = async (tagDoc: TagDocument, newName: string) => {
-    if (!db || !isReady) return;
+    if (!db) return;
     const normalized = normalizeTag(newName);
     if (!normalized || normalized.toLowerCase() === tagDoc.name.toLowerCase()) return;
 
-    const doc = await db.tags.findOne(tagDoc.id).exec();
-    if (!doc) return;
-    await doc.patch({ name: normalized, updated_at: nowIso() });
+    const timestamp = nowIso();
+    await db.execute('UPDATE tags SET name = ?, updated_at = ? WHERE id = ?', [normalized, timestamp, tagDoc.id]);
 
     setTags(current =>
       current.map(t => t.toLowerCase() === tagDoc.name.toLowerCase() ? normalized : t)
     );
 
-    const allItems = await db.items.find({ selector: { is_trashed: false } }).exec();
+    // Update tags JSON in all items that reference the old tag name
+    const allItems = await db.getAll<ItemRow>('SELECT * FROM items WHERE is_trashed = 0');
+    const oldName = tagDoc.name.toLowerCase();
     for (const item of allItems) {
-      const data = item.toJSON() as ItemDocument;
-      const oldName = tagDoc.name.toLowerCase();
-      if (!(data.tags as string[]).some((t: string) => t.toLowerCase() === oldName)) continue;
-      await item.patch({
-        tags: (data.tags as string[]).map((t: string) =>
-          t.toLowerCase() === oldName ? normalized : t
-        ),
-        updated_at: nowIso(),
-      });
+      const itemTags = parseTags(item.tags);
+      if (!itemTags.some((t: string) => t.toLowerCase() === oldName)) continue;
+      const newTags = JSON.stringify(itemTags.map((t: string) =>
+        t.toLowerCase() === oldName ? normalized : t
+      ));
+      await db.execute('UPDATE items SET tags = ?, updated_at = ? WHERE id = ?', [newTags, timestamp, item.id]);
     }
   };
 
   const handleDeleteTag = async (tagDoc: TagDocument) => {
-    if (!db || !isReady) return;
+    if (!db) return;
 
-    const doc = await db.tags.findOne(tagDoc.id).exec();
-    if (!doc) return;
-    await doc.patch({ is_trashed: true, trashed_at: nowIso(), updated_at: nowIso() });
+    const timestamp = nowIso();
+    await db.execute('UPDATE tags SET is_trashed = 1, trashed_at = ?, updated_at = ? WHERE id = ?', [timestamp, timestamp, tagDoc.id]);
 
     setTags(current => current.filter(t => t.toLowerCase() !== tagDoc.name.toLowerCase()));
 
-    const allItems = await db.items.find({ selector: { is_trashed: false } }).exec();
+    // Remove tag from all items that reference it
+    const allItems = await db.getAll<ItemRow>('SELECT * FROM items WHERE is_trashed = 0');
+    const oldName = tagDoc.name.toLowerCase();
     for (const item of allItems) {
-      const data = item.toJSON() as ItemDocument;
-      const oldName = tagDoc.name.toLowerCase();
-      if (!(data.tags as string[]).some((t: string) => t.toLowerCase() === oldName)) continue;
-      await item.patch({
-        tags: (data.tags as string[]).filter((t: string) => t.toLowerCase() !== oldName),
-        updated_at: nowIso(),
-      });
+      const itemTags = parseTags(item.tags);
+      if (!itemTags.some((t: string) => t.toLowerCase() === oldName)) continue;
+      const newTagsArr = itemTags.filter((t: string) => t.toLowerCase() !== oldName);
+      const newTags = newTagsArr.length > 0 ? JSON.stringify(newTagsArr) : null;
+      await db.execute('UPDATE items SET tags = ?, updated_at = ? WHERE id = ?', [newTags, timestamp, item.id]);
     }
   };
 
@@ -662,7 +653,7 @@ export function TaskDetailSheet({
                 <input
                   className={styles['task-detail__checkbox']}
                   type="checkbox"
-                  checked={task.completed}
+                  checked={!!task.completed}
                   onChange={handleToggleComplete}
                   aria-label="Completion"
                 />

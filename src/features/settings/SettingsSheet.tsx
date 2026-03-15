@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useDatabase } from '@/hooks/useDatabase';
+import { usePowerSync } from '@powersync/react';
 import { Sheet, SheetContent, SheetClose, SheetTitle } from '@/components/ui/Sheet';
 import { CloseIcon } from '@/components/ui/icons';
 import { exportNotesZip } from '@/lib/exportNotes';
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function SettingsSheet({ open, onOpenChange }: Props) {
-  const { db, isReady } = useDatabase();
+  const db = usePowerSync();
   const [status, setStatus] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
@@ -134,7 +134,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={styles.row}
               onClick={handleExportNotes}
-              disabled={!isReady}
+              disabled={!db}
             >
               Export Notes as ZIP
             </button>
@@ -146,7 +146,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={styles.row}
               onClick={() => importRef.current?.click()}
-              disabled={!isReady}
+              disabled={!db}
             >
               Import from Obsidian (.md or .zip)
             </button>
@@ -166,7 +166,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={styles.row}
               onClick={handleBackup}
-              disabled={!isReady}
+              disabled={!db}
             >
               Create Backup
             </button>
@@ -174,7 +174,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={styles.row}
               onClick={() => restoreMergeRef.current?.click()}
-              disabled={!isReady}
+              disabled={!db}
             >
               Restore — Merge
             </button>
@@ -182,7 +182,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={`${styles.row} ${styles.rowDanger}`}
               onClick={() => restoreRef.current?.click()}
-              disabled={!isReady}
+              disabled={!db}
             >
               Restore — Replace All
             </button>

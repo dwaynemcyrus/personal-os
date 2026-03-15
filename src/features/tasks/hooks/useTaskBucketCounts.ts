@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument } from '@/lib/db';
+import { useMemo } from 'react';
+import { useQuery } from '@powersync/react';
+import type { ItemRow } from '@/lib/db';
 import {
   getTaskBucketCounts,
   type TaskBucketCounts,
@@ -16,26 +16,12 @@ const EMPTY_COUNTS: TaskBucketCounts = {
 };
 
 export function useTaskBucketCounts(): TaskBucketCounts {
-  const { db, isReady } = useDatabase();
-  const [tasks, setTasks] = useState<ItemDocument[]>([]);
-
-  useEffect(() => {
-    if (!db || !isReady) return;
-
-    const subscription = db.items
-      .find({
-        selector: { type: 'task' },
-        sort: [{ updated_at: 'desc' }, { id: 'asc' }],
-      })
-      .$.subscribe((docs) => {
-        setTasks(docs.map((doc) => doc.toJSON() as ItemDocument));
-      });
-
-    return () => subscription.unsubscribe();
-  }, [db, isReady]);
+  const { data: tasks } = useQuery<ItemRow>(
+    "SELECT * FROM items WHERE type = 'task' ORDER BY updated_at DESC, id ASC"
+  );
 
   return useMemo(() => {
-    if (!db || !isReady) return EMPTY_COUNTS;
+    if (!tasks.length) return EMPTY_COUNTS;
     return getTaskBucketCounts(tasks);
-  }, [db, isReady, tasks]);
+  }, [tasks]);
 }

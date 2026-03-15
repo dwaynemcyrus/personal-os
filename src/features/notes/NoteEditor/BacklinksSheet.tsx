@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useDatabase } from '@/hooks/useDatabase';
-import type { ItemDocument, ItemLinkDocument } from '@/lib/db';
+import { useQuery } from '@powersync/react';
+import type { ItemRow, ItemLinkRow } from '@/lib/db';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { extractNoteTitle, formatRelativeTime } from '../noteUtils';
 import styles from './BacklinksSheet.module.css';
@@ -20,28 +19,25 @@ export function BacklinksSheet({
   noteTitle,
   onOpenNote,
 }: BacklinksSheetProps) {
-  const { db, isReady } = useDatabase();
-  const [backlinks, setBacklinks] = useState<Array<{ link: ItemLinkDocument; note: ItemDocument }>>([]);
+  const { data: links } = useQuery<ItemLinkRow>(
+    `SELECT il.* FROM item_links il
+     WHERE il.is_trashed = 0
+       AND (il.target_id = ? OR (il.target_title = ? AND il.target_id IS NULL))`,
+    [noteId, noteTitle ?? '']
+  );
 
-  useEffect(() => {
-    if (!db || !isReady || !open) return;
-    const sub = db.item_links.find({
-      selector: { is_trashed: false },
-    }).$.subscribe(async (allLinks) => {
-      const relevant = allLinks.filter(
-        (l) => l.target_id === noteId || (l.target_title === noteTitle && !l.target_id)
-      );
-      const pairs: Array<{ link: ItemLinkDocument; note: ItemDocument }> = [];
-      for (const link of relevant) {
-        const sourceDoc = await db.items.findOne(link.source_id).exec();
-        if (sourceDoc && !sourceDoc.is_trashed) {
-          pairs.push({ link: link.toJSON() as ItemLinkDocument, note: sourceDoc.toJSON() as ItemDocument });
-        }
-      }
-      setBacklinks(pairs);
-    });
-    return () => sub.unsubscribe();
-  }, [db, isReady, open, noteId, noteTitle]);
+  const sourceIds = links.map((l) => l.source_id);
+  const placeholders = sourceIds.length > 0 ? sourceIds.map(() => '?').join(',') : 'NULL';
+  const { data: sourceNotes } = useQuery<ItemRow>(
+    `SELECT * FROM items WHERE id IN (${placeholders}) AND is_trashed = 0`,
+    sourceIds
+  );
+
+  const noteMap = new Map(sourceNotes.map((n) => [n.id, n]));
+  const backlinks = links.flatMap((link) => {
+    const note = noteMap.get(link.source_id);
+    return note ? [{ link, note }] : [];
+  });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

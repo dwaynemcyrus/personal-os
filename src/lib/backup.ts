@@ -1,15 +1,25 @@
-import type { RxDatabase } from 'rxdb';
-import type { DatabaseCollections } from './db';
+import type { AbstractPowerSyncDatabase } from '@powersync/web';
+import { supabase } from './supabase';
 import { nowIso } from './time';
 
 const BACKUP_VERSION = 1;
-const COLLECTIONS = [
+
+const TABLES = [
   'items',
   'item_links',
   'item_versions',
   'time_entries',
   'tags',
-] as const satisfies ReadonlyArray<keyof DatabaseCollections>;
+] as const;
+
+// Delete order: children before parents to avoid FK violations
+const DELETE_ORDER = [
+  'item_links',
+  'item_versions',
+  'time_entries',
+  'tags',
+  'items',
+] as const;
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -20,12 +30,10 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function createBackup(db: RxDatabase<DatabaseCollections>): Promise<void> {
+export async function createBackup(db: AbstractPowerSyncDatabase): Promise<void> {
   const data: Record<string, unknown[]> = {};
-
-  for (const name of COLLECTIONS) {
-    const docs = await db[name].find().exec();
-    data[name] = docs.map((d) => d.toJSON());
+  for (const table of TABLES) {
+    data[table] = await db.getAll(`SELECT * FROM ${table}`);
   }
 
   const backup = {
@@ -42,7 +50,7 @@ export async function createBackup(db: RxDatabase<DatabaseCollections>): Promise
 export type RestoreResult = { restored: number };
 
 export async function restoreBackup(
-  db: RxDatabase<DatabaseCollections>,
+  _db: AbstractPowerSyncDatabase,
   file: File,
   merge: boolean
 ): Promise<RestoreResult> {
@@ -50,32 +58,44 @@ export async function restoreBackup(
   const backup = JSON.parse(text) as { collections?: Record<string, unknown[]> };
   if (!backup.collections) throw new Error('Invalid backup file — missing collections.');
 
-  let restored = 0;
-
   if (!merge) {
-    // Destructive: wipe all collections first
-    for (const name of COLLECTIONS) {
-      await db[name].find().remove();
+    // Destructive: wipe Supabase then re-insert, then reload
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated.');
+
+    for (const table of DELETE_ORDER) {
+      await supabase.from(table).delete().eq('owner', user.id);
     }
+
+    let restored = 0;
+    for (const table of TABLES) {
+      const records = (backup.collections[table] ?? []) as Record<string, unknown>[];
+      if (!records.length) continue;
+      const { error } = await supabase.from(table).insert(records);
+      if (!error) restored += records.length;
+    }
+
+    // Drop local PowerSync DB and reload — page will re-pull from Supabase
+    await _db.disconnect();
+    window.location.reload();
+
+    return { restored }; // unreachable
   }
 
-  for (const name of COLLECTIONS) {
-    const records = backup.collections[name] ?? [];
-    if (!records.length) continue;
+  // Merge: insert only records not already in Supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated.');
 
-    if (merge) {
-      for (const record of records as Record<string, unknown>[]) {
-        const id = record.id as string;
-        const existing = await db[name].findOne(id).exec();
-        if (!existing) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (db[name] as any).insert(record).catch(() => {});
-          restored++;
-        }
+  let restored = 0;
+  for (const table of TABLES) {
+    const records = (backup.collections[table] ?? []) as Record<string, unknown>[];
+    for (const record of records) {
+      const id = record.id as string;
+      const { data: existing } = await supabase.from(table).select('id').eq('id', id).single();
+      if (!existing) {
+        try { await supabase.from(table).insert(record); } catch { /* ignore duplicate */ }
+        restored++;
       }
-    } else {
-      const result = await db[name].bulkInsert(records as never[]);
-      restored += result.success.length;
     }
   }
 

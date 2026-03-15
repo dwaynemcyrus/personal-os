@@ -17,6 +17,8 @@
     "@codemirror/search": "^6.6.0",
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.12",
+    "@powersync/react": "^1.9.0",
+    "@powersync/web": "^1.36.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-visually-hidden": "^1.2.4",
