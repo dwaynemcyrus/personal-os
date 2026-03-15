@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.19.0 - 2026-03-15
+- Migrated entire data layer from RxDB to PowerSync for true offline-first SQLite sync
+- Replaced all RxDB collections, subscriptions, and mutations with `useQuery`/`usePowerSync` SQL hooks
+- Added PowerSync schema (`src/lib/powersync.ts`) covering items, item_links, item_versions, time_entries, and tags tables
+- Added `SupabaseConnector` with `fetchCredentials` (Supabase JWT) and `uploadData` (upsert/update/delete to Supabase)
+- Added `powersync/sync-rules.yaml` with per-user bucket definitions
+- Replaced `DatabaseProvider` with `PowerSyncContext.Provider` wrapping `psDb` singleton
+- Added centralized SQL helpers: `insertItem`, `patchItem`, `insertItemLink`, `insertItemVersion` in `src/lib/db.ts`
+- Added domain type exports to `db.ts`: `ContentType`, `ReadStatus`, `ItemStatus`, `contentTypes`, `readStatuses`
+- Renamed `slug` column to `filename` in Supabase (`items` table) via migration
+- Fixed `uploadData` to include `id` in PUT upsert (PowerSync strips id from opData)
+- Fixed note content lost on navigation — editor now saves on unmount if dirty
+- Fixed Vercel build failure — increased workbox `maximumFileSizeToCacheInBytes` to 4 MiB for PowerSync WASM files
+- Updated `vite.config.ts` with COOP/COEP headers, `optimizeDeps.exclude`, and `worker.format: 'es'` required by PowerSync
+- Migrated `ProjectList`, `ProjectDetailSheet`, `SettingsSheet`, `SourceDetailSheet`, and all task/note/timer components to PowerSync
+
 ## 0.18.0 - 2026-03-02
 - Fixed captures incorrectly appearing in Notes views (All, Today, Pinned, Context Sheet) — queries now filter on `inbox_at: null` and `note_type: null` to exclude inbox items
 - Fixed `CaptureModal` immediately marking captures as `processed: true` — captures now start as `processed: false` with no result until the user acts in InboxWizard
