@@ -133,7 +133,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       : (noteRef.current?.slug ?? generateSlug(title));
 
     const fmPatch: Partial<ItemDocument> = { slug };
-    if ('tags' in fmProps) fmPatch.tags = Array.isArray(fmProps.tags) ? fmProps.tags as string[] : undefined;
+    if ('tags' in fmProps) fmPatch.tags = Array.isArray(fmProps.tags)
+      ? (fmProps.tags as unknown[]).filter((t): t is string => typeof t === 'string')
+      : [];
     if ('due_date' in fmProps) fmPatch.due_date = typeof fmProps.due_date === 'string' ? fmProps.due_date : null;
     if ('start_date' in fmProps) fmPatch.start_date = typeof fmProps.start_date === 'string' ? fmProps.start_date : null;
     if ('priority' in fmProps) fmPatch.priority = typeof fmProps.priority === 'string' ? fmProps.priority as ItemDocument['priority'] : null;
