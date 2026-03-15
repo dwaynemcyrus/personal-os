@@ -87,7 +87,8 @@
       "Bash(brew info:*)",
       "Bash(ps -p 7999,99609,99758 -o pid,command)",
       "Bash(kill 7999 99609 99758)",
-      "Bash(find /Users/cyrus/Code/personal-os/src/components/providers -type f 2>/dev/null || find /Users/cyrus/Code/personal-os/src -name \"providers*\" -type f 2>/dev/null | head -20)"
+      "Bash(find /Users/cyrus/Code/personal-os/src/components/providers -type f 2>/dev/null || find /Users/cyrus/Code/personal-os/src -name \"providers*\" -type f 2>/dev/null | head -20)",
+      "Bash(head -50 src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx && echo \"...\" && sed -n '450,490p' src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx && echo \"...\" && sed -n '650,670p' src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx)"
     ]
   }
 }

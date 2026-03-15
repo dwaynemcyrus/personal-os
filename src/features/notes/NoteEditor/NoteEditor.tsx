@@ -67,6 +67,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef('');
+  const contentRef = useRef('');
   const allNotesRef = useRef(allNotes);
   const noteRef = useRef(note);
 
@@ -85,6 +86,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (isDirtyRef.current) {
+        saveContentRef.current(contentRef.current).catch(() => {});
+      }
     };
   }, []);
 
@@ -140,6 +144,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   }, []);
 
   const handleChange = useCallback((nextContent: string) => {
+    contentRef.current = nextContent;
     setContent(nextContent);
     setIsDirty(true);
     scheduleSave(nextContent);

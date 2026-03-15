@@ -140,7 +140,7 @@ class SupabaseConnector implements PowerSyncBackendConnector {
         const { table, op: operation, id, opData } = op;
 
         if (operation === 'PUT') {
-          const { error } = await supabase.from(table).upsert(opData ?? {});
+          const { error } = await supabase.from(table).upsert({ id, ...opData });
           if (error) throw error;
         } else if (operation === 'PATCH') {
           const { error } = await supabase.from(table).update(opData ?? {}).eq('id', id);
@@ -153,7 +153,6 @@ class SupabaseConnector implements PowerSyncBackendConnector {
       await transaction.complete();
     } catch (error) {
       console.error('[PowerSync] Upload error:', error);
-      // Don't call complete() on error — PowerSync will retry
     }
   }
 }
@@ -166,3 +165,4 @@ export const psDb = new PowerSyncDatabase({
   schema: AppSchema,
   database: { dbFilename: 'personalos.db' },
 });
+
