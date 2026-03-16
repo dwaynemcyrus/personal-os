@@ -5,7 +5,7 @@ import type { ItemRow } from '@/lib/db';
 export type NoteGroup = 'all' | 'todo' | 'today' | 'locked' | 'pinned' | 'trash';
 
 // Only fetch columns needed for list display — content stays in item_content
-const NOTE_LIST_COLS = 'id, title, filename, updated_at, created_at, is_pinned, is_trashed, inbox_at, has_todos, tags';
+const NOTE_LIST_COLS = 'id, title, filename, updated_at, created_at, is_pinned, is_trashed, inbox_at, has_todos, tags, item_content(content)';
 
 export function useGroupedNotes(group: NoteGroup): {
   notes: ItemRow[];

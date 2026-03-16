@@ -106,8 +106,9 @@ export function NotesList({ group }: NotesListProps) {
           <p className={styles.empty}>No notes here yet.</p>
         ) : (
           notes.map((note) => {
-            const title = formatNoteTitle(extractNoteTitle(note.content ?? null, note.title ?? ''));
-            const snippet = extractNoteSnippet(note.content ?? null);
+            const rawContent = ((note as unknown as { item_content?: { content?: string | null } }).item_content?.content ?? note.content ?? '').slice(0, 500);
+            const title = formatNoteTitle(extractNoteTitle(rawContent || null, note.title ?? ''));
+            const snippet = extractNoteSnippet(rawContent || null);
             const updatedLabel = formatRelativeTime(note.updated_at);
             return (
               <button
