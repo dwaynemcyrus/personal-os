@@ -146,3 +146,39 @@
   color: var(--color-ink-500);
   margin: 0;
 }
+
+.trashedBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--font-sm);
+  background: color-mix(in srgb, var(--color-danger, #e53e3e) 10%, transparent);
+  color: color-mix(in srgb, var(--color-danger, #e53e3e) 80%, var(--color-ink));
+}
+
+.trashedRestoreBtn {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.trashedContent {
+  padding: 16px 20px;
+  font-size: var(--font-sm);
+  color: var(--color-ink-500);
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+  user-select: text;
+}

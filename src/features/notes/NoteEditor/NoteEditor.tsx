@@ -44,7 +44,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         .from('items')
         .select('id, title, filename, updated_at, created_at, is_pinned, is_trashed, item_status, tags, priority, due_date, start_date, inbox_at, subtype, type, owner, completed, is_next, is_someday, is_waiting, waiting_note, body, capture_source, processed, processed_at, result_type, result_id, description, category, sort_order, parent_id, trashed_at, content_type, read_status, url, depends_on, waiting_started_at, period_start, period_end, progress, frequency, target, active, streak, last_completed_at, has_todos')
         .eq('id', noteId)
-        .single();
+        .maybeSingle();
       if (error) return null;
       return data as unknown as ItemRow;
     },
@@ -59,7 +59,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         .from('item_content')
         .select('content')
         .eq('item_id', noteId)
-        .single();
+        .maybeSingle();
       return data ?? { content: null };
     },
     staleTime: Infinity, // Editor manages its own content state
@@ -121,6 +121,19 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   useEffect(() => { allNotesRef.current = allNotes; }, [allNotes]);
   useEffect(() => { noteRef.current = note ?? null; }, [note]);
 
+  // Clear the 'imported' review tag the first time this note is opened
+  useEffect(() => {
+    if (!note?.id) return;
+    const tags: string[] = Array.isArray(note.tags) ? note.tags as string[] : [];
+    if (!tags.includes('imported')) return;
+    const nextTags = tags.filter((t) => t !== 'imported');
+    patchItem(note.id, { tags: nextTags, updated_at: nowIso() }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['note', note.id] });
+      queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id]);
+
   // Apply content when note loads (or refreshes) if editor is not dirty
   useEffect(() => {
     if (!contentRow || isDirtyRef.current) return;
@@ -140,6 +153,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   const saveContentRef = useRef<(c: string) => Promise<void>>(async () => {});
   saveContentRef.current = async (nextContent: string) => {
+    if (noteRef.current?.is_trashed) return;
     if (nextContent === lastSavedContentRef.current) { setIsDirty(false); return; }
     const fm = parseFrontmatter(nextContent);
     const fmProps = fm.properties ?? {};
@@ -213,6 +227,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     }
   }, []);
 
+  const handleRestore = useCallback(async () => {
+    if (!note) return;
+    await patchItem(note.id, { is_trashed: false, trashed_at: null, updated_at: nowIso() });
+    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
+  }, [note, noteId]);
+
   const handleDelete = useCallback(async () => {
     if (!note) return;
     const timestamp = nowIso();
@@ -238,6 +260,18 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     queryClient.invalidateQueries({ queryKey: ['note', noteId] });
     setFilenameSheetOpen(false);
   }, [note, noteId, editingFilename]);
+
+  const handleExport = useCallback((ext: 'md' | 'txt') => {
+    const filename = (note?.filename ?? generateSlug(note?.title ?? 'untitled')) + '.' + ext;
+    const mime = ext === 'md' ? 'text/markdown' : 'text/plain';
+    const blob = new Blob([contentRef.current], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [note]);
 
   const handleWikilinkClick = useCallback((title: string, header?: string) => {
     const matches = allNotesRef.current.filter(
@@ -298,29 +332,43 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
             </button>
           </DropdownTrigger>
           <DropdownContent align="end" sideOffset={12}>
-            <DropdownItem onSelect={handleTogglePinned}>
-              {note.is_pinned ? 'Unpin' : 'Pin'}
-            </DropdownItem>
-            <DropdownItem onSelect={() => setBacklinksOpen(true)}>
-              Backlinks
-            </DropdownItem>
-            <DropdownItem onSelect={() => {
-              setEditingFilename(note.filename ?? generateSlug(note.title ?? 'untitled'));
-              setFilenameSheetOpen(true);
-            }}>
-              Edit Filename
-            </DropdownItem>
-            <DropdownSeparator />
-            <DropdownItem disabled>Created {formatRelativeTime(note.created_at)}</DropdownItem>
-            <DropdownItem disabled>Updated {formatRelativeTime(note.updated_at)}</DropdownItem>
-            <DropdownSeparator />
-            <DropdownItem data-variant="danger" onSelect={handleDelete}>Trash</DropdownItem>
+            {note.is_trashed ? (
+              <>
+                <DropdownItem onSelect={handleRestore}>Restore</DropdownItem>
+                <DropdownItem onSelect={() => setBacklinksOpen(true)}>Backlinks</DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem disabled>Trashed {formatRelativeTime(note.trashed_at ?? note.updated_at)}</DropdownItem>
+              </>
+            ) : (
+              <>
+                <DropdownItem onSelect={handleTogglePinned}>
+                  {note.is_pinned ? 'Unpin' : 'Pin'}
+                </DropdownItem>
+                <DropdownItem onSelect={() => setBacklinksOpen(true)}>
+                  Backlinks
+                </DropdownItem>
+                <DropdownItem onSelect={() => {
+                  setEditingFilename(note.filename ?? generateSlug(note.title ?? 'untitled'));
+                  setFilenameSheetOpen(true);
+                }}>
+                  Edit Filename
+                </DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem onSelect={() => handleExport('md')}>Export as .md</DropdownItem>
+                <DropdownItem onSelect={() => handleExport('txt')}>Export as .txt</DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem disabled>Created {formatRelativeTime(note.created_at)}</DropdownItem>
+                <DropdownItem disabled>Updated {formatRelativeTime(note.updated_at)}</DropdownItem>
+                <DropdownSeparator />
+                <DropdownItem data-variant="danger" onSelect={handleDelete}>Trash</DropdownItem>
+              </>
+            )}
           </DropdownContent>
         </Dropdown>
       ),
     });
     return () => setSlot({});
-  }, [note, setSlot, handleTogglePinned, handleDelete]);
+  }, [note, setSlot, handleTogglePinned, handleDelete, handleRestore, handleExport]);
 
   if (!hasLoaded || content === null) {
     return <p className={styles.state}>Loading…</p>;
@@ -328,6 +376,27 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   if (!note) {
     return <p className={styles.state}>Note not found.</p>;
+  }
+
+  if (note.is_trashed) {
+    return (
+      <>
+        <div className={styles.trashedBanner}>
+          <span>This note is in the trash.</span>
+          <button type="button" className={styles.trashedRestoreBtn} onClick={() => void handleRestore()}>
+            Restore
+          </button>
+        </div>
+        <div className={styles.trashedContent}>{content || '(empty)'}</div>
+        <BacklinksSheet
+          open={backlinksOpen}
+          onOpenChange={setBacklinksOpen}
+          noteId={noteId}
+          noteTitle={note.title}
+          onOpenNote={(id) => pushLayer({ view: 'note-detail', noteId: id })}
+        />
+      </>
+    );
   }
 
   void pendingHeader;
