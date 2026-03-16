@@ -21,8 +21,8 @@ const baseTheme = EditorView.theme({
   '&': { backgroundColor: 'transparent' },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
-    fontSize: '17px',
+    fontFamily: 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Consolas, monospace',
+    fontSize: '15px',
     lineHeight: '1.75',
     overflow: 'visible',
   },
@@ -66,8 +66,8 @@ const baseTheme = EditorView.theme({
     boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
   },
   '.cm-tooltip.cm-tooltip-autocomplete > ul': {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
-    fontSize: '15px',
+    fontFamily: 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Consolas, monospace',
+    fontSize: '13px',
     maxHeight: '240px',
   },
   '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
