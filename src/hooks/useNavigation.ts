@@ -4,13 +4,12 @@
  * Stack-based navigation synced to the browser URL.
  *
  * - pushLayer  → history.pushState with real path (adds history entry)
- * - goBack     → speculative dispatch for instant UI update + history.back()
- *               for correct URL; popstate handler is suppressed for that call
- * - popstate   → restores state from current URL (browser back/forward)
+ * - goBack     → dispatches state update + history.replaceState (never history.back())
+ * - popstate   → restores state from current URL (browser back/forward button)
  * - on mount   → restores state from URL so deep links work
  */
 
-import { useReducer, useEffect, useCallback, useRef } from 'react';
+import { useReducer, useEffect, useCallback } from 'react';
 import {
   navigationReducer,
   navigationActions,
@@ -25,10 +24,6 @@ export function useNavigation() {
     initialNavigationState
   );
 
-  // Prevents the popstate handler from double-dispatching when the UI
-  // back button calls history.back() after an optimistic dispatch.
-  const suppressNextPopState = useRef(false);
-
   // On mount: restore navigation state from the current URL (supports deep links).
   useEffect(() => {
     const layer = pathToLayer(window.location.pathname);
@@ -41,10 +36,6 @@ export function useNavigation() {
   // Browser back / forward button — read the URL and restore matching state.
   useEffect(() => {
     const handlePopState = () => {
-      if (suppressNextPopState.current) {
-        suppressNextPopState.current = false;
-        return;
-      }
       const layer = pathToLayer(window.location.pathname);
       dispatch(navigationActions.restoreState({ stack: layer ? [layer] : [] }));
     };
@@ -65,19 +56,15 @@ export function useNavigation() {
           ? navigationActions.goBack()
           : navigationActions.popLayer();
 
-      // Optimistic state update so the UI responds instantly.
+      // Update internal state immediately.
       dispatch(action);
 
-      if (window.history.length > 1) {
-        // Let the browser navigate back — URL will be correct.
-        suppressNextPopState.current = true;
-        window.history.back();
-      } else {
-        // Deep-link entry: no prior history, update URL via replaceState.
-        const newStack = state.stack.slice(0, -1);
-        const newTop = newStack[newStack.length - 1];
-        window.history.replaceState(null, '', newTop ? layerToPath(newTop) : '/');
-      }
+      // Update the URL via replaceState — never call history.back() from the
+      // UI button, which would bleed into external browser history and also
+      // trigger the popstate handler (causing the wrong note to be restored).
+      const newStack = state.stack.slice(0, -1);
+      const newTop = newStack[newStack.length - 1];
+      window.history.replaceState(null, '', newTop ? layerToPath(newTop) : '/');
     },
     [state.stack]
   );
