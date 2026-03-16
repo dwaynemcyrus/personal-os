@@ -24,7 +24,7 @@ async function getNextVersionNumber(noteId: string): Promise<number> {
     .eq('is_trashed', false)
     .order('version_number', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
   return data ? data.version_number + 1 : 1;
 }
 

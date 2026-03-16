@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetClose, SheetTitle } from '@/components/ui/She
 import { CloseIcon } from '@/components/ui/icons';
 import { exportNotesZip } from '@/lib/exportNotes';
 import { importNotesFromFiles } from '@/lib/importNotes';
-import { createBackup, restoreBackup } from '@/lib/backup';
+import { createBackup, restoreBackup, wipeAllData } from '@/lib/backup';
 import { queryClient } from '@/lib/queryClient';
 import { showToast } from '@/components/ui/Toast';
 import styles from './SettingsSheet.module.css';
@@ -14,11 +14,14 @@ type Props = {
 };
 
 export function SettingsSheet({ open, onOpenChange }: Props) {
-  const [status, setStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [wipeConfirming, setWipeConfirming] = useState(false);
+  const [wipeInput, setWipeInput] = useState('');
+  const [isWiping, setIsWiping] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   const restoreMergeRef = useRef<HTMLInputElement>(null);
@@ -115,18 +118,43 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
         : 'This will permanently replace ALL your data with the backup. Are you sure?'
     );
     if (!confirmed) { e.target.value = ''; return; }
-    setStatus('Restoring…');
+    setIsRestoring(true);
+    if (!merge) {
+      onOpenChange(false);
+      showToast('Replacing all data…');
+    }
     try {
-      const { restored } = await restoreBackup(file, merge);
-      setStatus(`Restored ${restored} record${restored !== 1 ? 's' : ''}.`);
+      const { restored } = await restoreBackup(file, merge, (msg) => showToast(msg));
+      if (merge) {
+        showToast(`Merged ${restored} record${restored !== 1 ? 's' : ''}.`);
+        queryClient.invalidateQueries();
+      }
+      // replace-all reloads the page — success is the fresh app
     } catch {
-      setStatus('Restore failed — is this a valid backup file?');
+      showToast('Restore failed — is this a valid backup file?');
+    } finally {
+      setIsRestoring(false);
     }
     e.target.value = '';
   };
 
+  const handleWipe = async () => {
+    if (wipeInput !== 'delete') return;
+    setIsWiping(true);
+    onOpenChange(false);
+    showToast('Wiping all data…');
+    try {
+      await wipeAllData((msg) => showToast(msg));
+      queryClient.clear();
+      window.location.reload();
+    } catch {
+      showToast('Wipe failed — please try again.');
+      setIsWiping(false);
+    }
+  };
+
   return (
-    <Sheet open={open} onOpenChange={(next) => { if (!next) setStatus(null); onOpenChange(next); }}>
+    <Sheet open={open} onOpenChange={(next) => { if (!next) { setWipeConfirming(false); setWipeInput(''); } onOpenChange(next); }}>
       <SheetContent side="bottom" className={styles.sheet} ariaLabel="Settings">
         <header className={styles.header}>
           <SheetTitle className={styles.headerTitle}>Settings</SheetTitle>
@@ -200,13 +228,17 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={styles.row}
               onClick={() => restoreMergeRef.current?.click()}
+              disabled={isRestoring}
+              aria-busy={isRestoring}
             >
-              Restore — Merge
+              {isRestoring ? 'Restoring…' : 'Restore — Merge'}
             </button>
             <button
               type="button"
               className={`${styles.row} ${styles.rowDanger}`}
               onClick={() => restoreRef.current?.click()}
+              disabled={isRestoring}
+              aria-busy={isRestoring}
             >
               Restore — Replace All
             </button>
@@ -215,18 +247,62 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="file"
               accept=".json"
               style={{ display: 'none' }}
-              onChange={(e) => handleRestore(e, true)}
+              onChange={(e) => void handleRestore(e, true)}
             />
             <input
               ref={restoreRef}
               type="file"
               accept=".json"
               style={{ display: 'none' }}
-              onChange={(e) => handleRestore(e, false)}
+              onChange={(e) => void handleRestore(e, false)}
             />
           </section>
 
-          {status && <p className={styles.status}>{status}</p>}
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Danger Zone</div>
+            {!wipeConfirming ? (
+              <button
+                type="button"
+                className={`${styles.row} ${styles.rowDanger}`}
+                onClick={() => setWipeConfirming(true)}
+                disabled={isWiping}
+              >
+                Wipe All Data
+              </button>
+            ) : (
+              <div className={styles.wipeConfirm}>
+                <p className={styles.wipeWarning}>
+                  This permanently deletes all your data. Type <strong>delete</strong> to confirm.
+                </p>
+                <input
+                  type="text"
+                  className={styles.wipeInput}
+                  placeholder="delete"
+                  value={wipeInput}
+                  onChange={(e) => setWipeInput(e.target.value)}
+                  autoFocus
+                />
+                <div className={styles.wipeActions}>
+                  <button
+                    type="button"
+                    className={styles.wipeCancel}
+                    onClick={() => { setWipeConfirming(false); setWipeInput(''); }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.wipeSubmit}
+                    onClick={() => void handleWipe()}
+                    disabled={wipeInput !== 'delete'}
+                  >
+                    Wipe All Data
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
         </div>
       </SheetContent>
     </Sheet>

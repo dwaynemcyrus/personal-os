@@ -81,3 +81,61 @@
   margin: 0;
   padding-top: var(--space-8);
 }
+
+.wipeConfirm {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.wipeWarning {
+  font-size: var(--font-sm);
+  opacity: 0.7;
+  margin: 0;
+}
+
+.wipeInput {
+  background: transparent;
+  border: 1px solid var(--color-danger, #e53e3e);
+  border-radius: var(--radius-8);
+  color: inherit;
+  font-size: var(--font-base);
+  padding: var(--space-8) var(--space-12);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wipeInput::placeholder {
+  opacity: 0.4;
+}
+
+.wipeActions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.wipeCancel {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-base);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.6;
+}
+
+.wipeSubmit {
+  border: none;
+  background: var(--color-danger, #e53e3e);
+  color: #fff;
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--radius-8);
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.wipeSubmit:enabled {
+  opacity: 1;
+}

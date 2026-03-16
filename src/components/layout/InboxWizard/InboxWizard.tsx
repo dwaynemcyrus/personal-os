@@ -58,7 +58,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         .from('item_content')
         .select('content')
         .eq('item_id', currentNote.id)
-        .single();
+        .maybeSingle();
       return data ?? { content: null };
     },
     enabled: Boolean(currentNote?.id),
