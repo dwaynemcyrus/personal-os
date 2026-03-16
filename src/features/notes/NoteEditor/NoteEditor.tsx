@@ -23,6 +23,7 @@ import { generateSlug } from '@/lib/slug';
 import { parseWikilinks, renameWikilinks } from '@/lib/wikilinks';
 import { useHeaderSlot } from '@/components/layout/AppShell/HeaderSlot';
 import { BacklinksSheet } from './BacklinksSheet';
+import { VersionHistorySheet } from './VersionHistorySheet';
 import styles from './NoteEditor.module.css';
 
 const SAVE_DEBOUNCE_MS = 1000;
@@ -104,6 +105,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [content, setContent] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [backlinksOpen, setBacklinksOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [disambigMatches, setDisambigMatches] = useState<Pick<ItemRow, 'id' | 'title' | 'filename'>[] | null>(null);
   const [confirmCreateTitle, setConfirmCreateTitle] = useState<string | null>(null);
   const [pendingHeader, setPendingHeader] = useState<string | undefined>(undefined);
@@ -261,6 +263,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     setFilenameSheetOpen(false);
   }, [note, noteId, editingFilename]);
 
+  const handleRestoreVersion = useCallback((restoredContent: string) => {
+    contentRef.current = restoredContent;
+    lastSavedContentRef.current = restoredContent + '\0'; // sentinel — force save
+    setContent(restoredContent);
+    setIsDirty(false);
+    saveContentRef.current(restoredContent).catch(() => {});
+  }, []);
+
   const handleExport = useCallback((ext: 'md' | 'txt') => {
     const filename = (note?.filename ?? generateSlug(note?.title ?? 'untitled')) + '.' + ext;
     const mime = ext === 'md' ? 'text/markdown' : 'text/plain';
@@ -347,6 +357,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 <DropdownItem onSelect={() => setBacklinksOpen(true)}>
                   Backlinks
                 </DropdownItem>
+                <DropdownItem onSelect={() => setVersionsOpen(true)}>
+                  Version History
+                </DropdownItem>
                 <DropdownItem onSelect={() => {
                   setEditingFilename(note.filename ?? generateSlug(note.title ?? 'untitled'));
                   setFilenameSheetOpen(true);
@@ -368,7 +381,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       ),
     });
     return () => setSlot({});
-  }, [note, setSlot, handleTogglePinned, handleDelete, handleRestore, handleExport]);
+  }, [note, setSlot, handleTogglePinned, handleDelete, handleRestore, handleExport, versionsOpen]);
 
   if (!hasLoaded || content === null) {
     return <p className={styles.state}>Loading…</p>;
@@ -424,6 +437,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         noteId={noteId}
         noteTitle={note.title}
         onOpenNote={(id) => pushLayer({ view: 'note-detail', noteId: id })}
+      />
+
+      <VersionHistorySheet
+        open={versionsOpen}
+        onOpenChange={setVersionsOpen}
+        noteId={noteId}
+        currentContent={contentRef.current}
+        onRestore={handleRestoreVersion}
       />
 
       {/* Disambiguation sheet */}
