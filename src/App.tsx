@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -14,16 +14,25 @@ import {
 } from '@/components/ui/Sheet';
 import { CloseIcon, GearIcon } from '@/components/ui/icons';
 import { SettingsSheet } from '@/features/settings/SettingsSheet';
-import { NotesMobileShell } from '@/features/notes/NotesShell/NotesMobileShell';
-import { NotesDesktopShell } from '@/features/notes/NotesShell/NotesDesktopShell';
-import { TaskList } from '@/features/tasks/TaskList/TaskList';
-import { PlansView } from '@/features/plans/PlansView';
 import type { ItemRow } from '@/lib/db';
 import { insertItem } from '@/lib/db';
 import { generateSlug } from '@/lib/slug';
 import { nowIso } from '@/lib/time';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
+
+const NotesMobileShell = lazy(() =>
+  import('@/features/notes/NotesShell/NotesMobileShell').then((m) => ({ default: m.NotesMobileShell }))
+);
+const NotesDesktopShell = lazy(() =>
+  import('@/features/notes/NotesShell/NotesDesktopShell').then((m) => ({ default: m.NotesDesktopShell }))
+);
+const TaskList = lazy(() =>
+  import('@/features/tasks/TaskList/TaskList').then((m) => ({ default: m.TaskList }))
+);
+const PlansView = lazy(() =>
+  import('@/features/plans/PlansView').then((m) => ({ default: m.PlansView }))
+);
 
 function useTodayDate() {
   const [today, setToday] = useState(() => new Date());
@@ -38,8 +47,11 @@ function useTodayDate() {
 
 function NotesShell() {
   const isDesktop = useIsDesktop();
-  if (isDesktop) return <NotesDesktopShell />;
-  return <NotesMobileShell />;
+  return (
+    <Suspense fallback={null}>
+      {isDesktop ? <NotesDesktopShell /> : <NotesMobileShell />}
+    </Suspense>
+  );
 }
 
 function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
@@ -274,8 +286,8 @@ function ActiveView({
 }) {
   if (!topLayer) return <NowView onOpenInbox={onOpenInbox} />;
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
-  if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <TaskList />;
-  if (topLayer.view === 'plans-list' || topLayer.view === 'plan-detail') return <PlansView />;
+  if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
+  if (topLayer.view === 'plans-list' || topLayer.view === 'plan-detail') return <Suspense fallback={null}><PlansView /></Suspense>;
   return <NowView onOpenInbox={onOpenInbox} />;
 }
 
