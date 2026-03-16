@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
@@ -12,14 +11,17 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/Sheet';
-import { CloseIcon, GearIcon } from '@/components/ui/icons';
-import { SettingsSheet } from '@/features/settings/SettingsSheet';
+import { CloseIcon } from '@/components/ui/icons';
 import type { ItemRow } from '@/lib/db';
-import { insertItem } from '@/lib/db';
-import { generateSlug } from '@/lib/slug';
-import { nowIso } from '@/lib/time';
+import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
+import { fetchUserSettings } from '@/lib/userSettings';
+import { nowIsoSecondsFilename } from '@/lib/time';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
+
+const SettingsPage = lazy(() =>
+  import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage }))
+);
 
 const NotesMobileShell = lazy(() =>
   import('@/features/notes/NotesShell/NotesMobileShell').then((m) => ({ default: m.NotesMobileShell }))
@@ -57,7 +59,6 @@ function NotesShell() {
 function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
   const { pushLayer } = useNavigationActions();
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const today = useTodayDate();
   const nowLabel = today.toLocaleDateString('en-US', {
@@ -123,26 +124,12 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
     if (nowNote) {
       pushLayer({ view: 'note-detail', noteId: nowNote.id });
     } else {
-      const noteId = uuidv4();
-      const timestamp = nowIso();
-      await insertItem({
-        id: noteId,
-        type: 'note',
-        parent_id: null,
+      const settings = await fetchUserSettings();
+      const templateId = settings?.daily_note_template_id ?? null;
+      const noteId = await createNoteFromTemplate(templateId, {
         title: nowTitle,
-        content: `# ${nowTitle}\n`,
-        filename: generateSlug(nowTitle),
-        inbox_at: null,
+        filename: nowIsoSecondsFilename(),
         subtype: nowNoteType,
-        is_pinned: false,
-        item_status: 'backlog',
-        completed: false,
-        is_next: false,
-        is_someday: false,
-        is_waiting: false,
-        processed: false,
-        created_at: timestamp,
-        updated_at: timestamp,
       });
       queryClient.invalidateQueries({ queryKey: ['notes', 'today-note'] });
       pushLayer({ view: 'note-detail', noteId });
@@ -170,14 +157,6 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
     <section className={styles.home}>
       <div className={styles.homeHeader}>
         <div className={styles.homeNowDate}>{nowLabel}</div>
-        <button
-          type="button"
-          className={styles.homeSettingsButton}
-          onClick={() => setIsSettingsOpen(true)}
-          aria-label="Settings"
-        >
-          <GearIcon />
-        </button>
       </div>
 
       <div className={styles.homeNowGroup}>
@@ -234,6 +213,16 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         </span>
       </button>
 
+      <button
+        type="button"
+        className={styles.homeInboxLink}
+        onClick={() => pushLayer({ view: 'settings' })}
+        aria-label="Settings"
+      >
+        <span className={styles.homeInboxTitle}>Settings</span>
+        <span className={styles.homeLinkArrow} aria-hidden="true">&rsaquo;</span>
+      </button>
+
       <Sheet open={isWorkbenchOpen} onOpenChange={setIsWorkbenchOpen}>
         <SheetContent side="bottom" className={styles.workbenchSheet} aria-label="Workbench">
           <header className={styles.workbenchSheetHeader}>
@@ -272,7 +261,6 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         </SheetContent>
       </Sheet>
 
-      <SettingsSheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </section>
   );
 }
@@ -288,6 +276,7 @@ function ActiveView({
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
   if (topLayer.view === 'plans-list' || topLayer.view === 'plan-detail') return <Suspense fallback={null}><PlansView /></Suspense>;
+  if (topLayer.view === 'settings') return <Suspense fallback={null}><SettingsPage /></Suspense>;
   return <NowView onOpenInbox={onOpenInbox} />;
 }
 

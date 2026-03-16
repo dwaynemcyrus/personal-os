@@ -12,7 +12,8 @@ export type NavigationLayer =
   | { view: 'tasks-list'; filter?: TaskListFilter }
   | { view: 'task-detail'; taskId: string }
   | { view: 'plans-list' }
-  | { view: 'plan-detail'; planId: string };
+  | { view: 'plan-detail'; planId: string }
+  | { view: 'settings' };
 
 export interface NavigationState {
   stack: NavigationLayer[];

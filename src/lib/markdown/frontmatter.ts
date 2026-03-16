@@ -294,6 +294,34 @@ export const replaceFrontmatterRaw = (content: string, raw: string): string => {
   return `${block}${content}`;
 };
 
+/**
+ * Adds keys from `additionalProps` to `document` only if those keys do not
+ * already exist. Existing keys are never overwritten (Option B merge).
+ */
+export const addMissingFrontmatterKeys = (
+  document: Document | null,
+  additionalProps: Record<string, unknown>
+): Document => {
+  const doc = document ?? new Document();
+  if (!doc.contents || !isMap(doc.contents)) {
+    doc.contents = new YAMLMap();
+  }
+  const map = doc.contents as YAMLMap;
+  const existingKeys = new Set<string>();
+  for (const pair of map.items) {
+    const raw = typeof pair.key === 'string'
+      ? pair.key
+      : String((pair.key as { value?: unknown }).value ?? pair.key);
+    existingKeys.add(raw);
+  }
+  for (const [key, value] of Object.entries(additionalProps)) {
+    if (!existingKeys.has(key)) {
+      map.set(key, value);
+    }
+  }
+  return doc;
+};
+
 export const stripFrontmatterForReader = (content: string): string => {
   const lines = content.split(/\r?\n/);
   if (lines.length === 0 || !FRONTMATTER_DELIMITER.test(lines[0] ?? '')) {

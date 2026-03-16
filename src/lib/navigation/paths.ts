@@ -15,6 +15,7 @@ export function layerToPath(layer: NavigationLayer): string {
     case 'task-detail': return `/task/${layer.taskId}`;
     case 'plans-list':  return '/plans';
     case 'plan-detail': return `/plan/${layer.planId}`;
+    case 'settings':    return '/settings';
   }
 }
 
@@ -46,6 +47,7 @@ export function pathToLayer(pathname: string): NavigationLayer | null {
   if (seg0 === 'task' && seg1) return { view: 'task-detail', taskId: seg1 };
   if (seg0 === 'plans') return { view: 'plans-list' };
   if (seg0 === 'plan' && seg1) return { view: 'plan-detail', planId: seg1 };
+  if (seg0 === 'settings') return { view: 'settings' };
 
   return null;
 }

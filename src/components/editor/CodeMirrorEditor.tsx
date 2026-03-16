@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useImperativeHandle, useRef } from 'react';
 import { EditorState } from '@codemirror/state';
 import {
   EditorView,
@@ -79,7 +79,15 @@ const baseTheme = EditorView.theme({
   },
 });
 
+export type CodeMirrorEditorHandle = {
+  insertAtCursor: (text: string) => void;
+  replaceContent: (text: string) => void;
+  deleteRange: (from: number, to: number) => void;
+  getCursorOffset: () => number;
+};
+
 type Props = {
+  ref?: React.Ref<CodeMirrorEditorHandle>;
   initialBody: string;
   onChange?: (value: string) => void;
   onBlur?: () => void;
@@ -90,6 +98,7 @@ type Props = {
 };
 
 export function CodeMirrorEditor({
+  ref,
   initialBody,
   onChange,
   onBlur,
@@ -109,6 +118,34 @@ export function CodeMirrorEditor({
   useEffect(() => { onBlurRef.current = onBlur; }, [onBlur]);
   useEffect(() => { noteTitlesRef.current = noteTitles ?? []; }, [noteTitles]);
   useEffect(() => { onWikilinkClickRef.current = onWikilinkClick; }, [onWikilinkClick]);
+
+  useImperativeHandle(ref, () => ({
+    insertAtCursor(text: string) {
+      const view = viewRef.current;
+      if (!view) return;
+      const { from } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, insert: text },
+        selection: { anchor: from + text.length },
+      });
+    },
+    replaceContent(text: string) {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        selection: { anchor: text.length },
+      });
+    },
+    deleteRange(from: number, to: number) {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({ changes: { from, to, insert: '' } });
+    },
+    getCursorOffset(): number {
+      return viewRef.current?.state.selection.main.head ?? 0;
+    },
+  }), []);
 
   useEffect(() => {
     if (!containerRef.current) return;

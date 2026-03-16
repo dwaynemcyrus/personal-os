@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
 import type { ItemRow } from '@/lib/db';
-import { insertItem, insertItemLink, patchItem } from '@/lib/db';
+import { insertItem, patchItem } from '@/lib/db';
 import {
   Dropdown,
   DropdownContent,
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/Dropdown';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { CodeMirrorEditor } from '@/components/editor';
+import type { CodeMirrorEditorHandle } from '@/components/editor';
 import { saveVersion, shouldAutoSaveVersion } from '@/lib/versions';
 import { nowIso } from '@/lib/time';
 import { extractNoteTitle, formatRelativeTime } from '../noteUtils';
@@ -25,6 +26,10 @@ import { useHeaderSlot } from '@/components/layout/AppShell/HeaderSlot';
 import { BacklinksSheet } from './BacklinksSheet';
 import { VersionHistorySheet } from './VersionHistorySheet';
 import { TagsDialog } from './TagsDialog';
+import { TemplatePicker } from '../TemplatePicker/TemplatePicker';
+import { mergeTemplateIntoNote, replaceTemplateVariables } from '@/lib/templates';
+import { fetchUserSettings, DEFAULT_USER_SETTINGS } from '@/lib/userSettings';
+import { showToast } from '@/components/ui/Toast';
 import styles from './NoteEditor.module.css';
 
 const SAVE_DEBOUNCE_MS = 1000;
@@ -112,7 +117,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [confirmCreateTitle, setConfirmCreateTitle] = useState<string | null>(null);
   const [pendingHeader, setPendingHeader] = useState<string | undefined>(undefined);
   const [editingFilename, setEditingFilename] = useState('');
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const filenameFocusedRef = useRef(false);
+  const editorRef = useRef<CodeMirrorEditorHandle>(null);
 
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -326,6 +333,37 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     pushLayer({ view: 'note-detail', noteId: newId });
   }, [confirmCreateTitle, pushLayer]);
 
+  const handleInsertTemplate = useCallback(async (templateId: string | null) => {
+    setIsTemplatePickerOpen(false);
+    if (!templateId) return;
+    try {
+      const { data: contentRow } = await supabase
+        .from('item_content')
+        .select('content')
+        .eq('item_id', templateId)
+        .maybeSingle();
+      const rawTemplate = contentRow?.content ?? '';
+      if (!rawTemplate) return;
+
+      const settings = await fetchUserSettings();
+      const resolvedTemplate = replaceTemplateVariables(rawTemplate, {
+        title: noteRef.current?.title ?? 'Untitled',
+        date: new Date(),
+        dateFormat: settings?.template_date_format ?? DEFAULT_USER_SETTINGS.template_date_format,
+        timeFormat: settings?.template_time_format ?? DEFAULT_USER_SETTINGS.template_time_format,
+      });
+
+      const cursorOffset = editorRef.current?.getCursorOffset() ?? contentRef.current.length;
+      const merged = mergeTemplateIntoNote(contentRef.current, resolvedTemplate, cursorOffset);
+
+      editorRef.current?.replaceContent(merged);
+      // Trigger onChange so the save cycle picks it up
+      handleChange(merged);
+    } catch {
+      showToast('Could not insert template — please try again.');
+    }
+  }, [handleChange]);
+
   const noteTitles = allNotes
     .filter((n) => n.id !== noteId && n.title)
     .map((n) => n.title as string);
@@ -356,6 +394,9 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 </DropdownItem>
                 <DropdownItem onSelect={() => setTagsOpen(true)}>
                   Tags
+                </DropdownItem>
+                <DropdownItem onSelect={() => setIsTemplatePickerOpen(true)}>
+                  Insert Template…
                 </DropdownItem>
                 <DropdownItem onSelect={() => setBacklinksOpen(true)}>
                   Backlinks
@@ -452,6 +493,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       </div>
 
       <CodeMirrorEditor
+        ref={editorRef}
         initialBody={content!}
         onChange={handleChange}
         onBlur={handleBlur}
@@ -506,6 +548,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           </ul>
         </SheetContent>
       </Sheet>
+
+      <TemplatePicker
+        open={isTemplatePickerOpen}
+        onOpenChange={setIsTemplatePickerOpen}
+        onSelect={(id) => void handleInsertTemplate(id)}
+        showBlankOption={false}
+      />
 
       {/* Confirm create sheet */}
       <Sheet open={confirmCreateTitle !== null} onOpenChange={(o) => { if (!o) setConfirmCreateTitle(null); }}>

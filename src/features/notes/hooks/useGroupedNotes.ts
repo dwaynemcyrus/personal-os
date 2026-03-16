@@ -20,7 +20,9 @@ export function useGroupedNotes(group: NoteGroup): {
       let query = supabase
         .from('items')
         .select(NOTE_LIST_COLS)
-        .eq('type', 'note');
+        .eq('type', 'note')
+        // Exclude template notes from all list views
+        .or('subtype.is.null,subtype.neq.template');
 
       if (group === 'trash') {
         query = query.eq('is_trashed', true).order('updated_at', { ascending: false });

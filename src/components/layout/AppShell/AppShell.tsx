@@ -55,6 +55,8 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
     case 'plans-list':
     case 'plan-detail':
       return 'Plans';
+    case 'settings':
+      return 'Settings';
     default:
       return 'Now';
   }

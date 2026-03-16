@@ -45,6 +45,126 @@
   outline-offset: 2px;
 }
 
+/* Templates section */
+.templatesSection {
+  border-top: 1px solid rgba(252, 251, 248, 0.08);
+  margin-top: auto;
+}
+
+.templatesHeader {
+  display: flex;
+  align-items: center;
+}
+
+.templatesToggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 8px 12px 20px;
+  background: transparent;
+  border: none;
+  color: rgba(252, 251, 248, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.templatesNewButton {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  color: rgba(252, 251, 248, 0.5);
+  cursor: pointer;
+  margin-right: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.templatesNewButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.templatesNewButton:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.templatesToggle:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: -2px;
+}
+
+.templatesChevron {
+  font-size: 14px;
+  transition: transform 0.15s;
+}
+
+.templatesChevron--open {
+  transform: rotate(180deg);
+}
+
+.templatesList {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.templateItemRow {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid rgba(252, 251, 248, 0.06);
+}
+
+.templateItemRow:active {
+  background: rgba(252, 251, 248, 0.04);
+}
+
+.templateItem {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 12px 8px 12px 20px;
+  background: transparent;
+  border: none;
+  color: rgba(252, 251, 248, 0.7);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.templateUseButton {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  color: rgba(252, 251, 248, 0.4);
+  font-size: 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.templateUseButton:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: -2px;
+}
+
 .title {
   min-height: 36px;
   max-height: 36px;
