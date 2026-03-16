@@ -66,16 +66,16 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const db = usePowerSync();
 
   const { data: projects } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY title ASC, id ASC"
+    "SELECT id, title, is_trashed, item_status, parent_id FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY title ASC, id ASC"
   );
   const { data: areas } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'area' AND is_trashed = 0 ORDER BY title ASC, id ASC"
+    "SELECT id, title, is_trashed FROM items WHERE type = 'area' AND is_trashed = 0 ORDER BY title ASC, id ASC"
   );
   const { data: tasks } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'task' AND is_trashed = 0"
+    "SELECT id, title, is_trashed, item_status, is_next, is_someday, is_waiting, completed, parent_id FROM items WHERE type = 'task' AND is_trashed = 0"
   );
   const { data: sources } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'source' AND is_trashed = 0 ORDER BY updated_at DESC"
+    "SELECT id, title, url, content_type, read_status, updated_at, is_trashed FROM items WHERE type = 'source' AND is_trashed = 0 ORDER BY updated_at DESC"
   );
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);

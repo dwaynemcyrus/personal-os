@@ -29,7 +29,8 @@ export function BacklinksSheet({
   const sourceIds = links.map((l) => l.source_id);
   const placeholders = sourceIds.length > 0 ? sourceIds.map(() => '?').join(',') : 'NULL';
   const { data: sourceNotes } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE id IN (${placeholders}) AND is_trashed = 0`,
+    `SELECT id, title, updated_at, SUBSTR(content, 1, 200) AS content
+     FROM items WHERE id IN (${placeholders}) AND is_trashed = 0`,
     sourceIds
   );
 
