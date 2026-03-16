@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.0 - 2026-03-16
+- Replaced PowerSync (SQLite WASM) with direct Supabase + TanStack Query v5 to eliminate iPhone Safari OOM crashes
+- Added `item_content` table separating note body text from item metadata — list queries never load content
+- Added `has_todos` boolean column on `items` and `get_note_counts()` Supabase RPC for efficient group counts
+- Replaced `@powersync/web`, `@powersync/react`, `@journeyapps/wa-sqlite` with `@tanstack/react-query` v5
+- Rewrote all data hooks, editors, and shell components to use `useQuery`/`queryClient` + Supabase PostgREST
+- Added `QueryProvider` (replaces `DatabaseProvider`) and `queryClient` singleton with stale-time / gc-time defaults
+- Dual-write pattern in `insertItem`/`patchItem`: content written to both `items` and `item_content`; `has_todos` auto-computed on save
+- Removed COOP/COEP headers from `vite.config.ts` and `vercel.json` (SharedArrayBuffer no longer needed)
+- Removed PowerSync-specific `optimizeDeps.exclude` and `worker.format: 'es'` from Vite config
+- Deleted `src/lib/powersync.ts` and `DatabaseProvider.tsx`
+- Updated `ItemRow` boolean fields from `number` (0/1) to `boolean` to match Supabase PostgREST return types
+
 ## 0.19.0 - 2026-03-15
 - Migrated entire data layer from RxDB to PowerSync for true offline-first SQLite sync
 - Replaced all RxDB collections, subscriptions, and mutations with `useQuery`/`usePowerSync` SQL hooks
