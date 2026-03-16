@@ -55,9 +55,12 @@ async function processMarkdown(
     subtype: null,
     is_pinned: false,
     item_status: 'backlog',
-    tags: Array.isArray(fmProps.tags)
-      ? (fmProps.tags as unknown[]).filter((t): t is string => typeof t === 'string')
-      : null,
+    tags: [
+      'imported',
+      ...(Array.isArray(fmProps.tags)
+        ? (fmProps.tags as unknown[]).filter((t): t is string => typeof t === 'string')
+        : []),
+    ],
     due_date: typeof fmProps.due_date === 'string' ? fmProps.due_date : null,
     start_date: typeof fmProps.start_date === 'string' ? fmProps.start_date : null,
     priority,

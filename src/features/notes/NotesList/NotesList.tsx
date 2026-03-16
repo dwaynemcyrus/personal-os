@@ -11,8 +11,7 @@ import {
   formatNoteTitle,
   formatRelativeTime,
 } from '../noteUtils';
-import { nowIso } from '@/lib/time';
-import { generateSlug } from '@/lib/slug';
+import { nowIso, nowIsoSeconds, nowIsoSecondsFilename } from '@/lib/time';
 import { insertItem } from '@/lib/db';
 import { BackIcon, PlusIcon } from '@/components/ui/icons';
 import styles from './NotesList.module.css';
@@ -41,12 +40,14 @@ export function NotesList({ group }: NotesListProps) {
   const handleCreateNote = async () => {
     const timestamp = nowIso();
     const noteId = uuidv4();
+    const noteTitle = nowIsoSeconds();
+    const noteFilename = nowIsoSecondsFilename();
     await insertItem({
       id: noteId,
       type: 'note',
       parent_id: null,
-      title: 'Untitled',
-      filename: generateSlug('Untitled'),
+      title: noteTitle,
+      filename: noteFilename,
       content: '',
       inbox_at: null,
       subtype: null,
@@ -125,6 +126,9 @@ export function NotesList({ group }: NotesListProps) {
                   <span className={styles.itemDate}>{updatedLabel}</span>
                   {note.is_pinned ? (
                     <span className={styles.itemPinned}>Pinned</span>
+                  ) : null}
+                  {Array.isArray(note.tags) && note.tags.includes('imported') ? (
+                    <span className={styles.itemImported}>Imported</span>
                   ) : null}
                 </div>
               </button>
