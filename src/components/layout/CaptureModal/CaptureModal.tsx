@@ -38,9 +38,12 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const db = usePowerSync();
   const { pushLayer } = useNavigationActions();
 
+  // Only query when open; truncate content to avoid loading megabytes into memory on iPhone
   const { data: allNotes } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL
-     ORDER BY updated_at DESC`
+    `SELECT id, title, updated_at, is_pinned, SUBSTR(content, 1, 500) AS content
+     FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL AND ? = 1
+     ORDER BY updated_at DESC`,
+    [open ? 1 : 0]
   );
 
   const recentNotes = useMemo(() => allNotes.slice(0, 12), [allNotes]);
