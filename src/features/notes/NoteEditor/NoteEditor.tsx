@@ -55,7 +55,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   );
   const hasDuplicateTitle = dupRows.length > 0;
 
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [backlinksOpen, setBacklinksOpen] = useState(false);
   const [disambigMatches, setDisambigMatches] = useState<ItemRow[] | null>(null);
@@ -145,6 +145,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   const handleChange = useCallback((nextContent: string) => {
     contentRef.current = nextContent;
+    isDirtyRef.current = true;
     setContent(nextContent);
     setIsDirty(true);
     scheduleSave(nextContent);
@@ -156,7 +157,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       saveTimeoutRef.current = null;
     }
     if (isDirtyRef.current) {
-      setContent((curr) => { saveContentRef.current(curr); return curr; });
+      setContent((curr) => { saveContentRef.current(curr ?? ''); return curr; });
     }
   }, []);
 
@@ -262,7 +263,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     return () => setSlot({});
   }, [note, setSlot, handleTogglePinned, handleDelete]);
 
-  if (!hasLoaded) {
+  if (!hasLoaded || content === null) {
     return <p className={styles.state}>Loading…</p>;
   }
 
@@ -280,7 +281,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         </p>
       )}
       <CodeMirrorEditor
-        initialBody={content}
+        initialBody={content!}
         onChange={handleChange}
         onBlur={handleBlur}
         placeholder="Start writing…"
