@@ -7,7 +7,9 @@ import {
   useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { searchNotes, type SearchResult } from '@/lib/search';
@@ -35,16 +37,26 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const db = usePowerSync();
   const { pushLayer } = useNavigationActions();
 
-  // Only query when open; truncate content to avoid loading megabytes into memory on iPhone
-  const { data: allNotes } = useQuery<ItemRow>(
-    `SELECT id, title, updated_at, is_pinned, SUBSTR(content, 1, 500) AS content
-     FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL AND ? = 1
-     ORDER BY updated_at DESC`,
-    [open ? 1 : 0]
-  );
+  // Only query when open; no content column (keep memory low)
+  const { data: allNotes = [] } = useQuery({
+    queryKey: ['notes', 'list', 'capture-modal'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, updated_at, is_pinned, inbox_at')
+        .eq('type', 'note')
+        .eq('is_trashed', false)
+        .is('inbox_at', null)
+        .order('updated_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
 
   const recentNotes = useMemo(() => allNotes.slice(0, 12), [allNotes]);
 
@@ -70,7 +82,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       return searchResults.map((r) => ({
         id: r.note.id,
         noteId: r.note.id,
-        title: formatNoteTitle(extractNoteTitle(r.note.content, r.note.title)),
+        title: formatNoteTitle(extractNoteTitle(r.note.content ?? null, r.note.title)),
         snippet: r.snippet,
         updatedLabel: formatRelativeTime(r.note.updated_at),
         isPinned: !!r.note.is_pinned,
@@ -79,8 +91,8 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     return recentNotes.map((note) => ({
       id: note.id,
       noteId: note.id,
-      title: formatNoteTitle(extractNoteTitle(note.content, note.title)),
-      snippet: extractNoteSnippet(note.content),
+      title: formatNoteTitle(extractNoteTitle(null, note.title)),
+      snippet: extractNoteSnippet(note.content ?? null),
       updatedLabel: formatRelativeTime(note.updated_at),
       isPinned: !!note.is_pinned,
     }));
@@ -99,10 +111,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
 
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen) {
-        setText('');
-        setSelectedIndex(null);
-      }
+      if (!nextOpen) { setText(''); setSelectedIndex(null); }
       onOpenChange(nextOpen);
     },
     [onOpenChange]
@@ -116,8 +125,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     const trimmedText = text.trim();
     const noteTitle = extractTitleFromFirstLine(trimmedText);
 
-    // Insert note first (FK constraint)
-    await insertItem(db, {
+    await insertItem({
       id: noteId,
       type: 'note',
       parent_id: null,
@@ -137,7 +145,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       updated_at: timestamp,
     });
 
-    await insertItem(db, {
+    await insertItem({
       id: captureId,
       type: 'capture',
       parent_id: null,
@@ -156,10 +164,14 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
       updated_at: timestamp,
     });
 
+    queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+
     setText('');
     setSelectedIndex(null);
     if (!rapidCapture) onOpenChange(false);
-  }, [text, db, rapidCapture, onOpenChange]);
+  }, [text, rapidCapture, onOpenChange]);
 
   const handleOpenNote = useCallback(
     (noteId: string) => {
@@ -174,13 +186,9 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (selectedIndex !== null) {
-          setSelectedIndex(null);
-        } else if (text.length > 0) {
-          setText('');
-        } else {
-          handleClose();
-        }
+        if (selectedIndex !== null) { setSelectedIndex(null); }
+        else if (text.length > 0) { setText(''); }
+        else { handleClose(); }
         return;
       }
       if (e.key === 'Tab' && displayItems.length > 0) {
@@ -229,10 +237,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
               className={styles.input}
               placeholder="What's on your mind?"
               value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setSelectedIndex(null);
-              }}
+              onChange={(e) => { setText(e.target.value); setSelectedIndex(null); }}
             />
           </div>
 
@@ -285,9 +290,7 @@ export function CaptureModal({ open, onOpenChange }: CaptureModalProps) {
                       ) : null}
                       <div className={styles.listItemMeta}>
                         <span className={styles.listItemDate}>{item.updatedLabel}</span>
-                        {item.isPinned ? (
-                          <span className={styles.listItemPinned}>Pinned</span>
-                        ) : null}
+                        {item.isPinned ? <span className={styles.listItemPinned}>Pinned</span> : null}
                       </div>
                     </button>
                   </li>

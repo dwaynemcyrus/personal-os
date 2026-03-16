@@ -23,7 +23,6 @@ export default defineConfig({
         ],
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB for PowerSync WASM
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
@@ -53,19 +52,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    },
-  },
-  // Required for PowerSync (SharedArrayBuffer + WASM workers)
-  optimizeDeps: {
-    exclude: ['@powersync/web'],
-  },
-  worker: {
-    format: 'es',
-  },
-  server: {
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
   test: {

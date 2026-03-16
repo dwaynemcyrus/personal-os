@@ -1,70 +1,64 @@
-import { useQuery } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import type { ItemRow } from '@/lib/db';
-import { isTodayNote } from '../noteUtils';
 
 export type NoteGroup = 'all' | 'todo' | 'today' | 'locked' | 'pinned' | 'trash';
 
-// Only fetch columns needed for list display; truncate content to avoid loading
-// large note bodies into memory on every DB update.
-const COLS = `id, title, filename, updated_at, created_at, is_pinned, is_trashed, inbox_at,
-              SUBSTR(content, 1, 300) AS content`;
-
-function buildQuery(group: NoteGroup): { sql: string; params: unknown[] } {
-  if (group === 'locked') {
-    return { sql: 'SELECT id FROM items WHERE 0', params: [] };
-  }
-  if (group === 'trash') {
-    return {
-      sql: `SELECT ${COLS} FROM items WHERE type = 'note' AND is_trashed = 1
-            ORDER BY updated_at DESC`,
-      params: [],
-    };
-  }
-  if (group === 'pinned') {
-    return {
-      sql: `SELECT ${COLS} FROM items WHERE type = 'note' AND is_pinned = 1
-            AND is_trashed = 0 AND inbox_at IS NULL
-            ORDER BY updated_at DESC`,
-      params: [],
-    };
-  }
-  if (group === 'today') {
-    const todayIso = new Date().toISOString().slice(0, 10);
-    return {
-      sql: `SELECT ${COLS} FROM items WHERE type = 'note' AND is_trashed = 0
-            AND inbox_at IS NULL AND (updated_at >= ? OR created_at >= ?)
-            ORDER BY updated_at DESC`,
-      params: [todayIso, todayIso],
-    };
-  }
-  if (group === 'todo') {
-    return {
-      sql: `SELECT ${COLS} FROM items WHERE type = 'note' AND is_trashed = 0
-            AND inbox_at IS NULL AND content LIKE '%- [ ]%'
-            ORDER BY is_pinned DESC, updated_at DESC`,
-      params: [],
-    };
-  }
-  // 'all'
-  return {
-    sql: `SELECT ${COLS} FROM items WHERE type = 'note' AND is_trashed = 0
-          AND inbox_at IS NULL
-          ORDER BY is_pinned DESC, updated_at DESC`,
-    params: [],
-  };
-}
+// Only fetch columns needed for list display — content stays in item_content
+const NOTE_LIST_COLS = 'id, title, filename, updated_at, created_at, is_pinned, is_trashed, inbox_at, has_todos';
 
 export function useGroupedNotes(group: NoteGroup): {
   notes: ItemRow[];
   isLoading: boolean;
 } {
-  const { sql, params } = buildQuery(group);
-  const { data, isLoading } = useQuery<ItemRow>(sql, params);
+  const { data, isLoading } = useQuery({
+    queryKey: ['notes', 'list', group],
+    queryFn: async (): Promise<ItemRow[]> => {
+      if (group === 'locked') return [];
 
-  let notes = data;
-  if (group === 'today') {
-    notes = data.filter(isTodayNote);
-  }
+      const todayIso = new Date().toISOString().slice(0, 10);
+      let query = supabase
+        .from('items')
+        .select(NOTE_LIST_COLS)
+        .eq('type', 'note');
 
-  return { notes, isLoading };
+      if (group === 'trash') {
+        query = query.eq('is_trashed', true).order('updated_at', { ascending: false });
+      } else if (group === 'pinned') {
+        query = query
+          .eq('is_pinned', true)
+          .eq('is_trashed', false)
+          .is('inbox_at', null)
+          .order('updated_at', { ascending: false });
+      } else if (group === 'today') {
+        query = query
+          .eq('is_trashed', false)
+          .is('inbox_at', null)
+          .or(`updated_at.gte.${todayIso},created_at.gte.${todayIso}`)
+          .order('updated_at', { ascending: false });
+      } else if (group === 'todo') {
+        query = query
+          .eq('is_trashed', false)
+          .is('inbox_at', null)
+          .eq('has_todos', true)
+          .order('is_pinned', { ascending: false })
+          .order('updated_at', { ascending: false });
+      } else {
+        // 'all'
+        query = query
+          .eq('is_trashed', false)
+          .is('inbox_at', null)
+          .order('is_pinned', { ascending: false })
+          .order('updated_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  return { notes: data ?? [], isLoading };
 }

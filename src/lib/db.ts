@@ -1,5 +1,5 @@
-// ── Row types (what PowerSync / SQLite returns) ───────────────────────────────
-// Booleans are 0|1 integers. Arrays are JSON strings.
+// ── Row types (what Supabase returns) ─────────────────────────────────────────
+// Boolean columns come back as true/false from PostgREST.
 
 export type ItemRow = {
   id: string;
@@ -7,16 +7,16 @@ export type ItemRow = {
   parent_id: string | null;
   title: string | null;
   content: string | null;
-  tags: string | null;
-  is_pinned: number;
+  tags: string | null;          // JSON string e.g. '["tag1","tag2"]'
+  is_pinned: boolean;
   item_status: string;
   priority: string | null;
   due_date: string | null;
   start_date: string | null;
-  completed: number;
-  is_next: number;
-  is_someday: number;
-  is_waiting: number;
+  completed: boolean;
+  is_next: boolean;
+  is_someday: boolean;
+  is_waiting: boolean;
   waiting_note: string | null;
   waiting_started_at: string | null;
   depends_on: string | null;
@@ -36,7 +36,7 @@ export type ItemRow = {
   last_completed_at: string | null;
   body: string | null;
   capture_source: string | null;
-  processed: number;
+  processed: boolean;
   processed_at: string | null;
   result_type: string | null;
   result_id: string | null;
@@ -45,9 +45,10 @@ export type ItemRow = {
   sort_order: number | null;
   created_at: string;
   updated_at: string;
-  is_trashed: number;
+  is_trashed: boolean;
   trashed_at: string | null;
   owner: string | null;
+  has_todos: boolean | null;
 };
 
 export type ItemLinkRow = {
@@ -60,7 +61,7 @@ export type ItemLinkRow = {
   position: number;
   created_at: string;
   updated_at: string;
-  is_trashed: number;
+  is_trashed: boolean;
   trashed_at: string | null;
   owner: string | null;
 };
@@ -75,16 +76,35 @@ export type ItemVersionRow = {
   change_summary: string | null;
   created_at: string;
   updated_at: string;
-  is_trashed: number;
+  is_trashed: boolean;
   trashed_at: string | null;
   owner: string | null;
 };
 
+export type TimeEntryRow = {
+  id: string;
+  item_id: string | null;
+  session_id: string | null;
+  entry_type: string;
+  label: string | null;
+  label_normalized: string | null;
+  started_at: string;
+  stopped_at: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+  is_trashed: boolean;
+  trashed_at: string | null;
+  owner: string | null;
+};
+
+export type TimeEntryDocument = TimeEntryRow;
+
 // ── Value helpers ─────────────────────────────────────────────────────────────
 
-/** Convert SQLite integer boolean to JS boolean */
-export function bool(v: number | null | undefined): boolean {
-  return v === 1;
+/** No-op kept for compatibility — Supabase returns real booleans */
+export function bool(v: boolean | number | null | undefined): boolean {
+  return Boolean(v);
 }
 
 /** Parse a JSON array stored as text */
@@ -93,7 +113,7 @@ export function parseTags(v: string | null | undefined): string[] {
   try { return JSON.parse(v) as string[]; } catch { return []; }
 }
 
-/** Serialize tags array to JSON string for SQLite storage */
+/** Serialize tags array to JSON string for storage */
 export function serializeTags(tags: string[] | null | undefined): string | null {
   if (!tags || tags.length === 0) return null;
   return JSON.stringify(tags);
@@ -109,27 +129,6 @@ export async function getCurrentUserId(): Promise<string | null> {
 }
 
 // ── Item INSERT helper ────────────────────────────────────────────────────────
-
-import type { AbstractPowerSyncDatabase } from '@powersync/web';
-
-export type TimeEntryRow = {
-  id: string;
-  item_id: string | null;
-  session_id: string | null;
-  entry_type: string;
-  label: string | null;
-  label_normalized: string | null;
-  started_at: string;
-  stopped_at: string | null;
-  duration_seconds: number | null;
-  created_at: string;
-  updated_at: string;
-  is_trashed: number;
-  trashed_at: string | null;
-  owner: string | null;
-};
-
-export type TimeEntryDocument = TimeEntryRow;
 
 export type NewItem = {
   id: string;
@@ -163,59 +162,63 @@ export type NewItem = {
   updated_at: string;
 };
 
-export async function insertItem(db: AbstractPowerSyncDatabase, item: NewItem): Promise<void> {
+export async function insertItem(item: NewItem): Promise<void> {
   const owner = await getCurrentUserId();
-  await db.execute(
-    `INSERT INTO items (
-      id, type, parent_id, title, content, tags, is_pinned, item_status, priority,
-      due_date, start_date, completed, is_next, is_someday, is_waiting,
-      filename, inbox_at, subtype, url, content_type, read_status,
-      body, capture_source, processed,
-      processed_at, result_type, result_id,
-      created_at, updated_at, is_trashed, trashed_at, owner
-    ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, 0, NULL, ?
-    )`,
-    [
-      item.id, item.type, item.parent_id ?? null,
-      item.title ?? null, item.content ?? null,
-      serializeTags(item.tags),
-      item.is_pinned ? 1 : 0,
-      item.item_status,
-      item.priority ?? null,
-      item.due_date ?? null, item.start_date ?? null,
-      item.completed ? 1 : 0,
-      item.is_next ? 1 : 0,
-      item.is_someday ? 1 : 0,
-      item.is_waiting ? 1 : 0,
-      item.filename ?? null,
-      item.inbox_at ?? null,
-      item.subtype ?? null,
-      item.url ?? null,
-      item.content_type ?? null,
-      item.read_status ?? null,
-      item.body ?? null,
-      item.capture_source ?? null,
-      item.processed ? 1 : 0,
-      item.processed_at ?? null,
-      item.result_type ?? null,
-      item.result_id ?? null,
-      item.created_at, item.updated_at,
+
+  const row = {
+    id: item.id,
+    type: item.type,
+    parent_id: item.parent_id ?? null,
+    title: item.title ?? null,
+    content: item.content ?? null,
+    tags: serializeTags(item.tags),
+    is_pinned: item.is_pinned ?? false,
+    item_status: item.item_status,
+    priority: item.priority ?? null,
+    due_date: item.due_date ?? null,
+    start_date: item.start_date ?? null,
+    completed: item.completed ?? false,
+    is_next: item.is_next ?? false,
+    is_someday: item.is_someday ?? false,
+    is_waiting: item.is_waiting ?? false,
+    filename: item.filename ?? null,
+    inbox_at: item.inbox_at ?? null,
+    subtype: item.subtype ?? null,
+    url: item.url ?? null,
+    content_type: item.content_type ?? null,
+    read_status: item.read_status ?? null,
+    body: item.body ?? null,
+    capture_source: item.capture_source ?? null,
+    processed: item.processed ?? false,
+    processed_at: item.processed_at ?? null,
+    result_type: item.result_type ?? null,
+    result_id: item.result_id ?? null,
+    is_trashed: false,
+    trashed_at: null,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    owner,
+    has_todos: item.content ? item.content.includes('- [ ]') : false,
+  };
+
+  const { error } = await supabase.from('items').insert(row);
+  if (error) throw error;
+
+  // Mirror content to item_content so note editors read from there
+  if (item.content) {
+    const { error: ceError } = await supabase.from('item_content').upsert({
+      item_id: item.id,
+      content: item.content,
+      updated_at: item.updated_at,
       owner,
-    ]
-  );
+    }, { onConflict: 'item_id' });
+    if (ceError) console.error('[insertItem] item_content upsert error:', ceError);
+  }
 }
 
 // ── Item PATCH helper ─────────────────────────────────────────────────────────
 
-type ScalarValue = string | number | boolean | null | undefined;
-
-type ItemPatch = {
+export type ItemPatch = {
   title?: string | null;
   content?: string | null;
   tags?: string[] | null;
@@ -244,30 +247,41 @@ type ItemPatch = {
   parent_id?: string | null;
   description?: string | null;
   updated_at?: string;
+  has_todos?: boolean | null;
 };
 
-export async function patchItem(db: AbstractPowerSyncDatabase, id: string, patch: ItemPatch): Promise<void> {
-  const entries = Object.entries(patch) as [keyof ItemPatch, ScalarValue | string[]][];
-  if (entries.length === 0) return;
+export async function patchItem(id: string, patch: ItemPatch): Promise<void> {
+  if (Object.keys(patch).length === 0) return;
 
-  const sets: string[] = [];
-  const values: (string | number | null)[] = [];
-
-  for (const [key, val] of entries) {
-    sets.push(`${key} = ?`);
+  // Build the items update object (convert tags, keep booleans as-is for Supabase)
+  const itemsUpdate: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(patch)) {
     if (key === 'tags') {
-      values.push(serializeTags(val as string[] | null));
-    } else if (typeof val === 'boolean') {
-      values.push(val ? 1 : 0);
+      itemsUpdate[key] = serializeTags(val as string[] | null);
     } else {
-      values.push((val as string | number | null | undefined) ?? null);
+      itemsUpdate[key] = val ?? null;
     }
   }
 
-  await db.execute(
-    `UPDATE items SET ${sets.join(', ')} WHERE id = ?`,
-    [...values, id]
-  );
+  // Compute has_todos if content is being updated
+  if ('content' in patch && patch.content !== undefined) {
+    itemsUpdate.has_todos = patch.content ? patch.content.includes('- [ ]') : false;
+  }
+
+  const { error } = await supabase.from('items').update(itemsUpdate).eq('id', id);
+  if (error) throw error;
+
+  // Mirror content to item_content when it's being updated
+  if ('content' in patch && patch.content !== undefined) {
+    const owner = await getCurrentUserId();
+    const { error: ceError } = await supabase.from('item_content').upsert({
+      item_id: id,
+      content: patch.content ?? null,
+      updated_at: patch.updated_at ?? new Date().toISOString(),
+      owner,
+    }, { onConflict: 'item_id' });
+    if (ceError) console.error('[patchItem] item_content upsert error:', ceError);
+  }
 }
 
 // ── Item link helpers ─────────────────────────────────────────────────────────
@@ -284,20 +298,23 @@ export type NewItemLink = {
   updated_at: string;
 };
 
-export async function insertItemLink(db: AbstractPowerSyncDatabase, link: NewItemLink): Promise<void> {
+export async function insertItemLink(link: NewItemLink): Promise<void> {
   const owner = await getCurrentUserId();
-  await db.execute(
-    `INSERT INTO item_links (
-      id, source_id, target_id, target_title, header, alias, position,
-      created_at, updated_at, is_trashed, trashed_at, owner
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
-    [
-      link.id, link.source_id, link.target_id,
-      link.target_title, link.header, link.alias, link.position,
-      link.created_at, link.updated_at,
-      owner,
-    ]
-  );
+  const { error } = await supabase.from('item_links').insert({
+    id: link.id,
+    source_id: link.source_id,
+    target_id: link.target_id,
+    target_title: link.target_title,
+    header: link.header,
+    alias: link.alias,
+    position: link.position,
+    created_at: link.created_at,
+    updated_at: link.updated_at,
+    is_trashed: false,
+    trashed_at: null,
+    owner,
+  });
+  if (error) throw error;
 }
 
 // ── Item version helpers ──────────────────────────────────────────────────────
@@ -314,28 +331,29 @@ export type NewItemVersion = {
   updated_at: string;
 };
 
-export async function insertItemVersion(db: AbstractPowerSyncDatabase, v: NewItemVersion): Promise<void> {
+export async function insertItemVersion(v: NewItemVersion): Promise<void> {
   const owner = await getCurrentUserId();
-  await db.execute(
-    `INSERT INTO item_versions (
-      id, item_id, content, properties, version_number, created_by, change_summary,
-      created_at, updated_at, is_trashed, trashed_at, owner
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
-    [
-      v.id, v.item_id, v.content, v.properties,
-      v.version_number, v.created_by, v.change_summary,
-      v.created_at, v.updated_at,
-      owner,
-    ]
-  );
+  const { error } = await supabase.from('item_versions').insert({
+    id: v.id,
+    item_id: v.item_id,
+    content: v.content,
+    properties: v.properties,
+    version_number: v.version_number,
+    created_by: v.created_by,
+    change_summary: v.change_summary,
+    created_at: v.created_at,
+    updated_at: v.updated_at,
+    is_trashed: false,
+    trashed_at: null,
+    owner,
+  });
+  if (error) throw error;
 }
 
-// ── Legacy type alias (for gradual migration) ─────────────────────────────────
-// Components that previously used ItemDocument can use ItemRow instead.
+// ── Legacy type alias ─────────────────────────────────────────────────────────
 export type ItemDocument = ItemRow;
 
 // ── Domain value types ────────────────────────────────────────────────────────
-
 export type ContentType = 'audio' | 'video' | 'text' | 'live';
 export type ReadStatus = 'inbox' | 'reading' | 'read';
 export type ItemStatus = 'backlog' | 'active' | 'someday' | 'archived';

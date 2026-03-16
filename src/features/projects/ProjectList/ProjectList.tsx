@@ -1,7 +1,9 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { usePowerSync, useQuery } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import type { ItemRow } from '@/lib/db';
 import { insertItem, patchItem } from '@/lib/db';
 import { nowIso } from '@/lib/time';
@@ -20,35 +22,58 @@ const getTime = (value: string | null) => {
 const sortProjects = (a: ItemRow, b: ItemRow) => {
   const aDue = getTime(a.due_date ?? null);
   const bDue = getTime(b.due_date ?? null);
-
-  if (aDue !== null && bDue !== null && aDue !== bDue) {
-    return aDue - bDue;
-  }
+  if (aDue !== null && bDue !== null && aDue !== bDue) return aDue - bDue;
   if (aDue !== null && bDue === null) return -1;
   if (aDue === null && bDue !== null) return 1;
-
   const aUpdated = getTime(a.updated_at) ?? 0;
   const bUpdated = getTime(b.updated_at) ?? 0;
-  if (aUpdated !== bUpdated) {
-    return bUpdated - aUpdated;
-  }
-
+  if (aUpdated !== bUpdated) return bUpdated - aUpdated;
   return a.id.localeCompare(b.id);
 };
 
 export function ProjectList() {
-  const db = usePowerSync();
-  const { data: projects } = useQuery<ItemRow>(
-    'SELECT * FROM items WHERE type = ? AND is_trashed = 0 ORDER BY updated_at DESC, id ASC',
-    ['project']
-  );
-  const { data: tasks } = useQuery<ItemRow>(
-    'SELECT * FROM items WHERE type = ? AND is_trashed = 0 ORDER BY updated_at DESC, id ASC',
-    ['task']
-  );
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'project')
+        .eq('is_trashed', false)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'task')
+        .eq('is_trashed', false)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+  });
+
   const [filter, setFilter] = useState<ProjectFilter>('all');
   const [titleInput, setTitleInput] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const invalidateProjects = () => {
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+  };
+  const invalidateTasks = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'counts-raw'] });
+  };
 
   const activeTaskCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -60,16 +85,11 @@ export function ProjectList() {
     return counts;
   }, [tasks]);
 
-  const sortedProjects = useMemo(
-    () => [...projects].sort(sortProjects),
-    [projects]
-  );
-
+  const sortedProjects = useMemo(() => [...projects].sort(sortProjects), [projects]);
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
   );
-
   const filteredProjects = useMemo(() => {
     if (filter === 'all') return sortedProjects;
     return sortedProjects.filter((project) => project.item_status === filter);
@@ -79,7 +99,7 @@ export function ProjectList() {
     const trimmed = titleInput.trim();
     if (!trimmed) return;
     const timestamp = nowIso();
-    await insertItem(db, {
+    await insertItem({
       id: uuidv4(),
       type: 'project',
       parent_id: null,
@@ -97,6 +117,7 @@ export function ProjectList() {
       created_at: timestamp,
       updated_at: timestamp,
     });
+    invalidateProjects();
     setTitleInput('');
   };
 
@@ -122,7 +143,7 @@ export function ProjectList() {
   ) => {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    await patchItem(db, projectId, {
+    await patchItem(projectId, {
       title: trimmedTitle,
       content: updates.content.trim() || null,
       item_status: updates.item_status,
@@ -131,22 +152,18 @@ export function ProjectList() {
       parent_id: updates.parentId,
       updated_at: nowIso(),
     });
+    invalidateProjects();
   };
 
   const handleDeleteProject = async (projectId: string) => {
     const timestamp = nowIso();
-    await patchItem(db, projectId, {
-      is_trashed: true,
-      trashed_at: timestamp,
-      updated_at: timestamp,
-    });
+    await patchItem(projectId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    invalidateProjects();
   };
 
   const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
-    await patchItem(db, taskId, {
-      completed: nextValue,
-      updated_at: nowIso(),
-    });
+    await patchItem(taskId, { completed: nextValue, updated_at: nowIso() });
+    invalidateTasks();
   };
 
   const handleSaveTask = async (
@@ -166,7 +183,7 @@ export function ProjectList() {
   ) => {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    await patchItem(db, taskId, {
+    await patchItem(taskId, {
       title: trimmedTitle,
       content: updates.description.trim() || null,
       parent_id: updates.parentId,
@@ -179,22 +196,20 @@ export function ProjectList() {
       tags: updates.tags,
       updated_at: nowIso(),
     });
+    invalidateTasks();
   };
 
   const handleDeleteTask = async (taskId: string) => {
     const timestamp = nowIso();
-    await patchItem(db, taskId, {
-      is_trashed: true,
-      trashed_at: timestamp,
-      updated_at: timestamp,
-    });
+    await patchItem(taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    invalidateTasks();
   };
 
   const handleCreateTask = async (projectId: string, title: string) => {
     const trimmed = title.trim();
     if (!trimmed) return;
     const timestamp = nowIso();
-    await insertItem(db, {
+    await insertItem({
       id: uuidv4(),
       type: 'task',
       parent_id: projectId,
@@ -212,6 +227,7 @@ export function ProjectList() {
       created_at: timestamp,
       updated_at: timestamp,
     });
+    invalidateTasks();
   };
 
   return (

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { AppShell } from '@/components/layout/AppShell';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -41,7 +43,6 @@ function NotesShell() {
 }
 
 function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
-  const db = usePowerSync();
   const { pushLayer } = useNavigationActions();
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -60,20 +61,51 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
   const nowNoteType = `daily:${nowIsoDate}`;
   const nowTitle = `daily_${nowIsoDate}`;
 
-  const { data: nowNoteRows } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE type = 'note' AND subtype = ? AND is_trashed = 0 LIMIT 1`,
-    [nowNoteType]
-  );
+  const { data: nowNoteRows = [] } = useQuery({
+    queryKey: ['notes', 'today-note', nowNoteType],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data } = await supabase
+        .from('items')
+        .select('id, title, subtype, updated_at')
+        .eq('type', 'note')
+        .eq('subtype', nowNoteType)
+        .eq('is_trashed', false)
+        .limit(1);
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 5 * 60_000,
+  });
   const nowNote = nowNoteRows[0] ?? null;
 
-  const { data: inboxNotes } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE type = 'note' AND inbox_at IS NOT NULL AND is_trashed = 0`
-  );
+  const { data: inboxNotes = [] } = useQuery({
+    queryKey: ['inbox'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data } = await supabase
+        .from('items')
+        .select('id')
+        .eq('type', 'note')
+        .not('inbox_at', 'is', null)
+        .eq('is_trashed', false);
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
 
-  const { data: workbenchNotes } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE type = 'note' AND is_pinned = 1 AND is_trashed = 0
-     ORDER BY updated_at DESC`
-  );
+  const { data: workbenchNotes = [] } = useQuery({
+    queryKey: ['notes', 'workbench'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data } = await supabase
+        .from('items')
+        .select('id, title, updated_at')
+        .eq('type', 'note')
+        .eq('is_pinned', true)
+        .eq('is_trashed', false)
+        .order('updated_at', { ascending: false });
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+  });
 
   const handleNowNote = async () => {
     if (nowNote) {
@@ -81,7 +113,7 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
     } else {
       const noteId = uuidv4();
       const timestamp = nowIso();
-      await insertItem(db, {
+      await insertItem({
         id: noteId,
         type: 'note',
         parent_id: null,
@@ -100,13 +132,12 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         created_at: timestamp,
         updated_at: timestamp,
       });
+      queryClient.invalidateQueries({ queryKey: ['notes', 'today-note'] });
       pushLayer({ view: 'note-detail', noteId });
     }
   };
 
-  const handleOpenNextTasks = () => {
-    pushLayer({ view: 'tasks-list', filter: 'backlog' });
-  };
+  const handleOpenNextTasks = () => pushLayer({ view: 'tasks-list', filter: 'backlog' });
 
   const handleOpenWorkbenchNote = (noteId: string) => {
     setIsWorkbenchOpen(false);

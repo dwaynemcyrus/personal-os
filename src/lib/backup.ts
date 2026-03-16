@@ -1,4 +1,3 @@
-import type { AbstractPowerSyncDatabase } from '@powersync/web';
 import { supabase } from './supabase';
 import { nowIso } from './time';
 
@@ -30,10 +29,12 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function createBackup(db: AbstractPowerSyncDatabase): Promise<void> {
+export async function createBackup(): Promise<void> {
   const data: Record<string, unknown[]> = {};
   for (const table of TABLES) {
-    data[table] = await db.getAll(`SELECT * FROM ${table}`);
+    const { data: rows, error } = await supabase.from(table).select('*');
+    if (error) throw error;
+    data[table] = rows ?? [];
   }
 
   const backup = {
@@ -50,7 +51,6 @@ export async function createBackup(db: AbstractPowerSyncDatabase): Promise<void>
 export type RestoreResult = { restored: number };
 
 export async function restoreBackup(
-  _db: AbstractPowerSyncDatabase,
   file: File,
   merge: boolean
 ): Promise<RestoreResult> {
@@ -58,11 +58,11 @@ export async function restoreBackup(
   const backup = JSON.parse(text) as { collections?: Record<string, unknown[]> };
   if (!backup.collections) throw new Error('Invalid backup file — missing collections.');
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated.');
+
   if (!merge) {
     // Destructive: wipe Supabase then re-insert, then reload
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated.');
-
     for (const table of DELETE_ORDER) {
       await supabase.from(table).delete().eq('owner', user.id);
     }
@@ -75,17 +75,11 @@ export async function restoreBackup(
       if (!error) restored += records.length;
     }
 
-    // Drop local PowerSync DB and reload — page will re-pull from Supabase
-    await _db.disconnect();
     window.location.reload();
-
     return { restored }; // unreachable
   }
 
   // Merge: insert only records not already in Supabase
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated.');
-
   let restored = 0;
   for (const table of TABLES) {
     const records = (backup.collections[table] ?? []) as Record<string, unknown>[];

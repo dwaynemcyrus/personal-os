@@ -1,4 +1,5 @@
-import { useQuery } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import type { ItemRow, ItemLinkRow } from '@/lib/db';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { extractNoteTitle, formatRelativeTime } from '../noteUtils';
@@ -19,25 +20,43 @@ export function BacklinksSheet({
   noteTitle,
   onOpenNote,
 }: BacklinksSheetProps) {
-  const { data: links } = useQuery<ItemLinkRow>(
-    `SELECT il.* FROM item_links il
-     WHERE il.is_trashed = 0
-       AND (il.target_id = ? OR (il.target_title = ? AND il.target_id IS NULL))`,
-    [noteId, noteTitle ?? '']
-  );
+  const { data: backlinks = [] } = useQuery({
+    queryKey: ['note', noteId, 'backlinks'],
+    queryFn: async () => {
+      // Get links pointing to this note
+      let linksQuery = supabase
+        .from('item_links')
+        .select('*')
+        .eq('is_trashed', false)
+        .eq('target_id', noteId);
 
-  const sourceIds = links.map((l) => l.source_id);
-  const placeholders = sourceIds.length > 0 ? sourceIds.map(() => '?').join(',') : 'NULL';
-  const { data: sourceNotes } = useQuery<ItemRow>(
-    `SELECT id, title, updated_at, SUBSTR(content, 1, 200) AS content
-     FROM items WHERE id IN (${placeholders}) AND is_trashed = 0`,
-    sourceIds
-  );
+      // Also include unresolved links by title
+      if (noteTitle) {
+        linksQuery = supabase
+          .from('item_links')
+          .select('*')
+          .eq('is_trashed', false)
+          .or(`target_id.eq.${noteId},and(target_title.eq.${noteTitle},target_id.is.null)`);
+      }
 
-  const noteMap = new Map(sourceNotes.map((n) => [n.id, n]));
-  const backlinks = links.flatMap((link) => {
-    const note = noteMap.get(link.source_id);
-    return note ? [{ link, note }] : [];
+      const { data: links } = await linksQuery;
+      if (!links?.length) return [];
+
+      const sourceIds = [...new Set(links.map((l) => l.source_id))];
+      const { data: sourceNotes } = await supabase
+        .from('items')
+        .select('id, title, updated_at')
+        .in('id', sourceIds)
+        .eq('is_trashed', false);
+
+      const noteMap = new Map((sourceNotes ?? []).map((n) => [n.id, n]));
+      return (links as unknown as ItemLinkRow[]).flatMap((link) => {
+        const note = noteMap.get(link.source_id) as Pick<ItemRow, 'id' | 'title' | 'updated_at'> | undefined;
+        return note ? [{ link, note }] : [];
+      });
+    },
+    enabled: open,
+    staleTime: 30_000,
   });
 
   return (
@@ -59,7 +78,7 @@ export function BacklinksSheet({
                   onClick={() => { onOpenChange(false); onOpenNote(note.id); }}
                 >
                   <span className={styles.noteTitle}>
-                    {extractNoteTitle(note.content, note.title)}
+                    {extractNoteTitle(null, note.title)}
                   </span>
                   <span className={styles.meta}>{formatRelativeTime(note.updated_at)}</span>
                 </button>

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { showToast } from '@/components/ui/Toast';
 import {
@@ -63,20 +65,65 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const { pushLayer } = useNavigationActions();
   const noteCounts = useNoteGroupCounts();
   const taskCounts = useTaskBucketCounts();
-  const db = usePowerSync();
 
-  const { data: projects } = useQuery<ItemRow>(
-    "SELECT id, title, is_trashed, item_status, parent_id FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY title ASC, id ASC"
-  );
-  const { data: areas } = useQuery<ItemRow>(
-    "SELECT id, title, is_trashed FROM items WHERE type = 'area' AND is_trashed = 0 ORDER BY title ASC, id ASC"
-  );
-  const { data: tasks } = useQuery<ItemRow>(
-    "SELECT id, title, is_trashed, item_status, is_next, is_someday, is_waiting, completed, parent_id FROM items WHERE type = 'task' AND is_trashed = 0"
-  );
-  const { data: sources } = useQuery<ItemRow>(
-    "SELECT id, title, url, content_type, read_status, updated_at, is_trashed FROM items WHERE type = 'source' AND is_trashed = 0 ORDER BY updated_at DESC"
-  );
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, is_trashed, item_status, parent_id')
+        .eq('type', 'project')
+        .eq('is_trashed', false)
+        .order('title', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, is_trashed')
+        .eq('type', 'area')
+        .eq('is_trashed', false)
+        .order('title', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, is_trashed, item_status, is_next, is_someday, is_waiting, completed, parent_id')
+        .eq('type', 'task')
+        .eq('is_trashed', false);
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: sources = [] } = useQuery({
+    queryKey: ['sources'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, url, content_type, read_status, updated_at, is_trashed')
+        .eq('type', 'source')
+        .eq('is_trashed', false)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
@@ -85,14 +132,18 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const [createTitle, setCreateTitle] = useState('');
   const submittingRef = useRef(false);
 
+  const invalidateProjects = () => queryClient.invalidateQueries({ queryKey: ['projects'] });
+  const invalidateTasks = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'counts-raw'] });
+  };
+
   // Group projects: ungrouped first, then by area
   const { ungroupedProjects, projectsByArea } = useMemo(() => {
     const areaIds = new Set(areas.map((a) => a.id));
     const ungrouped = projects.filter((p) => !p.parent_id || !areaIds.has(p.parent_id));
     const byArea = new Map<string, ItemRow[]>();
-    for (const area of areas) {
-      byArea.set(area.id, []);
-    }
+    for (const area of areas) byArea.set(area.id, []);
     for (const project of projects) {
       if (project.parent_id && byArea.has(project.parent_id)) {
         byArea.get(project.parent_id)!.push(project);
@@ -105,23 +156,19 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     () => projects.find((p) => p.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
   );
-
   const selectedArea = useMemo(
     () => areas.find((a) => a.id === selectedAreaId) ?? null,
     [areas, selectedAreaId]
   );
-
   const selectedSource = useMemo(
     () => sources.find((s) => s.id === selectedSourceId) ?? null,
     [sources, selectedSourceId]
   );
-
-  const sourcesByStatus = useMemo(() => {
-    const inbox = sources.filter((s) => s.read_status === 'inbox');
-    const reading = sources.filter((s) => s.read_status === 'reading');
-    const read = sources.filter((s) => s.read_status === 'read');
-    return { inbox, reading, read };
-  }, [sources]);
+  const sourcesByStatus = useMemo(() => ({
+    inbox: sources.filter((s) => s.read_status === 'inbox'),
+    reading: sources.filter((s) => s.read_status === 'reading'),
+    read: sources.filter((s) => s.read_status === 'read'),
+  }), [sources]);
 
   // --- Handlers ---
 
@@ -133,10 +180,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     setCreateMode(null);
     setCreateTitle('');
     submittingRef.current = false;
-    if (!trimmed || !db) return;
+    if (!trimmed) return;
     const timestamp = nowIso();
     if (mode === 'project') {
-      await insertItem(db, {
+      await insertItem({
         id: uuidv4(),
         type: 'project',
         parent_id: null,
@@ -152,7 +199,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         updated_at: timestamp,
       });
     } else {
-      await insertItem(db, {
+      await insertItem({
         id: uuidv4(),
         type: 'area',
         parent_id: null,
@@ -168,22 +215,19 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         updated_at: timestamp,
       });
     }
+    invalidateProjects();
+    queryClient.invalidateQueries({ queryKey: ['areas'] });
   };
 
   const handleNoteGroupPress = (row: NoteGroupRow) => {
-    if (row.comingSoon) {
-      showToast(`${row.label} is coming soon`);
-      return;
-    }
+    if (row.comingSoon) { showToast(`${row.label} is coming soon`); return; }
     onOpenChange(false);
     pushLayer({ view: 'notes-list', group: row.id });
   };
-
   const handleTaskGroupPress = (row: TaskGroupRow) => {
     onOpenChange(false);
     pushLayer({ view: 'tasks-list', filter: row.id });
   };
-
   const handlePlansPress = () => {
     onOpenChange(false);
     pushLayer({ view: 'plans-list' });
@@ -191,19 +235,11 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
   const handleSaveProject = async (
     projectId: string,
-    updates: {
-      title: string;
-      content: string;
-      item_status: string;
-      startDate: string | null;
-      dueDate: string | null;
-      parentId: string | null;
-    }
+    updates: { title: string; content: string; item_status: string; startDate: string | null; dueDate: string | null; parentId: string | null }
   ) => {
-    if (!db) return;
     const trimmed = updates.title.trim();
     if (!trimmed) return;
-    await patchItem(db, projectId, {
+    await patchItem(projectId, {
       title: trimmed,
       content: updates.content.trim() || null,
       item_status: updates.item_status,
@@ -211,38 +247,31 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       due_date: updates.dueDate,
       updated_at: nowIso(),
     });
+    invalidateProjects();
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (!db) return;
     const timestamp = nowIso();
-    await patchItem(db, projectId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(projectId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    invalidateProjects();
   };
 
   const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
-    if (!db) return;
-    await patchItem(db, taskId, { completed: nextValue, updated_at: nowIso() });
+    await patchItem(taskId, { completed: nextValue, updated_at: nowIso() });
+    invalidateTasks();
   };
 
   const handleSaveTask = async (
     taskId: string,
     updates: {
-      title: string;
-      description: string;
-      parentId: string | null;
-      isNext: boolean;
-      startDate: string | null;
-      dueDate: string | null;
-      isSomeday: boolean;
-      isWaiting: boolean;
-      waitingNote: string | null;
-      tags: string[];
+      title: string; description: string; parentId: string | null;
+      isNext: boolean; startDate: string | null; dueDate: string | null;
+      isSomeday: boolean; isWaiting: boolean; waitingNote: string | null; tags: string[];
     }
   ) => {
-    if (!db) return;
     const trimmed = updates.title.trim();
     if (!trimmed) return;
-    await patchItem(db, taskId, {
+    await patchItem(taskId, {
       title: trimmed,
       content: updates.description.trim() || null,
       tags: updates.tags,
@@ -251,26 +280,24 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       due_date: updates.dueDate,
       is_someday: updates.isSomeday,
       is_waiting: updates.isWaiting,
+      waiting_note: updates.waitingNote,
+      parent_id: updates.parentId,
       updated_at: nowIso(),
     });
-    // parent_id is not in ItemPatch — update directly
-    await db.execute('UPDATE items SET parent_id = ? WHERE id = ?', [updates.parentId, taskId]);
-    // waiting_note is not in ItemPatch — update directly
-    await db.execute('UPDATE items SET waiting_note = ? WHERE id = ?', [updates.waitingNote, taskId]);
+    invalidateTasks();
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!db) return;
     const timestamp = nowIso();
-    await patchItem(db, taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    invalidateTasks();
   };
 
   const handleCreateTask = async (projectId: string, title: string) => {
-    if (!db) return;
     const trimmed = title.trim();
     if (!trimmed) return;
     const timestamp = nowIso();
-    await insertItem(db, {
+    await insertItem({
       id: uuidv4(),
       type: 'task',
       parent_id: projectId,
@@ -286,33 +313,35 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
       created_at: timestamp,
       updated_at: timestamp,
     });
+    invalidateTasks();
   };
 
   const handleSaveArea = async (areaId: string, title: string) => {
-    if (!db) return;
-    await patchItem(db, areaId, { title: title.trim(), updated_at: nowIso() });
+    await patchItem(areaId, { title: title.trim(), updated_at: nowIso() });
+    queryClient.invalidateQueries({ queryKey: ['areas'] });
   };
 
   const handleDeleteArea = async (areaId: string) => {
-    if (!db) return;
     const timestamp = nowIso();
-    await patchItem(db, areaId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(areaId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    queryClient.invalidateQueries({ queryKey: ['areas'] });
   };
 
   const handleSaveSource = async (updates: Partial<ItemRow>) => {
-    if (!db || !selectedSourceId) return;
-    // Build a patch from the updates object — only pass known patch fields
+    if (!selectedSourceId) return;
     const { title, content, subtype, url } = updates;
-    await db.execute(
-      'UPDATE items SET title = ?, content = ?, subtype = ?, url = ?, updated_at = ? WHERE id = ?',
-      [title ?? null, content ?? null, subtype ?? null, url ?? null, nowIso(), selectedSourceId]
-    );
+    await supabase
+      .from('items')
+      .update({ title: title ?? null, content: content ?? null, subtype: subtype ?? null, url: url ?? null, updated_at: nowIso() })
+      .eq('id', selectedSourceId);
+    queryClient.invalidateQueries({ queryKey: ['sources'] });
   };
 
   const handleDeleteSource = async () => {
-    if (!db || !selectedSourceId) return;
+    if (!selectedSourceId) return;
     const timestamp = nowIso();
-    await patchItem(db, selectedSourceId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(selectedSourceId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    queryClient.invalidateQueries({ queryKey: ['sources'] });
     setSelectedSourceId(null);
   };
 
@@ -440,11 +469,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
             {activeTab === 'plans' && (
               <div className={styles.list}>
-                <button
-                  type="button"
-                  className={styles.row}
-                  onClick={handlePlansPress}
-                >
+                <button type="button" className={styles.row} onClick={handlePlansPress}>
                   <span className={styles.rowLabel}>All Plans</span>
                   <span className={styles.rowCaret} aria-hidden="true">›</span>
                 </button>
@@ -454,23 +479,14 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
             {activeTab === 'sources' && (
               <div className={styles.list}>
                 {sources.length === 0 && (
-                  <span className={styles.rowLabel} style={{ opacity: 0.5 }}>
-                    No sources yet
-                  </span>
+                  <span className={styles.rowLabel} style={{ opacity: 0.5 }}>No sources yet</span>
                 )}
                 {sourcesByStatus.inbox.length > 0 && (
                   <>
                     <span className={styles.createLabel}>Inbox</span>
                     {sourcesByStatus.inbox.map((source) => (
-                      <button
-                        key={source.id}
-                        type="button"
-                        className={styles.row}
-                        onClick={() => setSelectedSourceId(source.id)}
-                      >
-                        <span className={styles.rowLabel}>
-                          {source.title || source.url}
-                        </span>
+                      <button key={source.id} type="button" className={styles.row} onClick={() => setSelectedSourceId(source.id)}>
+                        <span className={styles.rowLabel}>{source.title || source.url}</span>
                         <span className={styles.rowSoon}>{source.content_type}</span>
                         <span className={styles.rowCaret} aria-hidden="true">›</span>
                       </button>
@@ -481,15 +497,8 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                   <>
                     <span className={styles.createLabel}>Reading</span>
                     {sourcesByStatus.reading.map((source) => (
-                      <button
-                        key={source.id}
-                        type="button"
-                        className={styles.row}
-                        onClick={() => setSelectedSourceId(source.id)}
-                      >
-                        <span className={styles.rowLabel}>
-                          {source.title || source.url}
-                        </span>
+                      <button key={source.id} type="button" className={styles.row} onClick={() => setSelectedSourceId(source.id)}>
+                        <span className={styles.rowLabel}>{source.title || source.url}</span>
                         <span className={styles.rowSoon}>{source.content_type}</span>
                         <span className={styles.rowCaret} aria-hidden="true">›</span>
                       </button>
@@ -500,15 +509,8 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                   <>
                     <span className={styles.createLabel}>Read</span>
                     {sourcesByStatus.read.map((source) => (
-                      <button
-                        key={source.id}
-                        type="button"
-                        className={styles.row}
-                        onClick={() => setSelectedSourceId(source.id)}
-                      >
-                        <span className={styles.rowLabel}>
-                          {source.title || source.url}
-                        </span>
+                      <button key={source.id} type="button" className={styles.row} onClick={() => setSelectedSourceId(source.id)}>
+                        <span className={styles.rowLabel}>{source.title || source.url}</span>
                         <span className={styles.rowSoon}>{source.content_type}</span>
                         <span className={styles.rowCaret} aria-hidden="true">›</span>
                       </button>

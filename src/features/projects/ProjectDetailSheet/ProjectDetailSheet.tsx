@@ -9,7 +9,8 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { useQuery } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import type { ItemDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
 import { CalendarPicker } from '@/features/tasks/TaskDetailSheet/CalendarPicker';
@@ -111,10 +112,21 @@ export function ProjectDetailSheet({
   onDeleteTask,
   onCreateTask,
 }: ProjectDetailSheetProps) {
-  const { data: areas } = useQuery<ItemDocument>(
-    'SELECT * FROM items WHERE type = ? AND is_trashed = 0 ORDER BY title ASC, id ASC',
-    ['area']
-  );
+  const { data: areasData } = useQuery({
+    queryKey: ['areas'],
+    queryFn: async (): Promise<ItemDocument[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'area')
+        .eq('is_trashed', false)
+        .order('title', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemDocument[];
+    },
+    staleTime: 60_000,
+  });
+  const areas = areasData ?? [];
 
   // Form state
   const [title, setTitle] = useState(project?.title ?? '');

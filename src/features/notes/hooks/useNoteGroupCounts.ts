@@ -1,41 +1,40 @@
 import { useMemo } from 'react';
-import { useQuery } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import type { NoteGroup } from './useGroupedNotes';
 
 type GroupCounts = Record<NoteGroup, number>;
 
-function getTodayIso(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
+type NoteCounts = {
+  all: number;
+  today: number;
+  todo: number;
+  pinned: number;
+  trash: number;
+};
 
 export function useNoteGroupCounts(): GroupCounts {
-  const today = getTodayIso();
-
-  const { data: allRows } = useQuery<{ n: number }>(
-    "SELECT COUNT(*) as n FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL"
-  );
-  const { data: todayRows } = useQuery<{ n: number }>(
-    "SELECT COUNT(*) as n FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL AND (updated_at >= ? OR created_at >= ?)",
-    [today, today]
-  );
-  const { data: todoRows } = useQuery<{ n: number }>(
-    "SELECT COUNT(*) as n FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL AND content LIKE '%- [ ]%'"
-  );
-  const { data: pinnedRows } = useQuery<{ n: number }>(
-    "SELECT COUNT(*) as n FROM items WHERE type = 'note' AND is_trashed = 0 AND inbox_at IS NULL AND is_pinned = 1"
-  );
-  const { data: trashRows } = useQuery<{ n: number }>(
-    "SELECT COUNT(*) as n FROM items WHERE type = 'note' AND is_trashed = 1"
-  );
+  const { data } = useQuery({
+    queryKey: ['notes', 'counts'],
+    queryFn: async (): Promise<NoteCounts> => {
+      const { data, error } = await supabase.rpc('get_note_counts');
+      if (error) {
+        // Fallback: return zeros if RPC not yet deployed
+        console.warn('[useNoteGroupCounts] get_note_counts RPC error:', error);
+        return { all: 0, today: 0, todo: 0, pinned: 0, trash: 0 };
+      }
+      return (data ?? { all: 0, today: 0, todo: 0, pinned: 0, trash: 0 }) as NoteCounts;
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
 
   return useMemo<GroupCounts>(() => ({
-    all: allRows[0]?.n ?? 0,
-    today: todayRows[0]?.n ?? 0,
-    todo: todoRows[0]?.n ?? 0,
-    pinned: pinnedRows[0]?.n ?? 0,
+    all: data?.all ?? 0,
+    today: data?.today ?? 0,
+    todo: data?.todo ?? 0,
+    pinned: data?.pinned ?? 0,
     locked: 0,
-    trash: trashRows[0]?.n ?? 0,
-  }), [allRows, todayRows, todoRows, pinnedRows, trashRows]);
+    trash: data?.trash ?? 0,
+  }), [data]);
 }

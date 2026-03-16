@@ -10,7 +10,9 @@ import {
   DropdownItem,
   DropdownTrigger,
 } from '@/components/ui/Dropdown';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import type { ItemRow } from '@/lib/db';
 import { parseTags } from '@/lib/db';
 import { CalendarPicker } from './CalendarPicker';
@@ -104,8 +106,6 @@ export function TaskDetailSheet({
   onToggleComplete,
   variant = 'sheet',
 }: TaskDetailSheetProps) {
-  const db = usePowerSync();
-
   // Form state
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.content ?? '');
@@ -118,13 +118,33 @@ export function TaskDetailSheet({
   const [waitingNote, setWaitingNote] = useState(task?.waiting_note ?? '');
   const [tags, setTags] = useState<string[]>(dedupeTags(parseTags(task?.tags ?? null)));
 
-  // Catalogs via reactive queries
-  const { data: tagCatalog } = useQuery<TagDocument>(
-    "SELECT * FROM tags WHERE is_trashed = 0 ORDER BY name ASC"
-  );
-  const { data: areas } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'area' AND is_trashed = 0 ORDER BY title ASC"
-  );
+  // Catalogs via react-query
+  const { data: tagCatalog = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: async (): Promise<TagDocument[]> => {
+      const { data } = await supabase
+        .from('tags')
+        .select('*')
+        .eq('is_trashed', false)
+        .order('name', { ascending: true });
+      return (data ?? []) as unknown as TagDocument[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'area')
+        .eq('is_trashed', false)
+        .order('title', { ascending: true });
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
 
   // Tag sheet state
   const [tagInput, setTagInput] = useState('');
@@ -385,15 +405,18 @@ export function TaskDetailSheet({
   const handleAddTagFromInput = async () => {
     const normalized = normalizeTag(tagInput);
     if (!normalized) return;
-    if (db) {
-      const existing = tagCatalog.find(t => t.name.toLowerCase() === normalized.toLowerCase());
-      if (!existing) {
-        const timestamp = nowIso();
-        await db.execute(
-          'INSERT INTO tags (id, name, created_at, updated_at, is_trashed, trashed_at, owner) VALUES (?, ?, ?, ?, 0, NULL, NULL)',
-          [uuidv4(), normalized, timestamp, timestamp]
-        );
-      }
+    const existing = tagCatalog.find(t => t.name.toLowerCase() === normalized.toLowerCase());
+    if (!existing) {
+      const timestamp = nowIso();
+      await supabase.from('tags').insert({
+        id: uuidv4(),
+        name: normalized,
+        created_at: timestamp,
+        updated_at: timestamp,
+        is_trashed: false,
+        trashed_at: null,
+      });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
     }
     if (!existingTagKeys.has(normalized.toLowerCase())) {
       setTags(current => [...current, normalized]);
@@ -436,48 +459,49 @@ export function TaskDetailSheet({
   // ─── Tag catalog management ───────────────────────────────────────────────
 
   const handleRenameTag = async (tagDoc: TagDocument, newName: string) => {
-    if (!db) return;
     const normalized = normalizeTag(newName);
     if (!normalized || normalized.toLowerCase() === tagDoc.name.toLowerCase()) return;
 
     const timestamp = nowIso();
-    await db.execute('UPDATE tags SET name = ?, updated_at = ? WHERE id = ?', [normalized, timestamp, tagDoc.id]);
+    await supabase.from('tags').update({ name: normalized, updated_at: timestamp }).eq('id', tagDoc.id);
 
     setTags(current =>
       current.map(t => t.toLowerCase() === tagDoc.name.toLowerCase() ? normalized : t)
     );
 
     // Update tags JSON in all items that reference the old tag name
-    const allItems = await db.getAll<ItemRow>('SELECT * FROM items WHERE is_trashed = 0');
+    const { data: allItems } = await supabase.from('items').select('id, tags').eq('is_trashed', false);
     const oldName = tagDoc.name.toLowerCase();
-    for (const item of allItems) {
+    for (const item of allItems ?? []) {
       const itemTags = parseTags(item.tags);
       if (!itemTags.some((t: string) => t.toLowerCase() === oldName)) continue;
       const newTags = JSON.stringify(itemTags.map((t: string) =>
         t.toLowerCase() === oldName ? normalized : t
       ));
-      await db.execute('UPDATE items SET tags = ?, updated_at = ? WHERE id = ?', [newTags, timestamp, item.id]);
+      await supabase.from('items').update({ tags: newTags, updated_at: timestamp }).eq('id', item.id);
     }
+    queryClient.invalidateQueries({ queryKey: ['tags'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const handleDeleteTag = async (tagDoc: TagDocument) => {
-    if (!db) return;
-
     const timestamp = nowIso();
-    await db.execute('UPDATE tags SET is_trashed = 1, trashed_at = ?, updated_at = ? WHERE id = ?', [timestamp, timestamp, tagDoc.id]);
+    await supabase.from('tags').update({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp }).eq('id', tagDoc.id);
 
     setTags(current => current.filter(t => t.toLowerCase() !== tagDoc.name.toLowerCase()));
 
     // Remove tag from all items that reference it
-    const allItems = await db.getAll<ItemRow>('SELECT * FROM items WHERE is_trashed = 0');
+    const { data: allItems } = await supabase.from('items').select('id, tags').eq('is_trashed', false);
     const oldName = tagDoc.name.toLowerCase();
-    for (const item of allItems) {
+    for (const item of allItems ?? []) {
       const itemTags = parseTags(item.tags);
       if (!itemTags.some((t: string) => t.toLowerCase() === oldName)) continue;
       const newTagsArr = itemTags.filter((t: string) => t.toLowerCase() !== oldName);
       const newTags = newTagsArr.length > 0 ? JSON.stringify(newTagsArr) : null;
-      await db.execute('UPDATE items SET tags = ?, updated_at = ? WHERE id = ?', [newTags, timestamp, item.id]);
+      await supabase.from('items').update({ tags: newTags, updated_at: timestamp }).eq('id', item.id);
     }
+    queryClient.invalidateQueries({ queryKey: ['tags'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   // ─── Move sheet ───────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import type { ItemRow } from '@/lib/db';
 import { insertItem, patchItem } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
@@ -36,7 +38,6 @@ function isStartDateToday(iso: string | null | undefined): boolean {
 }
 
 export function TaskList() {
-  const db = usePowerSync();
   const [showNextOnly, setShowNextOnly] = useState(false);
   const pendingTimersRef = useRef<Map<string, number>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -52,13 +53,35 @@ export function TaskList() {
 
   useEffect(() => { setFilter(layerFilter); }, [layerFilter]);
 
-  const { data: tasks } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE type = 'task' ORDER BY updated_at DESC`
-  );
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'task')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
 
-  const { data: projects } = useQuery<ItemRow>(
-    `SELECT * FROM items WHERE type = 'project' AND is_trashed = 0 ORDER BY updated_at DESC`
-  );
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'project')
+        .eq('is_trashed', false)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
 
   const projectMap = useMemo(
     () => new Map(projects.map((p) => [p.id, p.title ?? ''])),
@@ -93,10 +116,15 @@ export function TaskList() {
     return [...base].sort(sortByDeadline);
   }, [filter, tasks, showNextOnly]);
 
+  const invalidateTasks = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'counts-raw'] });
+  };
+
   const handleCreateTask = async () => {
     const timestamp = nowIso();
     const taskId = uuidv4();
-    await insertItem(db, {
+    await insertItem({
       id: taskId,
       type: 'task',
       parent_id: null,
@@ -112,6 +140,7 @@ export function TaskList() {
       created_at: timestamp,
       updated_at: timestamp,
     });
+    invalidateTasks();
     pushLayer({ view: 'task-detail', taskId });
   };
 
@@ -135,7 +164,7 @@ export function TaskList() {
   ) => {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
-    await patchItem(db, taskId, {
+    await patchItem(taskId, {
       title: trimmedTitle,
       content: updates.description.trim() || null,
       parent_id: updates.parentId,
@@ -148,15 +177,18 @@ export function TaskList() {
       tags: updates.tags,
       updated_at: nowIso(),
     });
+    invalidateTasks();
   };
 
   const handleDeleteTask = async (taskId: string) => {
     const timestamp = nowIso();
-    await patchItem(db, taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(taskId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    invalidateTasks();
   };
 
   const handleToggleComplete = async (taskId: string, nextValue: boolean) => {
-    await patchItem(db, taskId, { completed: nextValue, updated_at: nowIso() });
+    await patchItem(taskId, { completed: nextValue, updated_at: nowIso() });
+    invalidateTasks();
   };
 
   useEffect(() => {

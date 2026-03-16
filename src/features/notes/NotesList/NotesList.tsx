@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { usePowerSync } from '@powersync/react';
+import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
 import { useGroupedNotes } from '../hooks/useGroupedNotes';
@@ -31,7 +31,6 @@ type NotesListProps = {
 };
 
 export function NotesList({ group }: NotesListProps) {
-  const db = usePowerSync();
   const { pushLayer, goBack } = useNavigationActions();
   const { notes, isLoading } = useGroupedNotes(group);
 
@@ -42,7 +41,7 @@ export function NotesList({ group }: NotesListProps) {
   const handleCreateNote = async () => {
     const timestamp = nowIso();
     const noteId = uuidv4();
-    await insertItem(db, {
+    await insertItem({
       id: noteId,
       type: 'note',
       parent_id: null,
@@ -61,6 +60,8 @@ export function NotesList({ group }: NotesListProps) {
       created_at: timestamp,
       updated_at: timestamp,
     });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
     pushLayer({ view: 'note-detail', noteId });
   };
 

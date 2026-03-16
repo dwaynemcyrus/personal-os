@@ -1,6 +1,6 @@
 import { unzipSync } from 'fflate';
 import { v4 as uuidv4 } from 'uuid';
-import type { AbstractPowerSyncDatabase } from '@powersync/web';
+import { supabase } from './supabase';
 import { parseFrontmatter } from './markdown/frontmatter';
 import { extractNoteTitle } from '../features/notes/noteUtils';
 import { generateSlug } from './slug';
@@ -12,7 +12,6 @@ const VALID_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
 export type ImportResult = { imported: number; skipped: number };
 
 async function processMarkdown(
-  db: AbstractPowerSyncDatabase,
   filename: string,
   content: string
 ): Promise<'imported' | 'skipped'> {
@@ -31,11 +30,13 @@ async function processMarkdown(
       : filenameFromFile;
 
   // Skip if a note with this filename already exists
-  const existing = await db.getAll(
-    'SELECT id FROM items WHERE filename = ? AND is_trashed = 0 LIMIT 1',
-    [resolvedFilename]
-  );
-  if (existing.length > 0) return 'skipped';
+  const { data: existing } = await supabase
+    .from('items')
+    .select('id')
+    .eq('filename', resolvedFilename)
+    .eq('is_trashed', false)
+    .limit(1);
+  if (existing && existing.length > 0) return 'skipped';
 
   const timestamp = nowIso();
   const priority =
@@ -43,7 +44,7 @@ async function processMarkdown(
       ? fmProps.priority
       : null;
 
-  await insertItem(db, {
+  await insertItem({
     id: uuidv4(),
     type: 'note',
     parent_id: null,
@@ -72,10 +73,7 @@ async function processMarkdown(
   return 'imported';
 }
 
-export async function importNotesFromFiles(
-  db: AbstractPowerSyncDatabase,
-  files: File[]
-): Promise<ImportResult> {
+export async function importNotesFromFiles(files: File[]): Promise<ImportResult> {
   let imported = 0;
   let skipped = 0;
   const mdFiles: Array<{ name: string; content: string }> = [];
@@ -95,7 +93,7 @@ export async function importNotesFromFiles(
   }
 
   for (const { name, content } of mdFiles) {
-    const result = await processMarkdown(db, name, content);
+    const result = await processMarkdown(name, content);
     if (result === 'imported') imported++;
     else skipped++;
   }

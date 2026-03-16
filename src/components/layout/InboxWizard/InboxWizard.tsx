@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import type { ItemRow } from '@/lib/db';
 import { insertItem, patchItem } from '@/lib/db';
 import { extractNoteTitle, extractTitleFromFirstLine } from '@/features/notes/noteUtils';
@@ -12,43 +14,81 @@ type InboxWizardProps = {
 };
 
 export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
-  const db = usePowerSync();
   const [editTitle, setEditTitle] = useState('');
 
-  // Reactive inbox notes query
-  const { data: inboxNotes } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'note' AND inbox_at IS NOT NULL AND is_trashed = 0 ORDER BY inbox_at ASC, id ASC"
-  );
+  const { data: inboxNotes = [] } = useQuery({
+    queryKey: ['inbox'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'note')
+        .not('inbox_at', 'is', null)
+        .eq('is_trashed', false)
+        .order('inbox_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
 
-  // Reactive trashed captures query
-  const { data: trashedCaptures } = useQuery<ItemRow>(
-    "SELECT * FROM items WHERE type = 'capture' AND is_trashed = 1 ORDER BY trashed_at DESC, id ASC"
-  );
+  const { data: trashedCaptures = [] } = useQuery({
+    queryKey: ['captures', 'trashed'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('type', 'capture')
+        .eq('is_trashed', true)
+        .order('trashed_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
 
-  // Keep editTitle in sync with the first inbox note
+  // Fetch content for the current inbox note from item_content
+  const currentNote = inboxNotes[0];
+  const { data: contentRow } = useQuery({
+    queryKey: ['note', currentNote?.id, 'content'],
+    queryFn: async (): Promise<{ content: string | null } | null> => {
+      if (!currentNote?.id) return null;
+      const { data } = await supabase
+        .from('item_content')
+        .select('content')
+        .eq('item_id', currentNote.id)
+        .single();
+      return data ?? { content: null };
+    },
+    enabled: Boolean(currentNote?.id),
+    staleTime: 30_000,
+  });
+
+  const currentContent = contentRow?.content ?? currentNote?.content ?? null;
+
   useEffect(() => {
-    if (inboxNotes.length === 0) {
-      setEditTitle('');
-      return;
-    }
+    if (inboxNotes.length === 0) { setEditTitle(''); return; }
     const note = inboxNotes[0];
-    setEditTitle(extractNoteTitle(note.content ?? null, note.title ?? ''));
-  }, [inboxNotes]);
+    setEditTitle(extractNoteTitle(currentContent, note.title ?? ''));
+  }, [inboxNotes, currentContent]);
 
-  // Body scroll lock
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
   if (!open) return null;
 
-  const currentNote = inboxNotes[0];
   const remaining = inboxNotes.length;
+
+  const invalidateInbox = () => {
+    queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
+  };
 
   const markCaptureProcessed = async (
     noteId: string,
@@ -56,44 +96,47 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     resultId: string | null,
     timestamp: string,
   ) => {
-    if (!db) return;
-    const captures = await db.getAll<ItemRow>(
-      "SELECT * FROM items WHERE type = 'capture' AND result_id = ? LIMIT 1",
-      [noteId]
-    );
-    if (captures.length > 0) {
-      await patchItem(db, captures[0].id, {
+    const { data: captures } = await supabase
+      .from('items')
+      .select('id')
+      .eq('type', 'capture')
+      .eq('result_id', noteId)
+      .limit(1);
+    if (captures && captures.length > 0) {
+      await patchItem(captures[0].id, {
         processed: true,
         processed_at: timestamp,
         result_type: resultType,
         result_id: resultId,
         updated_at: timestamp,
       });
+      queryClient.invalidateQueries({ queryKey: ['captures', 'trashed'] });
     }
   };
 
   const handleKeep = async () => {
-    if (!db || !currentNote) return;
+    if (!currentNote) return;
     const timestamp = new Date().toISOString();
-    await patchItem(db, currentNote.id, {
+    await patchItem(currentNote.id, {
       title: editTitle.trim() || 'Untitled',
       inbox_at: null,
       subtype: null,
       updated_at: timestamp,
     });
     await markCaptureProcessed(currentNote.id, 'note', currentNote.id, timestamp);
+    invalidateInbox();
   };
 
   const handleConvertToTask = async () => {
-    if (!db || !currentNote) return;
+    if (!currentNote) return;
     const timestamp = new Date().toISOString();
     const taskId = uuidv4();
-    await insertItem(db, {
+    await insertItem({
       id: taskId,
       type: 'task',
       parent_id: null,
       title: editTitle.trim() || 'Untitled',
-      content: currentNote.content ?? null,
+      content: currentContent ?? null,
       tags: null,
       is_pinned: false,
       item_status: 'backlog',
@@ -105,20 +148,22 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
       created_at: timestamp,
       updated_at: timestamp,
     });
-    await patchItem(db, currentNote.id, { inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(currentNote.id, { inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     await markCaptureProcessed(currentNote.id, 'task', taskId, timestamp);
+    invalidateInbox();
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const handleConvertToSource = async () => {
-    if (!db || !currentNote) return;
+    if (!currentNote) return;
     const timestamp = new Date().toISOString();
     const sourceId = uuidv4();
-    await insertItem(db, {
+    await insertItem({
       id: sourceId,
       type: 'source',
       parent_id: null,
       title: editTitle.trim() || null,
-      url: currentNote.content?.trim() ?? '',
+      url: currentContent?.trim() ?? '',
       subtype: 'text',
       inbox_at: null,
       is_pinned: false,
@@ -131,15 +176,17 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
       created_at: timestamp,
       updated_at: timestamp,
     });
-    await patchItem(db, currentNote.id, { inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(currentNote.id, { inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     await markCaptureProcessed(currentNote.id, 'source', sourceId, timestamp);
+    invalidateInbox();
+    queryClient.invalidateQueries({ queryKey: ['sources'] });
   };
 
   const handleConvertToProject = async () => {
-    if (!db || !currentNote) return;
+    if (!currentNote) return;
     const timestamp = new Date().toISOString();
     const projectId = uuidv4();
-    await insertItem(db, {
+    await insertItem({
       id: projectId,
       type: 'project',
       parent_id: null,
@@ -154,25 +201,23 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
       created_at: timestamp,
       updated_at: timestamp,
     });
-    await patchItem(db, currentNote.id, { inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(currentNote.id, { inbox_at: null, is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     await markCaptureProcessed(currentNote.id, 'project', projectId, timestamp);
+    invalidateInbox();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
   const handleTrash = async () => {
-    if (!db || !currentNote) return;
+    if (!currentNote) return;
     const timestamp = new Date().toISOString();
-    await patchItem(db, currentNote.id, {
-      is_trashed: true,
-      trashed_at: timestamp,
-      inbox_at: null,
-      updated_at: timestamp,
-    });
+    await patchItem(currentNote.id, { is_trashed: true, trashed_at: timestamp, inbox_at: null, updated_at: timestamp });
     await markCaptureProcessed(currentNote.id, 'discarded', null, timestamp);
+    invalidateInbox();
   };
 
   const handleExtractTitle = () => {
     if (!currentNote) return;
-    setEditTitle(extractTitleFromFirstLine(currentNote.content ?? null));
+    setEditTitle(extractTitleFromFirstLine(currentContent));
   };
 
   // Empty state
@@ -182,19 +227,13 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         <div className={styles.container}>
           <div className={styles.header}>
             <span className={styles.headerTitle}>Inbox</span>
-            <button
-              type="button"
-              className={styles.closeButton}
-              onClick={() => onOpenChange(false)}
-            >
+            <button type="button" className={styles.closeButton} onClick={() => onOpenChange(false)}>
               Close
             </button>
           </div>
           <div className={styles.emptyState}>
             <div className={styles.emptyTitle}>Inbox empty</div>
-            <div className={styles.emptySubtitle}>
-              All items have been processed
-            </div>
+            <div className={styles.emptySubtitle}>All items have been processed</div>
             <button
               type="button"
               className={`${styles.actionButton} ${styles.actionButtonPrimary}`}
@@ -228,11 +267,7 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
         <div className={styles.header}>
           <span className={styles.headerTitle}>Inbox</span>
           <span className={styles.remaining}>{remaining} remaining</span>
-          <button
-            type="button"
-            className={styles.closeButton}
-            onClick={() => onOpenChange(false)}
-          >
+          <button type="button" className={styles.closeButton} onClick={() => onOpenChange(false)}>
             Close
           </button>
         </div>
@@ -245,16 +280,12 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
           placeholder="Title"
         />
 
-        <button
-          type="button"
-          className={styles.extractButton}
-          onClick={handleExtractTitle}
-        >
+        <button type="button" className={styles.extractButton} onClick={handleExtractTitle}>
           Use first line as title
         </button>
 
         <div className={styles.bodyPreview}>
-          {currentNote?.content || '(empty)'}
+          {currentContent || '(empty)'}
         </div>
 
         <div className={styles.actions}>
@@ -265,25 +296,13 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
           >
             Keep
           </button>
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={() => void handleConvertToTask()}
-          >
+          <button type="button" className={styles.actionButton} onClick={() => void handleConvertToTask()}>
             To Task
           </button>
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={() => void handleConvertToProject()}
-          >
+          <button type="button" className={styles.actionButton} onClick={() => void handleConvertToProject()}>
             To Project
           </button>
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={() => void handleConvertToSource()}
-          >
+          <button type="button" className={styles.actionButton} onClick={() => void handleConvertToSource()}>
             To Source
           </button>
           <button

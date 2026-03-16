@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { AbstractPowerSyncDatabase } from '@powersync/web';
+import { supabase } from '@/lib/supabase';
 import type { ItemRow, ItemLinkRow } from './db';
 import { parseWikiLinks } from './markdown/wikilinks';
 import { nowIso } from './time';
@@ -18,13 +18,19 @@ export function invalidateNoteTitleCache(): void {
   noteTitleCache = null;
 }
 
-async function getNoteTitleMap(db: AbstractPowerSyncDatabase): Promise<Map<string, string>> {
+async function getNoteTitleMap(): Promise<Map<string, string>> {
   if (noteTitleCache) return noteTitleCache;
-  const docs = await db.getAll<ItemRow>(
-    'SELECT id, title FROM items WHERE type = ? AND is_trashed = 0',
-    ['note']
+  const { data } = await supabase
+    .from('items')
+    .select('id, title')
+    .eq('type', 'note')
+    .eq('is_trashed', false);
+  noteTitleCache = new Map(
+    (data ?? []).map((d: { id: string; title: string | null }) => [
+      (d.title ?? '').toLowerCase(),
+      d.id,
+    ])
   );
-  noteTitleCache = new Map(docs.map((d) => [(d.title ?? '').toLowerCase(), d.id]));
   return noteTitleCache;
 }
 
@@ -32,18 +38,19 @@ async function getNoteTitleMap(db: AbstractPowerSyncDatabase): Promise<Map<strin
  * Extract and save wiki-links from a note's content
  */
 export async function syncNoteLinks(
-  db: AbstractPowerSyncDatabase,
   sourceNoteId: string,
   content: string
 ): Promise<void> {
   const links = parseWikiLinks(content);
-  const notesByTitle = await getNoteTitleMap(db);
+  const notesByTitle = await getNoteTitleMap();
 
   // Get existing links for this source note
-  const existingLinks = await db.getAll<ItemLinkRow>(
-    'SELECT * FROM item_links WHERE source_id = ? AND is_trashed = 0',
-    [sourceNoteId]
-  );
+  const { data: existingLinksData } = await supabase
+    .from('item_links')
+    .select('*')
+    .eq('source_id', sourceNoteId)
+    .eq('is_trashed', false);
+  const existingLinks = (existingLinksData ?? []) as unknown as ItemLinkRow[];
 
   const existingLinkMap = new Map<string, ItemLinkRow>();
   for (const link of existingLinks) {
@@ -64,37 +71,35 @@ export async function syncNoteLinks(
 
     if (existing) {
       if (existing.target_id !== targetNoteId) {
-        await db.execute(
-          'UPDATE item_links SET target_id = ?, updated_at = ? WHERE id = ?',
-          [targetNoteId, timestamp, existing.id]
-        );
+        await supabase
+          .from('item_links')
+          .update({ target_id: targetNoteId, updated_at: timestamp })
+          .eq('id', existing.id);
       }
     } else {
-      await db.execute(
-        `INSERT INTO item_links (id, source_id, target_id, target_title, header, alias, position, created_at, updated_at, is_trashed, trashed_at, owner)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL)`,
-        [
-          uuidv4(),
-          sourceNoteId,
-          targetNoteId,
-          link.target,
-          link.header ?? null,
-          link.alias ?? null,
-          link.start,
-          timestamp,
-          timestamp,
-        ]
-      );
+      await supabase.from('item_links').insert({
+        id: uuidv4(),
+        source_id: sourceNoteId,
+        target_id: targetNoteId,
+        target_title: link.target,
+        header: link.header ?? null,
+        alias: link.alias ?? null,
+        position: link.start,
+        created_at: timestamp,
+        updated_at: timestamp,
+        is_trashed: false,
+        trashed_at: null,
+      });
     }
   }
 
   // Trash links that no longer exist in content
   for (const [key, link] of existingLinkMap) {
     if (!processedKeys.has(key)) {
-      await db.execute(
-        'UPDATE item_links SET is_trashed = 1, trashed_at = ?, updated_at = ? WHERE id = ?',
-        [timestamp, timestamp, link.id]
-      );
+      await supabase
+        .from('item_links')
+        .update({ is_trashed: true, trashed_at: timestamp, updated_at: timestamp })
+        .eq('id', link.id);
     }
   }
 }
@@ -103,25 +108,25 @@ export async function syncNoteLinks(
  * Get all notes that link TO a specific note (backlinks)
  */
 export async function getBacklinks(
-  db: AbstractPowerSyncDatabase,
   noteId: string
 ): Promise<Array<{ sourceId: string; title: string; position: number }>> {
-  const links = await db.getAll<ItemLinkRow>(
-    'SELECT * FROM item_links WHERE target_id = ? AND is_trashed = 0',
-    [noteId]
-  );
+  const { data: linksData } = await supabase
+    .from('item_links')
+    .select('*')
+    .eq('target_id', noteId)
+    .eq('is_trashed', false);
+  const links = (linksData ?? []) as unknown as ItemLinkRow[];
 
   const sourceIds = [...new Set(links.map((l) => l.source_id))];
   if (sourceIds.length === 0) return [];
 
-  const placeholders = sourceIds.map(() => '?').join(', ');
-  const sourceNotes = await db.getAll<ItemRow>(
-    `SELECT id, title FROM items WHERE id IN (${placeholders})`,
-    sourceIds
-  );
+  const { data: sourceNotesData } = await supabase
+    .from('items')
+    .select('id, title')
+    .in('id', sourceIds);
 
   const noteTitles = new Map<string, string>();
-  for (const note of sourceNotes) {
+  for (const note of (sourceNotesData ?? []) as { id: string; title: string | null }[]) {
     noteTitles.set(note.id, note.title ?? '');
   }
 
@@ -136,7 +141,6 @@ export async function getBacklinks(
  * Get all notes that a specific note links TO (outgoing links)
  */
 export async function getOutgoingLinks(
-  db: AbstractPowerSyncDatabase,
   sourceNoteId: string
 ): Promise<
   Array<{
@@ -147,10 +151,12 @@ export async function getOutgoingLinks(
     resolved: boolean;
   }>
 > {
-  const links = await db.getAll<ItemLinkRow>(
-    'SELECT * FROM item_links WHERE source_id = ? AND is_trashed = 0',
-    [sourceNoteId]
-  );
+  const { data: linksData } = await supabase
+    .from('item_links')
+    .select('*')
+    .eq('source_id', sourceNoteId)
+    .eq('is_trashed', false);
+  const links = (linksData ?? []) as unknown as ItemLinkRow[];
 
   return links.map((link) => ({
     targetId: link.target_id,
@@ -165,14 +171,14 @@ export async function getOutgoingLinks(
  * Update all links when a note is renamed
  */
 export async function updateLinksOnNoteRename(
-  db: AbstractPowerSyncDatabase,
   noteId: string,
   newTitle: string
 ): Promise<void> {
   const timestamp = nowIso();
-  await db.execute(
-    'UPDATE item_links SET target_title = ?, updated_at = ? WHERE target_id = ? AND is_trashed = 0',
-    [newTitle, timestamp, noteId]
-  );
+  await supabase
+    .from('item_links')
+    .update({ target_title: newTitle, updated_at: timestamp })
+    .eq('target_id', noteId)
+    .eq('is_trashed', false);
   invalidateNoteTitleCache();
 }

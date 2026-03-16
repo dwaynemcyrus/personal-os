@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { usePowerSync } from '@powersync/react';
 import { Sheet, SheetContent, SheetClose, SheetTitle } from '@/components/ui/Sheet';
 import { CloseIcon } from '@/components/ui/icons';
 import { exportNotesZip } from '@/lib/exportNotes';
 import { importNotesFromFiles } from '@/lib/importNotes';
 import { createBackup, restoreBackup } from '@/lib/backup';
+import { queryClient } from '@/lib/queryClient';
 import styles from './SettingsSheet.module.css';
 
 type Props = {
@@ -13,7 +13,6 @@ type Props = {
 };
 
 export function SettingsSheet({ open, onOpenChange }: Props) {
-  const db = usePowerSync();
   const [status, setStatus] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
@@ -30,7 +29,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
       }).databases();
       await Promise.all(
         dbs
-          .filter((d) => d.name?.includes('personalos'))
+          .filter((d) => d.name?.includes('personalos') || d.name?.includes('tanstack'))
           .map(
             (d) =>
               new Promise<void>((resolve) => {
@@ -45,14 +44,14 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
       const registrations = await navigator.serviceWorker.getRegistrations();
       await Promise.all(registrations.map((r) => r.unregister()));
     }
+    queryClient.clear();
     window.location.reload();
   };
 
   const handleExportNotes = async () => {
-    if (!db) return;
     setStatus('Exporting…');
     try {
-      const count = await exportNotesZip(db);
+      const count = await exportNotesZip();
       setStatus(`Exported ${count} notes.`);
     } catch {
       setStatus('Export failed.');
@@ -61,11 +60,12 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (!files.length || !db) return;
+    if (!files.length) return;
     setStatus('Importing…');
     try {
-      const { imported, skipped } = await importNotesFromFiles(db, files);
+      const { imported, skipped } = await importNotesFromFiles(files);
       setStatus(`Imported ${imported} note${imported !== 1 ? 's' : ''}, skipped ${skipped}.`);
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
     } catch {
       setStatus('Import failed.');
     }
@@ -73,10 +73,9 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
   };
 
   const handleBackup = async () => {
-    if (!db) return;
     setStatus('Creating backup…');
     try {
-      await createBackup(db);
+      await createBackup();
       setStatus('Backup downloaded.');
     } catch {
       setStatus('Backup failed.');
@@ -88,19 +87,16 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
     merge: boolean
   ) => {
     const file = e.target.files?.[0];
-    if (!file || !db) return;
+    if (!file) return;
     const confirmed = window.confirm(
       merge
         ? 'Merge backup into current data? Existing items will not be overwritten.'
         : 'This will permanently replace ALL your data with the backup. Are you sure?'
     );
-    if (!confirmed) {
-      e.target.value = '';
-      return;
-    }
+    if (!confirmed) { e.target.value = ''; return; }
     setStatus('Restoring…');
     try {
-      const { restored } = await restoreBackup(db, file, merge);
+      const { restored } = await restoreBackup(file, merge);
       setStatus(`Restored ${restored} record${restored !== 1 ? 's' : ''}.`);
     } catch {
       setStatus('Restore failed — is this a valid backup file?');
@@ -130,12 +126,7 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Export</div>
-            <button
-              type="button"
-              className={styles.row}
-              onClick={handleExportNotes}
-              disabled={!db}
-            >
+            <button type="button" className={styles.row} onClick={handleExportNotes}>
               Export Notes as ZIP
             </button>
           </section>
@@ -146,7 +137,6 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={styles.row}
               onClick={() => importRef.current?.click()}
-              disabled={!db}
             >
               Import from Obsidian (.md or .zip)
             </button>
@@ -162,19 +152,13 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Backup &amp; Restore</div>
-            <button
-              type="button"
-              className={styles.row}
-              onClick={handleBackup}
-              disabled={!db}
-            >
+            <button type="button" className={styles.row} onClick={handleBackup}>
               Create Backup
             </button>
             <button
               type="button"
               className={styles.row}
               onClick={() => restoreMergeRef.current?.click()}
-              disabled={!db}
             >
               Restore — Merge
             </button>
@@ -182,7 +166,6 @@ export function SettingsSheet({ open, onOpenChange }: Props) {
               type="button"
               className={`${styles.row} ${styles.rowDanger}`}
               onClick={() => restoreRef.current?.click()}
-              disabled={!db}
             >
               Restore — Replace All
             </button>

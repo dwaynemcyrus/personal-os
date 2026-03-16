@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, usePowerSync } from '@powersync/react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
 import type { ItemRow } from '@/lib/db';
-import { insertItem, insertItemLink, patchItem, parseTags, serializeTags } from '@/lib/db';
+import { insertItem, insertItemLink, patchItem } from '@/lib/db';
 import {
   Dropdown,
   DropdownContent,
@@ -31,34 +33,78 @@ type NoteEditorProps = {
 };
 
 export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
-  const db = usePowerSync();
   const { setSlot } = useHeaderSlot();
   const { pushLayer } = useNavigationActions();
 
-  // Reactive note query
-  const { data: noteRows, isLoading: noteLoading } = useQuery<ItemRow>(
-    'SELECT * FROM items WHERE id = ? LIMIT 1',
-    [noteId]
-  );
-  const note = noteRows[0] ?? null;
-  const hasLoaded = !noteLoading;
+  // Note metadata (no content)
+  const { data: note, isLoading: noteLoading } = useQuery({
+    queryKey: ['note', noteId],
+    queryFn: async (): Promise<ItemRow | null> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, filename, updated_at, created_at, is_pinned, is_trashed, item_status, tags, priority, due_date, start_date, inbox_at, subtype, type, owner, completed, is_next, is_someday, is_waiting, waiting_note, body, capture_source, processed, processed_at, result_type, result_id, description, category, sort_order, parent_id, trashed_at, content_type, read_status, url, depends_on, waiting_started_at, period_start, period_end, progress, frequency, target, active, streak, last_completed_at, has_todos')
+        .eq('id', noteId)
+        .single();
+      if (error) return null;
+      return data as unknown as ItemRow;
+    },
+    staleTime: 30_000,
+  });
 
-  // All notes for wikilink autocomplete + resolution
-  const { data: allNotes } = useQuery<ItemRow>(
-    `SELECT id, title, filename FROM items WHERE type = 'note' AND is_trashed = 0`
-  );
+  // Note content from item_content table
+  const { data: contentRow, isLoading: contentLoading } = useQuery({
+    queryKey: ['note', noteId, 'content'],
+    queryFn: async (): Promise<{ content: string | null } | null> => {
+      const { data } = await supabase
+        .from('item_content')
+        .select('content')
+        .eq('item_id', noteId)
+        .single();
+      return data ?? { content: null };
+    },
+    staleTime: Infinity, // Editor manages its own content state
+    refetchOnWindowFocus: false,
+  });
+
+  // All notes for wikilink autocomplete (titles only, no content)
+  const { data: allNotes = [] } = useQuery({
+    queryKey: ['notes', 'titles'],
+    queryFn: async (): Promise<Pick<ItemRow, 'id' | 'title' | 'filename'>[]> => {
+      const { data } = await supabase
+        .from('items')
+        .select('id, title, filename')
+        .eq('type', 'note')
+        .eq('is_trashed', false);
+      return (data ?? []) as Pick<ItemRow, 'id' | 'title' | 'filename'>[];
+    },
+    staleTime: 5 * 60_000,
+  });
 
   // Duplicate title detection
-  const { data: dupRows } = useQuery<{ id: string }>(
-    `SELECT id FROM items WHERE type = 'note' AND is_trashed = 0 AND title = ? AND id != ?`,
-    [note?.title ?? '', noteId]
-  );
+  const { data: dupRows = [] } = useQuery({
+    queryKey: ['note', noteId, 'dups', note?.title ?? ''],
+    queryFn: async () => {
+      if (!note?.title) return [];
+      const { data } = await supabase
+        .from('items')
+        .select('id')
+        .eq('type', 'note')
+        .eq('is_trashed', false)
+        .eq('title', note.title)
+        .neq('id', noteId);
+      return data ?? [];
+    },
+    enabled: Boolean(note?.title),
+    staleTime: 60_000,
+  });
   const hasDuplicateTitle = dupRows.length > 0;
+
+  const hasLoaded = !noteLoading && !contentLoading;
 
   const [content, setContent] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [backlinksOpen, setBacklinksOpen] = useState(false);
-  const [disambigMatches, setDisambigMatches] = useState<ItemRow[] | null>(null);
+  const [disambigMatches, setDisambigMatches] = useState<Pick<ItemRow, 'id' | 'title' | 'filename'>[] | null>(null);
   const [confirmCreateTitle, setConfirmCreateTitle] = useState<string | null>(null);
   const [pendingHeader, setPendingHeader] = useState<string | undefined>(undefined);
   const [filenameSheetOpen, setFilenameSheetOpen] = useState(false);
@@ -73,15 +119,15 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
   useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
   useEffect(() => { allNotesRef.current = allNotes; }, [allNotes]);
-  useEffect(() => { noteRef.current = note; }, [note]);
+  useEffect(() => { noteRef.current = note ?? null; }, [note]);
 
-  // Apply note content when not dirty (avoids overwriting in-progress edits)
+  // Apply content when note loads (or refreshes) if editor is not dirty
   useEffect(() => {
-    if (!note || isDirtyRef.current) return;
-    const nextContent = note.content ?? '';
+    if (!contentRow || isDirtyRef.current) return;
+    const nextContent = contentRow.content ?? '';
     setContent(nextContent);
     lastSavedContentRef.current = nextContent;
-  }, [note]);
+  }, [contentRow]);
 
   useEffect(() => {
     return () => {
@@ -106,7 +152,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       ? fmProps.filename.trim()
       : (noteRef.current?.filename ?? generateSlug(title));
 
-    const patch: Parameters<typeof patchItem>[2] = {
+    const patch: Parameters<typeof patchItem>[1] = {
       title,
       content: nextContent,
       filename,
@@ -124,18 +170,24 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
     const oldTitle = noteRef.current?.title;
     if (oldTitle && oldTitle !== title) {
-      propagateRename(db, oldTitle, title, noteId).catch(() => {});
+      propagateRename(oldTitle, title, noteId).catch(() => {});
     }
 
-    await patchItem(db, noteId, patch);
+    await patchItem(noteId, patch);
     lastSavedContentRef.current = nextContent;
     setIsDirty(false);
 
+    // Invalidate note metadata and list caches
+    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'titles'] });
+
     if (shouldAutoSaveVersion(noteId)) {
-      saveVersion(db, noteId, nextContent, null, 'auto', 'Auto-save').catch(() => {});
+      saveVersion(noteId, nextContent, null, 'auto', 'Auto-save').catch(() => {});
     }
 
-    syncItemLinks(db, noteId, nextContent, allNotesRef.current).catch(() => {});
+    syncItemLinks(noteId, nextContent, allNotesRef.current).catch(() => {});
   };
 
   const scheduleSave = useCallback((nextContent: string) => {
@@ -164,22 +216,28 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const handleDelete = useCallback(async () => {
     if (!note) return;
     const timestamp = nowIso();
-    await patchItem(db, note.id, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(note.id, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
     onClose?.();
-  }, [db, note, onClose]);
+  }, [note, noteId, onClose]);
 
   const handleTogglePinned = useCallback(async () => {
     if (!note) return;
-    await patchItem(db, note.id, { is_pinned: !note.is_pinned, updated_at: nowIso() });
-  }, [db, note]);
+    await patchItem(note.id, { is_pinned: !note.is_pinned, updated_at: nowIso() });
+    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+    queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+  }, [note, noteId]);
 
   const handleSaveFilename = useCallback(async () => {
     if (!note) return;
     const trimmed = editingFilename.trim();
     if (!trimmed) return;
-    await patchItem(db, note.id, { filename: trimmed, updated_at: nowIso() });
+    await patchItem(note.id, { filename: trimmed, updated_at: nowIso() });
+    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
     setFilenameSheetOpen(false);
-  }, [db, note, editingFilename]);
+  }, [note, noteId, editingFilename]);
 
   const handleWikilinkClick = useCallback((title: string, header?: string) => {
     const matches = allNotesRef.current.filter(
@@ -200,7 +258,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     if (!confirmCreateTitle) return;
     const newId = uuidv4();
     const timestamp = nowIso();
-    await insertItem(db, {
+    await insertItem({
       id: newId,
       type: 'note',
       parent_id: null,
@@ -219,9 +277,10 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       created_at: timestamp,
       updated_at: timestamp,
     });
+    queryClient.invalidateQueries({ queryKey: ['notes'] });
     setConfirmCreateTitle(null);
     pushLayer({ view: 'note-detail', noteId: newId });
-  }, [db, confirmCreateTitle, pushLayer]);
+  }, [confirmCreateTitle, pushLayer]);
 
   const noteTitles = allNotes
     .filter((n) => n.id !== noteId && n.title)
@@ -314,7 +373,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                   }}
                 >
                   <span className={styles.sheetItemTitle}>{n.title}</span>
-                  <span className={styles.sheetItemMeta}>{formatRelativeTime(n.updated_at)}</span>
                 </button>
               </li>
             ))}
@@ -373,30 +431,27 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-import type { AbstractPowerSyncDatabase } from '@powersync/web';
-
 async function syncItemLinks(
-  db: AbstractPowerSyncDatabase,
   sourceId: string,
   content: string,
-  allNotes: ItemRow[]
+  allNotes: Pick<ItemRow, 'id' | 'title' | 'filename'>[]
 ) {
   const wikilinks = parseWikilinks(content);
 
-  const byTitle = new Map<string, ItemRow[]>();
+  const byTitle = new Map<string, Pick<ItemRow, 'id' | 'title' | 'filename'>[]>();
   for (const n of allNotes) {
     if (!n.title) continue;
     const key = n.title.toLowerCase();
     byTitle.set(key, [...(byTitle.get(key) ?? []), n]);
   }
 
-  await db.execute('DELETE FROM item_links WHERE source_id = ?', [sourceId]);
+  await supabase.from('item_links').delete().eq('source_id', sourceId);
 
   const timestamp = nowIso();
-  for (const wl of wikilinks) {
+  const links = wikilinks.map((wl) => {
     const matches = byTitle.get(wl.title.toLowerCase()) ?? [];
     const targetId = matches.length === 1 ? (matches[0].id ?? null) : null;
-    await insertItemLink(db, {
+    return {
       id: uuidv4(),
       source_id: sourceId,
       target_id: targetId,
@@ -406,30 +461,46 @@ async function syncItemLinks(
       position: wl.from,
       created_at: timestamp,
       updated_at: timestamp,
-    });
+      is_trashed: false,
+      trashed_at: null,
+    };
+  });
+
+  if (links.length > 0) {
+    await supabase.from('item_links').insert(
+      links.map((l) => ({ ...l, owner: null }))
+    );
   }
 }
 
 async function propagateRename(
-  db: AbstractPowerSyncDatabase,
   oldTitle: string,
   newTitle: string,
   skipId: string
 ) {
-  const docs = await db.getAll<{ id: string; content: string | null }>(
-    `SELECT id, content FROM items WHERE type = 'note' AND is_trashed = 0`
-  );
+  // Find all note content that might contain the old wikilink
+  const { data: contentRows } = await supabase
+    .from('item_content')
+    .select('item_id, content')
+    .ilike('content', `%[[${oldTitle}%`);
 
-  for (const doc of docs) {
-    if (doc.id === skipId) continue;
-    const c = doc.content ?? '';
+  if (!contentRows?.length) return;
+
+  const timestamp = nowIso();
+  for (const row of contentRows) {
+    if (row.item_id === skipId) continue;
+    const c = row.content ?? '';
     if (!c.includes(`[[${oldTitle}`)) continue;
     const updated = renameWikilinks(c, oldTitle, newTitle);
     if (updated !== c) {
-      await db.execute(
-        'UPDATE items SET content = ?, updated_at = ? WHERE id = ?',
-        [updated, nowIso(), doc.id]
-      );
+      await supabase
+        .from('item_content')
+        .update({ content: updated, updated_at: timestamp })
+        .eq('item_id', row.item_id);
+      await supabase
+        .from('items')
+        .update({ updated_at: timestamp })
+        .eq('id', row.item_id);
     }
   }
 }
