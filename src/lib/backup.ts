@@ -5,6 +5,7 @@ const BACKUP_VERSION = 1;
 
 const TABLES = [
   'items',
+  'item_content',
   'item_links',
   'item_versions',
   'time_entries',
@@ -15,6 +16,7 @@ const TABLES = [
 const DELETE_ORDER = [
   'item_links',
   'item_versions',
+  'item_content',
   'time_entries',
   'tags',
   'items',
@@ -29,14 +31,18 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function createBackup(): Promise<void> {
+export async function createBackup(
+  onProgress?: (message: string) => void
+): Promise<void> {
   const data: Record<string, unknown[]> = {};
   for (const table of TABLES) {
+    onProgress?.(`Backing up ${table}…`);
     const { data: rows, error } = await supabase.from(table).select('*');
     if (error) throw error;
     data[table] = rows ?? [];
   }
 
+  onProgress?.('Building backup file…');
   const backup = {
     version: BACKUP_VERSION,
     exported_at: nowIso(),

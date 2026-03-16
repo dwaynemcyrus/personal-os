@@ -12,8 +12,11 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportNotesZip(): Promise<number> {
+export async function exportNotesZip(
+  onProgress?: (message: string) => void
+): Promise<number> {
   // Load note metadata
+  onProgress?.('Loading notes…');
   const { data: notes, error } = await supabase
     .from('items')
     .select('id, title, filename, updated_at')
@@ -28,15 +31,18 @@ export async function exportNotesZip(): Promise<number> {
   const ids = noteList.map((n) => n.id);
   const contentMap = new Map<string, string>();
   if (ids.length > 0) {
-    const { data: contents } = await supabase
+    onProgress?.(`Loading content for ${noteList.length} notes…`);
+    const { data: contents, error: contentError } = await supabase
       .from('item_content')
       .select('item_id, content')
       .in('item_id', ids);
+    if (contentError) throw contentError;
     for (const row of contents ?? []) {
       if (row.content) contentMap.set(row.item_id, row.content);
     }
   }
 
+  onProgress?.('Building ZIP…');
   const files: Zippable = {};
   const encoder = new TextEncoder();
   const filenameCounts = new Map<string, number>();

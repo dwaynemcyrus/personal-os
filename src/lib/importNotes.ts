@@ -73,13 +73,17 @@ async function processMarkdown(
   return 'imported';
 }
 
-export async function importNotesFromFiles(files: File[]): Promise<ImportResult> {
+export async function importNotesFromFiles(
+  files: File[],
+  onProgress?: (message: string) => void
+): Promise<ImportResult> {
   let imported = 0;
   let skipped = 0;
   const mdFiles: Array<{ name: string; content: string }> = [];
 
   for (const file of files) {
     if (file.name.endsWith('.zip')) {
+      onProgress?.(`Unpacking ${file.name}…`);
       const buf = await file.arrayBuffer();
       const unzipped = unzipSync(new Uint8Array(buf));
       for (const [name, data] of Object.entries(unzipped)) {
@@ -92,8 +96,14 @@ export async function importNotesFromFiles(files: File[]): Promise<ImportResult>
     }
   }
 
-  for (const { name, content } of mdFiles) {
-    const result = await processMarkdown(name, content);
+  const total = mdFiles.length;
+  onProgress?.(`Importing ${total} note${total !== 1 ? 's' : ''}…`);
+
+  for (let i = 0; i < mdFiles.length; i++) {
+    if (i > 0 && i % 10 === 0) {
+      onProgress?.(`Importing ${i} of ${total}…`);
+    }
+    const result = await processMarkdown(mdFiles[i].name, mdFiles[i].content);
     if (result === 'imported') imported++;
     else skipped++;
   }
