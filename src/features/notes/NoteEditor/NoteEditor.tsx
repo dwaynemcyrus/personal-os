@@ -24,6 +24,7 @@ import { parseWikilinks, renameWikilinks } from '@/lib/wikilinks';
 import { useHeaderSlot } from '@/components/layout/AppShell/HeaderSlot';
 import { BacklinksSheet } from './BacklinksSheet';
 import { VersionHistorySheet } from './VersionHistorySheet';
+import { TagBar } from './TagBar';
 import styles from './NoteEditor.module.css';
 
 const SAVE_DEBOUNCE_MS = 1000;
@@ -175,11 +176,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       updated_at: nowIso(),
     };
 
-    if ('tags' in fmProps) {
-      patch.tags = Array.isArray(fmProps.tags)
-        ? (fmProps.tags as unknown[]).filter((t): t is string => typeof t === 'string')
-        : [];
-    }
     if ('due_date' in fmProps) patch.due_date = typeof fmProps.due_date === 'string' ? fmProps.due_date : null;
     if ('start_date' in fmProps) patch.start_date = typeof fmProps.start_date === 'string' ? fmProps.start_date : null;
     if ('priority' in fmProps) patch.priority = typeof fmProps.priority === 'string' ? fmProps.priority : null;
@@ -421,6 +417,8 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           Another note shares this title — export filenames may conflict.
         </p>
       )}
+      <TagBar noteId={noteId} tags={(note.tags as string[] | null) ?? []} />
+
       <CodeMirrorEditor
         initialBody={content!}
         onChange={handleChange}
