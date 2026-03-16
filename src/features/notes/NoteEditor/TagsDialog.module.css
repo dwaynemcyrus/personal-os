@@ -1,0 +1,166 @@
+/* Centered modal — 20% larger than the .metaSheet pattern (50vw×50dvh → 60vw×60dvh) */
+.dialog {
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  width: 60vw;
+  height: 60dvh;
+  max-width: 480px;
+  max-height: 560px;
+  border-radius: var(--radius-16, 16px);
+  border: 1px solid var(--color-border-200);
+  background: var(--color-surface) !important;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--color-border-200);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-500);
+}
+
+.doneBtn {
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Existing pills */
+.pillsArea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px 8px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.noneLabel {
+  font-size: 13px;
+  color: var(--color-ink-500);
+  opacity: 0.5;
+  align-self: center;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px 3px 7px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent);
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-accent) 85%, var(--color-ink));
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.pillHash {
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.pillRemove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0 0 0 3px;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.pillRemove:hover {
+  opacity: 1;
+}
+
+/* Input row */
+.inputRow {
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--color-border-200);
+  flex-shrink: 0;
+}
+
+.input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+  padding: 8px 0;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-ink-500);
+  opacity: 0.5;
+}
+
+/* Suggestions list */
+.suggestions {
+  list-style: none;
+  padding: 6px 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 16px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.suggestion:hover,
+.suggestion:focus {
+  background: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  outline: none;
+}
+
+.suggestionHash {
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+.newTag {
+  color: var(--color-accent);
+  font-weight: 600;
+}

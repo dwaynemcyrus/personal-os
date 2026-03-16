@@ -24,7 +24,7 @@ import { parseWikilinks, renameWikilinks } from '@/lib/wikilinks';
 import { useHeaderSlot } from '@/components/layout/AppShell/HeaderSlot';
 import { BacklinksSheet } from './BacklinksSheet';
 import { VersionHistorySheet } from './VersionHistorySheet';
-import { TagBar } from './TagBar';
+import { TagsDialog } from './TagsDialog';
 import styles from './NoteEditor.module.css';
 
 const SAVE_DEBOUNCE_MS = 1000;
@@ -107,11 +107,12 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [backlinksOpen, setBacklinksOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [disambigMatches, setDisambigMatches] = useState<Pick<ItemRow, 'id' | 'title' | 'filename'>[] | null>(null);
   const [confirmCreateTitle, setConfirmCreateTitle] = useState<string | null>(null);
   const [pendingHeader, setPendingHeader] = useState<string | undefined>(undefined);
-  const [filenameSheetOpen, setFilenameSheetOpen] = useState(false);
   const [editingFilename, setEditingFilename] = useState('');
+  const filenameFocusedRef = useRef(false);
 
   const isDirtyRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,6 +124,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
   useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
   useEffect(() => { allNotesRef.current = allNotes; }, [allNotes]);
   useEffect(() => { noteRef.current = note ?? null; }, [note]);
+
+  // Sync filename strip from note metadata when strip is not being edited
+  useEffect(() => {
+    if (!filenameFocusedRef.current && note?.filename) {
+      setEditingFilename(note.filename);
+    }
+  }, [note?.filename]);
 
   // Clear the 'imported' review tag the first time this note is opened
   useEffect(() => {
@@ -179,6 +187,11 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     if ('due_date' in fmProps) patch.due_date = typeof fmProps.due_date === 'string' ? fmProps.due_date : null;
     if ('start_date' in fmProps) patch.start_date = typeof fmProps.start_date === 'string' ? fmProps.start_date : null;
     if ('priority' in fmProps) patch.priority = typeof fmProps.priority === 'string' ? fmProps.priority : null;
+    if ('tags' in fmProps) {
+      patch.tags = Array.isArray(fmProps.tags)
+        ? (fmProps.tags as unknown[]).filter((t): t is string => typeof t === 'string')
+        : [];
+    }
 
     const oldTitle = noteRef.current?.title;
     if (oldTitle && oldTitle !== title) {
@@ -249,15 +262,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     queryClient.invalidateQueries({ queryKey: ['note', noteId] });
     queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
   }, [note, noteId]);
-
-  const handleSaveFilename = useCallback(async () => {
-    if (!note) return;
-    const trimmed = editingFilename.trim();
-    if (!trimmed) return;
-    await patchItem(note.id, { filename: trimmed, updated_at: nowIso() });
-    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
-    setFilenameSheetOpen(false);
-  }, [note, noteId, editingFilename]);
 
   const handleRestoreVersion = useCallback((restoredContent: string) => {
     contentRef.current = restoredContent;
@@ -350,17 +354,14 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
                 <DropdownItem onSelect={handleTogglePinned}>
                   {note.is_pinned ? 'Unpin' : 'Pin'}
                 </DropdownItem>
+                <DropdownItem onSelect={() => setTagsOpen(true)}>
+                  Tags
+                </DropdownItem>
                 <DropdownItem onSelect={() => setBacklinksOpen(true)}>
                   Backlinks
                 </DropdownItem>
                 <DropdownItem onSelect={() => setVersionsOpen(true)}>
                   Version History
-                </DropdownItem>
-                <DropdownItem onSelect={() => {
-                  setEditingFilename(note.filename ?? generateSlug(note.title ?? 'untitled'));
-                  setFilenameSheetOpen(true);
-                }}>
-                  Edit Filename
                 </DropdownItem>
                 <DropdownSeparator />
                 <DropdownItem onSelect={() => handleExport('md')}>Export as .md</DropdownItem>
@@ -377,7 +378,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
       ),
     });
     return () => setSlot({});
-  }, [note, setSlot, handleTogglePinned, handleDelete, handleRestore, handleExport, versionsOpen]);
+  }, [note, setSlot, handleTogglePinned, handleDelete, handleRestore, handleExport]);
 
   if (!hasLoaded || content === null) {
     return <p className={styles.state}>Loading…</p>;
@@ -417,7 +418,38 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
           Another note shares this title — export filenames may conflict.
         </p>
       )}
-      <TagBar noteId={noteId} tags={(note.tags as string[] | null) ?? []} />
+
+      {/* Bear-style filename strip */}
+      <div className={styles.filenameStrip}>
+        <span className={styles.filenameLabel} aria-hidden>filename</span>
+        <input
+          type="text"
+          className={styles.filenameInput}
+          value={editingFilename}
+          onChange={(e) => setEditingFilename(e.target.value)}
+          onFocus={() => { filenameFocusedRef.current = true; }}
+          onBlur={async () => {
+            filenameFocusedRef.current = false;
+            const trimmed = editingFilename.trim();
+            if (!trimmed || trimmed === note.filename) return;
+            await patchItem(noteId, { filename: trimmed, updated_at: nowIso() });
+            queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') {
+              setEditingFilename(note.filename ?? '');
+              filenameFocusedRef.current = false;
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          placeholder="filename"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-label="Note filename"
+        />
+      </div>
 
       <CodeMirrorEditor
         initialBody={content!}
@@ -443,6 +475,13 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         noteId={noteId}
         currentContent={contentRef.current}
         onRestore={handleRestoreVersion}
+      />
+
+      <TagsDialog
+        open={tagsOpen}
+        onOpenChange={setTagsOpen}
+        noteId={noteId}
+        tags={(note.tags as string[] | null) ?? []}
       />
 
       {/* Disambiguation sheet */}
@@ -485,34 +524,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Edit filename sheet */}
-      <Sheet open={filenameSheetOpen} onOpenChange={(o) => { if (!o) setFilenameSheetOpen(false); }}>
-        <SheetContent side="bottom" ariaLabel="Edit filename" className={styles.sheet}>
-          <p className={styles.sheetTitle}>Edit Filename</p>
-          <div className={styles.sheetInputRow}>
-            <input
-              type="text"
-              className={styles.sheetInput}
-              value={editingFilename}
-              onChange={(e) => setEditingFilename(e.target.value)}
-              placeholder="e.g. my-note"
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            <p className={styles.sheetInputHint}>Used as the export filename (.md). No spaces recommended.</p>
-          </div>
-          <div className={styles.sheetActions}>
-            <button type="button" className={styles.sheetBtnCancel} onClick={() => setFilenameSheetOpen(false)}>
-              Cancel
-            </button>
-            <button type="button" className={styles.sheetBtnCreate} onClick={handleSaveFilename} disabled={!editingFilename.trim()}>
-              Save
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }
