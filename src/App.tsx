@@ -71,7 +71,7 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
     String(today.getDate()).padStart(2, '0'),
   ].join('-');
   const nowNoteType = `daily:${nowIsoDate}`;
-  const nowTitle = `daily_${nowIsoDate}`;
+  const nowTitle = nowIsoDate;
 
   const { data: nowNoteRows = [] } = useQuery({
     queryKey: ['notes', 'today-note', nowNoteType],
