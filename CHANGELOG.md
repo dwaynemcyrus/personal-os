@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.0 - 2026-03-16
+- Added tags dialog — centered modal (60vw × 60dvh) opened from the 3-dot menu with pill display, autocomplete from catalog, inline create for new tags, Enter/comma to add, Backspace to remove
+- Restored frontmatter tags sync — `tags:` in YAML front matter patches `items.tags` on every save (critical workflow)
+- Replaced TagBar (inline strip at top of editor) with a Bear-style filename strip — full-width, inline-editable, saves on blur or Enter, syncs from note metadata when unfocused
+- Removed "Edit Filename" from the 3-dot menu (superseded by filename strip)
+- Fixed back button navigating to external browser history — replaced `history.back()` with `history.replaceState` so the UI back button always stays within the app
+- Fixed same note reappearing when switching between notes — `history.back()` was triggering the popstate handler which restored stale URL state over the navigation stack
+
 ## 0.20.0 - 2026-03-16
 - Replaced PowerSync (SQLite WASM) with direct Supabase + TanStack Query v5 to eliminate iPhone Safari OOM crashes
 - Added `item_content` table separating note body text from item metadata — list queries never load content
