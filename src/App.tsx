@@ -15,7 +15,6 @@ import { CloseIcon } from '@/components/ui/icons';
 import type { ItemRow } from '@/lib/db';
 import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import { fetchUserSettings } from '@/lib/userSettings';
-import { nowIsoSecondsFilename } from '@/lib/time';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import styles from './App.module.css';
 
@@ -128,7 +127,7 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
       const templateId = settings?.daily_note_template_id ?? null;
       const noteId = await createNoteFromTemplate(templateId, {
         title: nowTitle,
-        filename: nowIsoSecondsFilename(),
+        filename: nowIsoDate,
         subtype: nowNoteType,
       });
       queryClient.invalidateQueries({ queryKey: ['notes', 'today-note'] });

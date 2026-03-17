@@ -11,6 +11,7 @@
  * - {{month}}          - Current month (01-12)
  * - {{day}}            - Current day (01-31)
  * - {{weekday}}        - Day of week (Monday, Tuesday, etc.)
+ * - {{title}}          - Note title at creation time (empty string when not provided)
  *
  * Format tokens: YYYY MM DD HH mm ss YY MMMM MMM M D dddd ddd
  */
@@ -26,6 +27,7 @@ export type TemplateVariables = {
   date?: Date;
   dateFormat?: string;
   timeFormat?: string;
+  title?: string;
 };
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -105,6 +107,7 @@ export function replaceTemplateVariables(
     month: pad(date.getMonth() + 1),
     day: pad(date.getDate()),
     weekday: WEEKDAYS[date.getDay()],
+    title: variables.title ?? '',
   };
 
   for (const [key, value] of Object.entries(replacements)) {

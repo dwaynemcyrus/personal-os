@@ -352,6 +352,7 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
         date: new Date(),
         dateFormat: settings?.template_date_format ?? DEFAULT_USER_SETTINGS.template_date_format,
         timeFormat: settings?.template_time_format ?? DEFAULT_USER_SETTINGS.template_time_format,
+        title: noteRef.current?.title ?? '',
       });
 
       const cursorOffset = editorRef.current?.getCursorOffset() ?? contentRef.current.length;

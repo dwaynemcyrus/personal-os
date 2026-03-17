@@ -50,6 +50,7 @@ export async function createNoteFromTemplate(
         date: new Date(),
         dateFormat: settings?.template_date_format ?? DEFAULT_USER_SETTINGS.template_date_format,
         timeFormat: settings?.template_time_format ?? DEFAULT_USER_SETTINGS.template_time_format,
+        title: opts.title ?? '',
       });
     }
   }
