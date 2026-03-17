@@ -17,6 +17,7 @@ import { AreaDetailSheet } from '@/features/projects/AreaDetailSheet/AreaDetailS
 import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDetailSheet';
 import { nowIso } from '@/lib/time';
 import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
+import { useTemplates } from '@/features/notes/hooks/useTemplates';
 import styles from './ContextSheet.module.css';
 
 type ContextSheetProps = {
@@ -120,21 +121,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     staleTime: 60_000,
   });
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ['notes', 'templates'],
-    queryFn: async (): Promise<Pick<ItemRow, 'id' | 'title'>[]> => {
-      const { data } = await supabase
-        .from('items')
-        .select('id, title')
-        .eq('type', 'note')
-        .eq('subtype', 'template')
-        .eq('is_trashed', false)
-        .order('title', { ascending: true });
-      return (data ?? []) as Pick<ItemRow, 'id' | 'title'>[];
-    },
-    staleTime: 60_000,
-    enabled: activeTab === 'notes',
-  });
+  const { data: templates = [] } = useTemplates({ enabled: activeTab === 'notes' });
 
   const [notesTemplatesOpen, setNotesTemplatesOpen] = useState(false);
   const [tasksCreateOpen, setTasksCreateOpen] = useState(false);

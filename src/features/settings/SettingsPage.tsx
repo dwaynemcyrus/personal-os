@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
@@ -8,6 +8,7 @@ import { createBackup, restoreBackup, wipeAllData } from '@/lib/backup';
 import { showToast } from '@/components/ui/Toast';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { upsertUserSettings, DEFAULT_USER_SETTINGS } from '@/lib/userSettings';
+import { replaceTemplateVariables } from '@/lib/templates';
 import type { ItemRow } from '@/lib/db';
 import { TemplatePicker } from '@/features/notes/TemplatePicker/TemplatePicker';
 import styles from './SettingsPage.module.css';
@@ -52,6 +53,16 @@ export function SettingsPage() {
   const effectiveTimeFormat = settings.template_time_format || DEFAULT_USER_SETTINGS.template_time_format;
   const displayDateFormat = dateFormat || effectiveDateFormat;
   const displayTimeFormat = timeFormat || effectiveTimeFormat;
+
+  const previewDate = useMemo(() => new Date(), []);
+  const datePreview = useMemo(
+    () => replaceTemplateVariables('{{date}}', { date: previewDate, dateFormat: displayDateFormat }),
+    [previewDate, displayDateFormat]
+  );
+  const timePreview = useMemo(
+    () => replaceTemplateVariables('{{time}}', { date: previewDate, timeFormat: displayTimeFormat }),
+    [previewDate, displayTimeFormat]
+  );
 
   const handleRefreshAndSync = async () => {
     if (isRefreshing) return;
@@ -226,7 +237,7 @@ export function SettingsPage() {
             placeholder="YYYY-MM-DD"
           />
         </div>
-        <p className={styles.formatHint}>Tokens: YYYY MM DD — used by {'{{date}}'} in templates</p>
+        <p className={styles.formatHint}>Preview: {datePreview} · Tokens: YYYY MM DD</p>
 
         <div className={styles.formatRow}>
           <span className={styles.formatLabel}>Time format</span>
@@ -243,7 +254,7 @@ export function SettingsPage() {
             placeholder="HH:mm:ss"
           />
         </div>
-        <p className={styles.formatHint}>Tokens: HH mm ss — used by {'{{time}}'} in templates</p>
+        <p className={styles.formatHint}>Preview: {timePreview} · Tokens: HH mm ss</p>
       </section>
 
       {/* Sync */}

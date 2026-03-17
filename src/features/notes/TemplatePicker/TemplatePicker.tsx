@@ -1,7 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
-import type { ItemRow } from '@/lib/db';
+import { useTemplates } from '../hooks/useTemplates';
 import styles from './TemplatePicker.module.css';
 
 type Props = {
@@ -22,21 +20,7 @@ export function TemplatePicker({
   showBlankOption = true,
   blankLabel = 'Blank note',
 }: Props) {
-  const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['notes', 'templates'],
-    queryFn: async (): Promise<Pick<ItemRow, 'id' | 'title'>[]> => {
-      const { data } = await supabase
-        .from('items')
-        .select('id, title')
-        .eq('type', 'note')
-        .eq('subtype', 'template')
-        .eq('is_trashed', false)
-        .order('title', { ascending: true });
-      return (data ?? []) as Pick<ItemRow, 'id' | 'title'>[];
-    },
-    staleTime: 60_000,
-    enabled: open,
-  });
+  const { data: templates = [], isLoading } = useTemplates({ enabled: open });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

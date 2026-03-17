@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
 import { useGroupedNotes } from '../hooks/useGroupedNotes';
 import type { NoteGroup } from '../hooks/useGroupedNotes';
 import { createNoteFromTemplate } from '../hooks/useCreateNoteFromTemplate';
+import { useTemplates } from '../hooks/useTemplates';
 import { TemplatePicker } from '../TemplatePicker/TemplatePicker';
 import {
   extractNoteSnippet,
@@ -37,20 +36,7 @@ export function NotesList({ group }: NotesListProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
 
-  const { data: templateNotes = [] } = useQuery({
-    queryKey: ['notes', 'templates'],
-    queryFn: async (): Promise<Pick<ItemRow, 'id' | 'title'>[]> => {
-      const { data } = await supabase
-        .from('items')
-        .select('id, title')
-        .eq('type', 'note')
-        .eq('subtype', 'template')
-        .eq('is_trashed', false)
-        .order('title', { ascending: true });
-      return (data ?? []) as Pick<ItemRow, 'id' | 'title'>[];
-    },
-    staleTime: 60_000,
-  });
+  const { data: templateNotes = [] } = useTemplates();
 
   const handleNotePress = (noteId: string) => {
     pushLayer({ view: 'note-detail', noteId });
