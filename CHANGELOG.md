@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.22.0 - 2026-03-17
+- Added Obsidian-style template system: template notes (subtype `template`) with variable replacement (`{{title}}`, `{{date}}`, `{{time}}`, `{{datetime}}`, `{{year}}`, `{{month}}`, `{{day}}`, `{{weekday}}`) and configurable date/time format tokens
+- Added "Insert Template…" action to NoteEditor 3-dot menu — merges template into existing note at cursor, preserving frontmatter and body content
+- Added TemplatePicker bottom sheet used from NotesList `+` button, ContextSheet, and NoteEditor
+- Added templates section to NotesList and ContextSheet with collapsible "Templates (N)" toggle, blank note row, and split-action rows (tap title to edit, tap › to create from)
+- Added daily note template setting — `daily_note_template_id` in user settings; daily note creation uses the configured template with `{{title}}` resolving to the date
+- Added `template_date_format` and `template_time_format` user settings with live preview in Settings
+- Added Settings page (replaces gear sheet) routed via navigation stack; gear icon replaced with "Settings" list row in context menu
+- Extracted `useTemplates()` shared hook replacing three identical inline queries (TemplatePicker, NotesList, ContextSheet)
+- Fixed `{{title}}` in template frontmatter causing duplicate-title DB errors — `fmTitle` check skips values containing `{{` when computing stored title
+- Fixed daily note filename now uses `YYYY-MM-DD` instead of full ISO timestamp
+
 ## 0.21.0 - 2026-03-16
 - Added tags dialog — centered modal (60vw × 60dvh) opened from the 3-dot menu with pill display, autocomplete from catalog, inline create for new tags, Enter/comma to add, Backspace to remove
 - Restored frontmatter tags sync — `tags:` in YAML front matter patches `items.tags` on every save (critical workflow)
