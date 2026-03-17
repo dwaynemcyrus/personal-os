@@ -5,12 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { showToast } from '@/components/ui/Toast';
-import {
-  Dropdown,
-  DropdownContent,
-  DropdownItem,
-  DropdownTrigger,
-} from '@/components/ui/Dropdown';
 import { useNavigationActions } from '@/components/providers';
 import { useNoteGroupCounts } from '@/features/notes/hooks/useNoteGroupCounts';
 import type { NoteGroup } from '@/features/notes/hooks/useGroupedNotes';
@@ -22,6 +16,7 @@ import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/Proje
 import { AreaDetailSheet } from '@/features/projects/AreaDetailSheet/AreaDetailSheet';
 import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDetailSheet';
 import { nowIso } from '@/lib/time';
+import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import styles from './ContextSheet.module.css';
 
 type ContextSheetProps = {
@@ -125,6 +120,24 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     staleTime: 60_000,
   });
 
+  const { data: templates = [] } = useQuery({
+    queryKey: ['notes', 'templates'],
+    queryFn: async (): Promise<Pick<ItemRow, 'id' | 'title'>[]> => {
+      const { data } = await supabase
+        .from('items')
+        .select('id, title')
+        .eq('type', 'note')
+        .eq('subtype', 'template')
+        .eq('is_trashed', false)
+        .order('title', { ascending: true });
+      return (data ?? []) as Pick<ItemRow, 'id' | 'title'>[];
+    },
+    staleTime: 60_000,
+    enabled: activeTab === 'notes',
+  });
+
+  const [notesTemplatesOpen, setNotesTemplatesOpen] = useState(false);
+  const [tasksCreateOpen, setTasksCreateOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
@@ -370,6 +383,80 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                     )}
                   </button>
                 ))}
+
+                <div className={styles.notesTemplatesSection}>
+                  <button
+                    type="button"
+                    className={styles.notesTemplatesToggle}
+                    onClick={() => setNotesTemplatesOpen((v) => !v)}
+                    aria-expanded={notesTemplatesOpen}
+                  >
+                    <span>Templates{templates.length > 0 ? ` (${templates.length})` : ''}</span>
+                    <span
+                      className={`${styles.notesTemplatesChevron} ${notesTemplatesOpen ? styles['notesTemplatesChevron--open'] : ''}`}
+                      aria-hidden="true"
+                    >
+                      ▾
+                    </span>
+                  </button>
+
+                  {notesTemplatesOpen && (
+                    <div className={styles.notesTemplatesList}>
+                      {/* Blank note — visually distinct, full white */}
+                      <button
+                        type="button"
+                        className={styles.notesTemplatesBlank}
+                        onClick={async () => {
+                          try {
+                            onOpenChange(false);
+                            const noteId = await createNoteFromTemplate(null);
+                            pushLayer({ view: 'note-detail', noteId });
+                          } catch {
+                            showToast('Could not create note — please try again.');
+                          }
+                        }}
+                      >
+                        <span>Blank note</span>
+                        <span className={styles.rowCaret} aria-hidden="true">›</span>
+                      </button>
+
+                      {templates.length === 0 ? (
+                        <p className={styles.createEmptyMessage}>No templates yet</p>
+                      ) : (
+                        templates.map((t) => (
+                          <div key={t.id} className={styles.templateRow}>
+                            <button
+                              type="button"
+                              className={styles.templateRowEdit}
+                              onClick={() => {
+                                onOpenChange(false);
+                                pushLayer({ view: 'note-detail', noteId: t.id });
+                              }}
+                            >
+                              <span>{t.title ?? 'Untitled'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.templateRowUse}
+                              aria-label={`Create note from "${t.title ?? 'Untitled'}"`}
+                              onClick={async () => {
+                                try {
+                                  onOpenChange(false);
+                                  const noteId = await createNoteFromTemplate(t.id);
+                                  pushLayer({ view: 'note-detail', noteId });
+                                } catch {
+                                  showToast('Could not create note — please try again.');
+                                }
+                              }}
+                            >
+                              <span className={styles.rowCaret} aria-hidden="true">›</span>
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -411,22 +498,33 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                       autoFocus
                     />
                   </div>
+                ) : tasksCreateOpen ? (
+                  <div className={styles.createExpanded}>
+                    <button
+                      type="button"
+                      className={styles.row}
+                      onClick={() => { setCreateMode('project'); setCreateTitle(''); setTasksCreateOpen(false); }}
+                    >
+                      <span className={styles.rowLabel}>New Project</span>
+                      <span className={styles.rowCaret} aria-hidden="true">›</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.row}
+                      onClick={() => { setCreateMode('area'); setCreateTitle(''); setTasksCreateOpen(false); }}
+                    >
+                      <span className={styles.rowLabel}>New Area</span>
+                      <span className={styles.rowCaret} aria-hidden="true">›</span>
+                    </button>
+                  </div>
                 ) : (
-                  <Dropdown>
-                    <DropdownTrigger asChild>
-                      <button type="button" className={styles.createButton}>
-                        Create new…
-                      </button>
-                    </DropdownTrigger>
-                    <DropdownContent align="start" sideOffset={4}>
-                      <DropdownItem onSelect={() => { setCreateMode('project'); setCreateTitle(''); }}>
-                        New Project
-                      </DropdownItem>
-                      <DropdownItem onSelect={() => { setCreateMode('area'); setCreateTitle(''); }}>
-                        New Area
-                      </DropdownItem>
-                    </DropdownContent>
-                  </Dropdown>
+                  <button
+                    type="button"
+                    className={styles.createButton}
+                    onClick={() => setTasksCreateOpen(true)}
+                  >
+                    Create new…
+                  </button>
                 )}
 
                 {ungroupedProjects.map((project) => (

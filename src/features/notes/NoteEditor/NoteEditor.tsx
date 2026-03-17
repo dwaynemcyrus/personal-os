@@ -176,9 +176,11 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
     const fm = parseFrontmatter(nextContent);
     const fmProps = fm.properties ?? {};
 
-    const title = typeof fmProps.title === 'string' && fmProps.title.trim()
+    const fmTitle = typeof fmProps.title === 'string' && fmProps.title.trim() && !fmProps.title.includes('{{')
       ? fmProps.title.trim()
-      : extractNoteTitle(nextContent, noteRef.current?.title ?? undefined);
+      : null;
+    const title = fmTitle
+      ?? extractNoteTitle(nextContent, noteRef.current?.filename ?? noteRef.current?.title ?? undefined);
 
     const filename = typeof fmProps.filename === 'string' && fmProps.filename.trim()
       ? fmProps.filename.trim()
@@ -347,7 +349,6 @@ export function NoteEditor({ noteId, onClose }: NoteEditorProps) {
 
       const settings = await fetchUserSettings();
       const resolvedTemplate = replaceTemplateVariables(rawTemplate, {
-        title: noteRef.current?.title ?? 'Untitled',
         date: new Date(),
         dateFormat: settings?.template_date_format ?? DEFAULT_USER_SETTINGS.template_date_format,
         timeFormat: settings?.template_time_format ?? DEFAULT_USER_SETTINGS.template_time_format,

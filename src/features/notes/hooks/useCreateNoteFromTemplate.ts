@@ -47,7 +47,6 @@ export async function createNoteFromTemplate(
       // Fetch user settings for date/time formats
       const settings = await fetchUserSettings();
       content = replaceTemplateVariables(rawTemplate, {
-        title: noteTitle,
         date: new Date(),
         dateFormat: settings?.template_date_format ?? DEFAULT_USER_SETTINGS.template_date_format,
         timeFormat: settings?.template_time_format ?? DEFAULT_USER_SETTINGS.template_time_format,
@@ -77,6 +76,7 @@ export async function createNoteFromTemplate(
 
   queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
   queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
+  queryClient.invalidateQueries({ queryKey: ['notes', 'templates'] });
 
   return noteId;
 }

@@ -7,7 +7,6 @@
  * - {{time}}           - Current time using configured time format (default HH:mm:ss)
  * - {{time:FORMAT}}    - Current time with explicit format
  * - {{datetime}}       - Current date and time (YYYY-MM-DD HH:mm)
- * - {{title}}          - Note title
  * - {{year}}           - Current year
  * - {{month}}          - Current month (01-12)
  * - {{day}}            - Current day (01-31)
@@ -24,7 +23,6 @@ import {
 } from './markdown/frontmatter';
 
 export type TemplateVariables = {
-  title?: string;
   date?: Date;
   dateFormat?: string;
   timeFormat?: string;
@@ -89,7 +87,6 @@ export function replaceTemplateVariables(
   variables: TemplateVariables = {}
 ): string {
   const date = variables.date ?? new Date();
-  const title = variables.title ?? 'Untitled';
   const dateFormat = variables.dateFormat ?? 'YYYY-MM-DD';
   const timeFormat = variables.timeFormat ?? 'HH:mm:ss';
 
@@ -104,7 +101,6 @@ export function replaceTemplateVariables(
     date: formatDate(date, dateFormat),
     time: formatTime(date, timeFormat),
     datetime: formatDateTime(date),
-    title,
     year: date.getFullYear().toString(),
     month: pad(date.getMonth() + 1),
     day: pad(date.getDate()),

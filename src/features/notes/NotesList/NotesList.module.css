@@ -51,17 +51,12 @@
   margin-top: auto;
 }
 
-.templatesHeader {
-  display: flex;
-  align-items: center;
-}
-
 .templatesToggle {
-  flex: 1;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 8px 12px 20px;
+  padding: 12px 20px;
   background: transparent;
   border: none;
   color: rgba(252, 251, 248, 0.5);
@@ -71,31 +66,6 @@
   text-transform: uppercase;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-}
-
-.templatesNewButton {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: none;
-  color: rgba(252, 251, 248, 0.5);
-  cursor: pointer;
-  margin-right: 8px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.templatesNewButton svg {
-  width: 16px;
-  height: 16px;
-}
-
-.templatesNewButton:focus-visible {
-  outline: 2px solid #fcfbf8;
-  outline-offset: 2px;
-  border-radius: 8px;
 }
 
 .templatesToggle:focus-visible {

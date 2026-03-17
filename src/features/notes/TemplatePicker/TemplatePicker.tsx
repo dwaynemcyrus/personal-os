@@ -57,7 +57,7 @@ export function TemplatePicker({
 
         {!isLoading && templates.length === 0 && (
           <p className={styles.empty}>
-            No templates yet. Create a note and set its subtype to "template" in the frontmatter.
+            No templates yet. Use the + button in the Templates section to create one.
           </p>
         )}
 

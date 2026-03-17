@@ -151,37 +151,20 @@ export function NotesList({ group }: NotesListProps) {
 
       {/* Templates section — collapsible, at the bottom */}
       <div className={styles.templatesSection}>
-        <div className={styles.templatesHeader}>
-          <button
-            type="button"
-            className={styles.templatesToggle}
-            onClick={() => setIsTemplatesExpanded((v) => !v)}
-            aria-expanded={isTemplatesExpanded}
+        <button
+          type="button"
+          className={styles.templatesToggle}
+          onClick={() => setIsTemplatesExpanded((v) => !v)}
+          aria-expanded={isTemplatesExpanded}
+        >
+          <span>Templates{templateNotes.length > 0 ? ` (${templateNotes.length})` : ''}</span>
+          <span
+            className={`${styles.templatesChevron} ${isTemplatesExpanded ? styles['templatesChevron--open'] : ''}`}
+            aria-hidden="true"
           >
-            <span>Templates{templateNotes.length > 0 ? ` (${templateNotes.length})` : ''}</span>
-            <span
-              className={`${styles.templatesChevron} ${isTemplatesExpanded ? styles['templatesChevron--open'] : ''}`}
-              aria-hidden="true"
-            >
-              ▾
-            </span>
-          </button>
-          <button
-            type="button"
-            className={styles.templatesNewButton}
-            onClick={async () => {
-              try {
-                const noteId = await createNoteFromTemplate(null, { subtype: 'template' });
-                pushLayer({ view: 'note-detail', noteId });
-              } catch {
-                showToast('Could not create template — please try again.');
-              }
-            }}
-            aria-label="New template"
-          >
-            <PlusIcon />
-          </button>
-        </div>
+            ▾
+          </span>
+        </button>
 
         {isTemplatesExpanded && (
           <div className={styles.templatesList}>
