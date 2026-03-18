@@ -13,8 +13,8 @@ export function layerToPath(layer: NavigationLayer): string {
     case 'note-detail': return `/note/${layer.noteId}`;
     case 'tasks-list':  return layer.filter ? `/tasks/${layer.filter}` : '/tasks';
     case 'task-detail': return `/task/${layer.taskId}`;
-    case 'plans-list':  return '/plans';
-    case 'plan-detail': return `/plan/${layer.planId}`;
+    case 'strategy-list':  return '/strategy';
+    case 'strategy-detail': return `/strategy/${layer.strategyId}`;
     case 'settings':    return '/settings';
   }
 }
@@ -45,8 +45,8 @@ export function pathToLayer(pathname: string): NavigationLayer | null {
   }
 
   if (seg0 === 'task' && seg1) return { view: 'task-detail', taskId: seg1 };
-  if (seg0 === 'plans') return { view: 'plans-list' };
-  if (seg0 === 'plan' && seg1) return { view: 'plan-detail', planId: seg1 };
+  if (seg0 === 'strategy' && !seg1) return { view: 'strategy-list' };
+  if (seg0 === 'strategy' && seg1) return { view: 'strategy-detail', strategyId: seg1 };
   if (seg0 === 'settings') return { view: 'settings' };
 
   return null;
