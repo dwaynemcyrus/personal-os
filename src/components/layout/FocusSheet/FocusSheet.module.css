@@ -8,8 +8,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  background: var(--color-paper);
-  color: var(--color-ink-900);
+  background: #282828;
+  color: #fcfbf8;
   overflow-y: auto;
 }
 
@@ -29,15 +29,15 @@
   height: var(--touch-target);
   border-radius: var(--radius-full);
   border: none;
-  background: var(--color-surface);
-  color: var(--color-ink-900);
+  background: rgba(252, 251, 248, 0.08);
+  color: #fcfbf8;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .focus-sheet__close:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
@@ -61,15 +61,15 @@
   font-size: var(--font-sm);
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 .focus-sheet__state[data-state='running'] {
-  color: var(--color-success-ink);
+  color: #4ade80;
 }
 
 .focus-sheet__state[data-state='paused'] {
-  color: var(--color-warning-ink);
+  color: #fbbf24;
 }
 
 .focus-sheet__activity {
@@ -77,15 +77,15 @@
   gap: var(--space-2);
   padding: var(--space-4);
   border-radius: var(--radius-14);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-200);
+  background: rgba(252, 251, 248, 0.05);
+  border: 1px solid rgba(252, 251, 248, 0.1);
 }
 
 .focus-sheet__activity-label {
   font-size: var(--font-sm);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 .focus-sheet__activity-title {
@@ -98,7 +98,7 @@
 
 .focus-sheet__activity-subtitle {
   font-size: var(--font-sm);
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 .focus-sheet__badge {
@@ -107,8 +107,8 @@
   letter-spacing: 0.1em;
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  background: var(--color-ink-alpha-08);
-  color: var(--color-ink-500);
+  background: rgba(252, 251, 248, 0.08);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 .focus-sheet__new {
@@ -124,9 +124,9 @@
 .focus-sheet__toggle-button {
   min-height: var(--touch-target);
   border-radius: var(--radius-full);
-  border: 1px solid var(--color-border-200);
+  border: 1px solid rgba(252, 251, 248, 0.2);
   background: transparent;
-  color: var(--color-ink-900);
+  color: #fcfbf8;
   padding: 0 var(--space-3);
   font-size: var(--font-sm);
   text-transform: uppercase;
@@ -134,9 +134,9 @@
 }
 
 .focus-sheet__toggle-button[data-active='true'] {
-  background: var(--color-ink-900);
-  color: var(--color-paper);
-  border-color: var(--color-ink-900);
+  background: #fcfbf8;
+  color: #1e1c1a;
+  border-color: #fcfbf8;
 }
 
 .focus-sheet__field {
@@ -146,7 +146,7 @@
 
 .focus-sheet__field-label {
   font-size: var(--font-sm);
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -154,9 +154,9 @@
 .focus-sheet__input {
   min-height: var(--touch-target);
   border-radius: var(--radius-10);
-  border: 1px solid var(--color-border-300);
-  background: var(--color-white);
-  color: var(--color-ink-900);
+  border: 1px solid rgba(252, 251, 248, 0.16);
+  background: rgba(252, 251, 248, 0.06);
+  color: #fcfbf8;
   padding: 0 var(--space-3);
 }
 
@@ -169,36 +169,36 @@
 .focus-sheet__suggestion {
   min-height: var(--touch-target);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-200);
-  background: var(--color-surface);
-  color: var(--color-ink-900);
+  border: 1px solid rgba(252, 251, 248, 0.1);
+  background: rgba(252, 251, 248, 0.06);
+  color: #fcfbf8;
   padding: 0 var(--space-3);
   text-align: left;
   font-size: var(--font-sm);
 }
 
 .focus-sheet__suggestion:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
 .focus-sheet__input:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
 .focus-sheet__confirm {
   border-radius: var(--radius-14);
-  border: 1px solid var(--color-border-200);
+  border: 1px solid rgba(252, 251, 248, 0.1);
   padding: var(--space-4);
-  background: var(--color-surface);
+  background: rgba(252, 251, 248, 0.05);
   display: grid;
   gap: var(--space-3);
 }
 
 .focus-sheet__confirm-text {
   font-size: var(--font-base);
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 .focus-sheet__confirm-actions {
@@ -214,22 +214,22 @@
 .focus-sheet__button {
   min-height: var(--touch-target);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-200);
+  border: 1px solid rgba(252, 251, 248, 0.2);
   background: transparent;
-  color: var(--color-ink-900);
+  color: #fcfbf8;
   font-size: var(--font-base);
   font-weight: var(--font-medium);
 }
 
 .focus-sheet__button--primary {
-  background: var(--color-ink-900);
-  color: var(--color-paper);
-  border-color: var(--color-ink-900);
+  background: #fcfbf8;
+  color: #1e1c1a;
+  border-color: #fcfbf8;
 }
 
 .focus-sheet__button--danger {
-  border-color: var(--color-error-border);
-  color: var(--color-error-ink);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #f87171;
 }
 
 .focus-sheet__button:disabled {

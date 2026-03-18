@@ -10,8 +10,8 @@
 
 .content {
   position: fixed;
-  background: var(--color-paper);
-  color: var(--color-ink-900);
+  background: #282828;
+  color: #fcfbf8;
   box-shadow: var(--shadow-menu);
   z-index: var(--z-menu);
   display: flex;
