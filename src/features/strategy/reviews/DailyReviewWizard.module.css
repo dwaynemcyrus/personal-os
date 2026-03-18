@@ -1,0 +1,457 @@
+/* ── Base overlay (same visual language as TransitionWizard) ─────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #282828;
+  color: #fcfbf8;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(16px + env(safe-area-inset-top)) 20px 12px;
+  flex-shrink: 0;
+}
+
+.stepDots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(252, 251, 248, 0.2);
+  transition: background 0.2s, width 0.2s;
+}
+
+.dot--active {
+  background: #fcfbf8;
+  width: 16px;
+}
+
+.dot--done {
+  background: rgba(252, 251, 248, 0.45);
+}
+
+.wizardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(252, 251, 248, 0.5);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dismissBtn {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 4px;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dismissBtn:hover {
+  color: rgba(252, 251, 248, 0.8);
+}
+
+/* ── Scrollable body ─────────────────────────────────────────────────────────── */
+
+.scrollBody {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 24px;
+}
+
+.loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: rgba(252, 251, 248, 0.4);
+  font-size: 15px;
+}
+
+/* ── Step header ─────────────────────────────────────────────────────────────── */
+
+.stepHeader {
+  padding: 4px 20px 20px;
+}
+
+.stepDate {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fcfbf8;
+  letter-spacing: -0.02em;
+}
+
+.stepSubtitle {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.45);
+  margin-top: 3px;
+}
+
+/* ── Section label (groups lead measures by goal) ───────────────────────────── */
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  padding: 16px 20px 8px;
+}
+
+/* ── Tactic row ──────────────────────────────────────────────────────────────── */
+
+.tacticCard {
+  margin: 0 20px 10px;
+  background: rgba(252, 251, 248, 0.05);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.tacticRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.tacticTitle {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 400;
+  min-width: 0;
+}
+
+.tacticMeta {
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.45);
+  margin-top: 2px;
+}
+
+/* Binary toggle */
+.toggle {
+  width: 44px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  background: rgba(252, 251, 248, 0.12);
+  transition: background 0.15s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(252, 251, 248, 0.4);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.toggle--on {
+  background: #4ade80;
+}
+
+.toggle--on::after {
+  transform: translateX(16px);
+  background: #282828;
+}
+
+/* Numeric input row */
+.numericRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.numericLabel {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.55);
+  flex-shrink: 0;
+}
+
+.numericInput {
+  width: 80px;
+  background: rgba(252, 251, 248, 0.08);
+  border: 1px solid rgba(252, 251, 248, 0.12);
+  border-radius: 6px;
+  color: #fcfbf8;
+  font-size: 15px;
+  font: inherit;
+  padding: 6px 10px;
+  -webkit-appearance: none;
+}
+
+.numericInput:focus {
+  outline: none;
+  border-color: rgba(252, 251, 248, 0.35);
+}
+
+.doneIndicator {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Note field */
+.noteInput {
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(252, 251, 248, 0.08);
+  padding-top: 10px;
+  color: rgba(252, 251, 248, 0.7);
+  font: inherit;
+  font-size: 13px;
+  resize: none;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.noteInput::placeholder {
+  color: rgba(252, 251, 248, 0.25);
+}
+
+/* ── No-data states ──────────────────────────────────────────────────────────── */
+
+.emptyState {
+  padding: 40px 20px;
+  text-align: center;
+  color: rgba(252, 251, 248, 0.4);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.warnBanner {
+  margin: 0 20px 12px;
+  padding: 10px 14px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.7);
+}
+
+/* ── Reflection fields ───────────────────────────────────────────────────────── */
+
+.field {
+  padding: 0 20px 20px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  margin-bottom: 8px;
+}
+
+.fieldTextarea {
+  width: 100%;
+  background: rgba(252, 251, 248, 0.05);
+  border: 1px solid rgba(252, 251, 248, 0.1);
+  border-radius: 8px;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  resize: none;
+  outline: none;
+  min-height: 80px;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+}
+
+.fieldTextarea:focus {
+  border-color: rgba(252, 251, 248, 0.3);
+}
+
+.fieldTextarea::placeholder {
+  color: rgba(252, 251, 248, 0.25);
+}
+
+/* ── Score section (step 3) ──────────────────────────────────────────────────── */
+
+.scoreDivider {
+  height: 1px;
+  background: rgba(252, 251, 248, 0.08);
+  margin: 4px 20px 20px;
+}
+
+.scoreSection {
+  padding: 0 20px 20px;
+}
+
+.scoreSectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  margin-bottom: 10px;
+}
+
+.scoreDisplay {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.scoreNumber {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #fcfbf8;
+  line-height: 1;
+}
+
+.scoreSub {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.5);
+}
+
+.adjustToggle {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.45);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.manualScoreRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.manualScoreInput {
+  width: 72px;
+  background: rgba(252, 251, 248, 0.08);
+  border: 1px solid rgba(252, 251, 248, 0.2);
+  border-radius: 6px;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 15px;
+  padding: 8px 10px;
+  -webkit-appearance: none;
+  outline: none;
+  text-align: center;
+}
+
+.manualScoreInput:focus {
+  border-color: rgba(252, 251, 248, 0.4);
+}
+
+.manualScoreUnit {
+  font-size: 15px;
+  color: rgba(252, 251, 248, 0.55);
+}
+
+.nudge {
+  margin: 0 20px 20px;
+  padding: 12px 14px;
+  background: rgba(252, 251, 248, 0.04);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.5);
+  line-height: 1.5;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────────── */
+
+.footer {
+  flex-shrink: 0;
+  padding: 0 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+.errorBanner {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.8);
+}
+
+.footerBtns {
+  display: flex;
+  gap: 12px;
+}
+
+.btnBack {
+  flex: 1;
+  padding: 14px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(252, 251, 248, 0.15);
+  background: transparent;
+  color: rgba(252, 251, 248, 0.7);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 50px;
+}
+
+.btnNext {
+  flex: 2;
+  padding: 14px 0;
+  border-radius: 10px;
+  border: none;
+  background: rgba(252, 251, 248, 0.12);
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 50px;
+}
+
+.btnSave {
+  flex: 2;
+  padding: 14px 0;
+  border-radius: 10px;
+  border: none;
+  background: #fcfbf8;
+  color: #282828;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 50px;
+}
+
+.btnSave:disabled {
+  opacity: 0.5;
+}

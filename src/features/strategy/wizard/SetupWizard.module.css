@@ -1,0 +1,445 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #282828;
+  color: #fcfbf8;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(16px + env(safe-area-inset-top)) 20px 12px;
+  flex-shrink: 0;
+}
+
+.stepDots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(252, 251, 248, 0.2);
+  transition: background 0.2s;
+}
+
+.dot--active {
+  background: #fcfbf8;
+  width: 16px;
+}
+
+.dot--done {
+  background: rgba(252, 251, 248, 0.45);
+}
+
+.dismissBtn {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 4px;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dismissBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Scrollable body ─────────────────────────────────────────────────────── */
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+  padding: 8px 20px 0;
+}
+
+/* ── Step heading ────────────────────────────────────────────────────────── */
+
+.stepMeta {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  margin-bottom: 4px;
+}
+
+.stepTitle {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fcfbf8;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.stepDesc {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.6);
+  line-height: 1.5;
+  margin: 0 0 28px;
+}
+
+/* ── Area card ───────────────────────────────────────────────────────────── */
+
+.areaCard {
+  background: rgba(252, 251, 248, 0.05);
+  border: 1px solid rgba(252, 251, 248, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.areaCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.areaCardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(252, 251, 248, 0.4);
+}
+
+.removeBtn {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.35);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  min-height: 36px;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.removeBtn:hover {
+  color: rgba(252, 251, 248, 0.7);
+}
+
+/* ── Form fields ─────────────────────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.45);
+}
+
+.input,
+.textarea {
+  background: rgba(252, 251, 248, 0.07);
+  border: 1px solid rgba(252, 251, 248, 0.12);
+  border-radius: 10px;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 15px;
+  padding: 11px 13px;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(252, 251, 248, 0.22);
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgba(252, 251, 248, 0.4);
+}
+
+.textarea {
+  min-height: 72px;
+  resize: none;
+  line-height: 1.5;
+}
+
+/* Date input on iOS/Android */
+.input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.4);
+}
+
+.inputReadonly {
+  background: rgba(252, 251, 248, 0.03);
+  color: rgba(252, 251, 248, 0.4);
+  border-color: rgba(252, 251, 248, 0.07);
+  cursor: default;
+}
+
+/* ── Section header (step 2 per-area) ───────────────────────────────────── */
+
+.sectionHeader {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(252, 251, 248, 0.8);
+  margin: 20px 0 10px;
+}
+
+.sectionHeader:first-child {
+  margin-top: 0;
+}
+
+/* ── Outcome / lead measure rows ─────────────────────────────────────────── */
+
+.outcomesGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.outcomeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.outcomeRow .input {
+  flex: 1;
+}
+
+.outcomeRemoveBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: rgba(252, 251, 248, 0.3);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.outcomeRemoveBtn:hover {
+  color: rgba(252, 251, 248, 0.7);
+}
+
+/* ── Add button ──────────────────────────────────────────────────────────── */
+
+.addBtn {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: left;
+  min-height: 36px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.addBtn:hover {
+  color: rgba(252, 251, 248, 0.85);
+}
+
+/* ── Priority select rows (step 3) ───────────────────────────────────────── */
+
+.priorityRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(252, 251, 248, 0.07);
+  gap: 12px;
+}
+
+.priorityRow:first-child {
+  padding-top: 0;
+}
+
+.priorityAreaName {
+  flex: 1;
+  font-size: 15px;
+  color: #fcfbf8;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prioritySelect {
+  background: rgba(252, 251, 248, 0.07);
+  border: 1px solid rgba(252, 251, 248, 0.12);
+  border-radius: 8px;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  -webkit-appearance: none;
+  cursor: pointer;
+  min-width: 110px;
+  text-align: center;
+}
+
+.prioritySelect:focus {
+  outline: none;
+  border-color: rgba(252, 251, 248, 0.4);
+}
+
+.priorityCount {
+  margin-top: 16px;
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.45);
+}
+
+.priorityCount--warn {
+  color: rgba(230, 160, 60, 0.85);
+}
+
+/* ── Lead measure row (step 5) ───────────────────────────────────────────── */
+
+.leadMeasureRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.leadMeasureRow .input {
+  flex: 1;
+}
+
+/* ── Weekly plan preview (step 6) ────────────────────────────────────────── */
+
+.tacticList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.tacticItem {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.8);
+  padding: 8px 12px;
+  background: rgba(252, 251, 248, 0.05);
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.tacticItem--empty {
+  font-style: italic;
+  color: rgba(252, 251, 248, 0.3);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.footer {
+  padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btnBack {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(252, 251, 248, 0.15);
+  background: transparent;
+  color: rgba(252, 251, 248, 0.65);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btnBack:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+.btnNext,
+.btnFinish {
+  flex: 1;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 12px;
+  border: none;
+  background: #fcfbf8;
+  color: #282828;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+
+.btnNext:focus-visible,
+.btnFinish:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+.btnNext:disabled,
+.btnFinish:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────── */
+
+.errorBanner {
+  padding: 12px 20px;
+  background: rgba(200, 60, 60, 0.2);
+  border-top: 1px solid rgba(200, 60, 60, 0.3);
+  font-size: 13px;
+  color: rgba(255, 180, 180, 0.9);
+  flex-shrink: 0;
+}
+
+/* ── Spacer at body bottom ───────────────────────────────────────────────── */
+
+.bodySpacer {
+  height: 24px;
+}
+
+/* ── Goal section divider (step 5) ───────────────────────────────────────── */
+
+.goalSection {
+  margin-bottom: 24px;
+}
+
+.goalAreaLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  margin-bottom: 12px;
+}

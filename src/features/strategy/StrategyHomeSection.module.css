@@ -1,0 +1,185 @@
+/* Matches the visual language of App.module.css (plain text + arrows) */
+
+.section {
+  display: grid;
+  gap: 4px;
+  width: fit-content;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-base);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: fit-content;
+}
+
+.link:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+.linkArrow {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ── Tactics surface ───────────────────────────────────────────────────────── */
+
+.tacticsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tacticGoalGroup {
+  margin-bottom: 8px;
+}
+
+.tacticGoalLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.35);
+  margin-bottom: 4px;
+}
+
+.tacticRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-base);
+  cursor: pointer;
+  padding: 3px 0;
+  text-align: left;
+  width: fit-content;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tacticRow:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tacticCheck {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.3);
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.tacticCheckDone {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(74, 163, 90, 0.85);
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.tacticTitle {
+  font-size: var(--font-base);
+  color: rgba(252, 251, 248, 0.85);
+}
+
+.reviewLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-base);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 6px;
+  text-align: left;
+  width: fit-content;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reviewLink:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+/* ── Transition banner ─────────────────────────────────────────────────────── */
+
+.transitionBanner {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(252, 251, 248, 0.06);
+  border: 1px solid rgba(252, 251, 248, 0.14);
+  border-radius: 14px;
+  gap: 12px;
+  width: calc(100vw - 48px);
+  max-width: 400px;
+}
+
+.bannerBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.bannerTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fcfbf8;
+  line-height: 1.3;
+}
+
+.bannerStep {
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.5);
+  margin-top: 2px;
+}
+
+.bannerBtn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(252, 251, 248, 0.25);
+  background: transparent;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bannerBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .bannerBtn:hover {
+    background: rgba(252, 251, 248, 0.07);
+  }
+}

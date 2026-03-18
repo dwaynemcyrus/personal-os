@@ -1,0 +1,33 @@
+/*
+ * Dark-theme overrides for CodeMirrorEditor inside the strategy section.
+ * CodeMirrorEditor reads these CSS custom properties from its parent.
+ */
+.container {
+  --color-ink: #fcfbf8;
+  --color-ink-faint: rgba(252, 251, 248, 0.38);
+  --color-accent: rgba(160, 190, 255, 0.9);
+  --color-highlight: rgba(255, 255, 255, 0.1);
+  --color-surface: #333;
+  --color-border-200: rgba(252, 251, 248, 0.15);
+
+  /* Fill available space so the editor is always tappable */
+  min-height: 240px;
+}
+
+.saveRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px 4px;
+  min-height: 24px;
+}
+
+.saveIndicator {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.35);
+  transition: opacity 0.3s;
+}
+
+.saveIndicator--hidden {
+  opacity: 0;
+}

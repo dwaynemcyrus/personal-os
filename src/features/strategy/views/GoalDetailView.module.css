@@ -1,0 +1,56 @@
+.lagSection {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lagLabel {
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(252, 251, 248, 0.4);
+}
+
+.lagText {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #fcfbf8;
+}
+
+.placeholder {
+  color: rgba(252, 251, 248, 0.3);
+  font-style: italic;
+}
+
+.measureList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.measure {
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(252, 251, 248, 0.06);
+}
+
+.measureTitle {
+  font-size: 15px;
+  color: #fcfbf8;
+  margin-bottom: 6px;
+}
+
+.measureMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.metaChip {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.6);
+  background: rgba(252, 251, 248, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+}

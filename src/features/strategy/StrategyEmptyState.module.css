@@ -1,0 +1,83 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 32px 24px;
+  min-height: 0;
+}
+
+.card {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: var(--font-semibold);
+  color: #fcfbf8;
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+.body {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.6);
+  line-height: 1.5;
+  text-align: center;
+  margin: 0 0 8px;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  gap: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primaryBtn {
+  background: rgba(252, 251, 248, 0.12);
+}
+
+.secondaryBtn {
+  background: rgba(252, 251, 248, 0.06);
+}
+
+.primaryBtn:focus-visible,
+.secondaryBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .primaryBtn:hover {
+    background: rgba(252, 251, 248, 0.18);
+  }
+  .secondaryBtn:hover {
+    background: rgba(252, 251, 248, 0.1);
+  }
+}
+
+.btnTitle {
+  font-size: 15px;
+  font-weight: var(--font-medium);
+  color: #fcfbf8;
+}
+
+.btnSub {
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.55);
+}

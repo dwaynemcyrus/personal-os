@@ -1,0 +1,108 @@
+.handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(252, 251, 248, 0.2);
+  margin: 8px auto 0;
+}
+
+.header {
+  padding: 12px 20px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: rgba(252, 251, 248, 0.5);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.closeBtn:hover {
+  color: rgba(252, 251, 248, 0.8);
+}
+
+.section {
+  padding: 8px 0;
+}
+
+.sectionDivider {
+  height: 1px;
+  background: rgba(252, 251, 248, 0.08);
+  margin: 4px 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 13px 20px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.row:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: -2px;
+}
+
+@media (hover: hover) {
+  .row:hover {
+    background: rgba(252, 251, 248, 0.04);
+  }
+}
+
+.rowBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.rowHint {
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.4);
+  margin-top: 1px;
+}
+
+.rowChevron {
+  color: rgba(252, 251, 248, 0.3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.wizardRow .rowLabel {
+  font-weight: 500;
+}
+
+.safeArea {
+  height: env(safe-area-inset-bottom);
+}

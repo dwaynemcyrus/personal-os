@@ -1,0 +1,78 @@
+.pickerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: flex-end;
+}
+
+.pickerSheet {
+  width: 100%;
+  background: #1e1e1e;
+  border-radius: 16px 16px 0 0;
+  padding-top: 8px;
+}
+
+.pickerHandle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(252, 251, 248, 0.2);
+  margin: 0 auto 16px;
+}
+
+.pickerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  padding: 0 20px 8px;
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  color: #fcfbf8;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  gap: 12px;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 56px;
+}
+
+@media (hover: hover) {
+  .pickerRow:hover {
+    background: rgba(252, 251, 248, 0.04);
+  }
+}
+
+.pickerRowLabel {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.pickerRowHint {
+  flex: 1;
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pickerRowChevron {
+  color: rgba(252, 251, 248, 0.3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.pickerSafeArea {
+  height: env(safe-area-inset-bottom);
+}

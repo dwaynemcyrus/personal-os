@@ -1,0 +1,155 @@
+/* ── Current week tactic grid ──────────────────────────────────────────────── */
+
+.currentWeekHeader {
+  padding: 16px 20px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #fcfbf8;
+}
+
+.gridWrapper {
+  padding: 0 12px 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gridHeaderRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.gridRow {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.gridName {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+
+.gridDayHeader {
+  width: 22px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.3);
+  text-align: center;
+}
+
+.gridCellDone {
+  width: 22px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(74, 163, 90, 0.9);
+  text-align: center;
+}
+
+.gridCellScheduled {
+  width: 22px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: rgba(252, 251, 248, 0.2);
+  text-align: center;
+}
+
+.gridCellNone {
+  width: 22px;
+  flex-shrink: 0;
+}
+
+/* ── Cycle trend ───────────────────────────────────────────────────────────── */
+
+.trendLabel {
+  padding: 14px 20px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.35);
+}
+
+.avgCard {
+  padding: 16px 20px 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.avgLabel {
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.6);
+}
+
+.avgValue {
+  font-size: 28px;
+  font-weight: var(--font-semibold);
+  color: #fcfbf8;
+}
+
+.weekRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 12px;
+  border-bottom: 1px solid rgba(252, 251, 248, 0.06);
+}
+
+.weekInfo {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.weekNum {
+  font-size: 13px;
+  font-weight: var(--font-medium);
+  color: #fcfbf8;
+}
+
+.weekRange {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.45);
+  margin-top: 1px;
+}
+
+.weekScore {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.barTrack {
+  flex: 1;
+  height: 4px;
+  background: rgba(252, 251, 248, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.scorePct {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.7);
+  min-width: 36px;
+  text-align: right;
+}
+
+.noScore {
+  font-size: 13px;
+  color: rgba(252, 251, 248, 0.25);
+}
