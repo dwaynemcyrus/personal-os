@@ -18,6 +18,7 @@ import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDe
 import { nowIso } from '@/lib/time';
 import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import { useTemplates } from '@/features/notes/hooks/useTemplates';
+import { useStrategyBadge } from '@/features/strategy/hooks/useStrategyBadge';
 import styles from './ContextSheet.module.css';
 
 type ContextSheetProps = {
@@ -25,7 +26,7 @@ type ContextSheetProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-type Tab = 'notes' | 'tasks' | 'plans' | 'sources';
+type Tab = 'notes' | 'tasks' | 'strategy' | 'sources';
 
 type NoteGroupRow = {
   id: NoteGroup;
@@ -61,6 +62,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const { pushLayer } = useNavigationActions();
   const noteCounts = useNoteGroupCounts();
   const taskCounts = useTaskBucketCounts();
+  const strategyBadge = useStrategyBadge();
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -228,9 +230,9 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     onOpenChange(false);
     pushLayer({ view: 'tasks-list', filter: row.id });
   };
-  const handlePlansPress = () => {
+  const handleStrategyPress = () => {
     onOpenChange(false);
-    pushLayer({ view: 'plans-list' });
+    pushLayer({ view: 'strategy-list' });
   };
 
   const handleSaveProject = async (
@@ -552,10 +554,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
               </div>
             )}
 
-            {activeTab === 'plans' && (
+            {activeTab === 'strategy' && (
               <div className={styles.list}>
-                <button type="button" className={styles.row} onClick={handlePlansPress}>
-                  <span className={styles.rowLabel}>All Plans</span>
+                <button type="button" className={styles.row} onClick={handleStrategyPress}>
+                  <span className={styles.rowLabel}>Strategy</span>
                   <span className={styles.rowCaret} aria-hidden="true">›</span>
                 </button>
               </div>
@@ -607,7 +609,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
           </div>
 
           <div className={styles.tabs}>
-            {(['tasks', 'plans', 'notes', 'sources'] as Tab[]).map((tab) => (
+            {(['tasks', 'strategy', 'notes', 'sources'] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -615,6 +617,12 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                 onClick={() => setActiveTab(tab)}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'strategy' && strategyBadge && (
+                  <span
+                    className={styles.tabBadge}
+                    aria-label="Action needed"
+                  />
+                )}
               </button>
             ))}
           </div>

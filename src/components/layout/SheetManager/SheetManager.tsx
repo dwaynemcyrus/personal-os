@@ -15,7 +15,6 @@ export function SheetManager() {
       {stack.map((layer) => {
         switch (layer.view) {
           case 'task-detail':
-          case 'plan-detail':
             // TODO: implement detail sheets
             return null;
           default:

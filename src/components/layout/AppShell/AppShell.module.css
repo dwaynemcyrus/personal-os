@@ -132,7 +132,8 @@
 }
 
 .app-shell__content--notes,
-.app-shell__content--tasks {
+.app-shell__content--tasks,
+.app-shell__content--strategy {
   padding: 0;
   overflow: hidden;
 }

@@ -52,9 +52,9 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
     case 'tasks-list':
     case 'task-detail':
       return 'Tasks';
-    case 'plans-list':
-    case 'plan-detail':
-      return 'Plans';
+    case 'strategy-list':
+    case 'strategy-detail':
+      return 'Strategy';
     case 'settings':
       return 'Settings';
     default:
@@ -98,7 +98,8 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   const isNotesRoute = isNotesList || isNoteDetail;
   const isTasksRoute = topLayer?.view.startsWith('task') ?? false;
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
-  const hideTopbar = isNotesList || isTasksRoute;
+  const isStrategyRoute = topLayer?.view === 'strategy-list' || topLayer?.view === 'strategy-detail';
+  const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute;
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
@@ -284,9 +285,10 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
         <main
           className={[
             styles['app-shell__content'],
-            isNoteDetail   ? styles['app-shell__content--note-detail']  : '',
-            isNotesList    ? styles['app-shell__content--notes']         : '',
-            isTasksRoute   ? styles['app-shell__content--tasks']         : '',
+            isNoteDetail     ? styles['app-shell__content--note-detail']  : '',
+            isNotesList      ? styles['app-shell__content--notes']         : '',
+            isTasksRoute     ? styles['app-shell__content--tasks']         : '',
+            isStrategyRoute  ? styles['app-shell__content--strategy']      : '',
           ].filter(Boolean).join(' ')}
         >
           {children}

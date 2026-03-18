@@ -16,6 +16,7 @@ import type { ItemRow } from '@/lib/db';
 import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import { fetchUserSettings } from '@/lib/userSettings';
 import type { NavigationLayer } from '@/lib/navigation/types';
+import { StrategyHomeSection } from '@/features/strategy/StrategyHomeSection';
 import styles from './App.module.css';
 
 const SettingsPage = lazy(() =>
@@ -31,8 +32,8 @@ const NotesDesktopShell = lazy(() =>
 const TaskList = lazy(() =>
   import('@/features/tasks/TaskList/TaskList').then((m) => ({ default: m.TaskList }))
 );
-const PlansView = lazy(() =>
-  import('@/features/plans/PlansView').then((m) => ({ default: m.PlansView }))
+const StrategyView = lazy(() =>
+  import('@/features/strategy/StrategyView').then((m) => ({ default: m.StrategyView }))
 );
 
 function useTodayDate() {
@@ -186,6 +187,8 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         </button>
       </div>
 
+      <StrategyHomeSection />
+
       <button
         type="button"
         className={styles.homeInboxLink}
@@ -274,7 +277,7 @@ function ActiveView({
   if (!topLayer) return <NowView onOpenInbox={onOpenInbox} />;
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
-  if (topLayer.view === 'plans-list' || topLayer.view === 'plan-detail') return <Suspense fallback={null}><PlansView /></Suspense>;
+  if (topLayer.view === 'strategy-list' || topLayer.view === 'strategy-detail') return <Suspense fallback={null}><StrategyView /></Suspense>;
   if (topLayer.view === 'settings') return <Suspense fallback={null}><SettingsPage /></Suspense>;
   return <NowView onOpenInbox={onOpenInbox} />;
 }
