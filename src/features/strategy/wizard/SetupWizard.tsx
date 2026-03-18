@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRegisterWizard } from '@/components/providers';
 import { v4 as uuidv4 } from 'uuid';
 import { queryClient } from '@/lib/queryClient';
 import {
@@ -545,6 +546,7 @@ type SetupWizardProps = {
 };
 
 export function SetupWizard({ open, onOpenChange }: SetupWizardProps) {
+  useRegisterWizard(open);
   const { draft, setDraft, clearDraft } = useWizardDraft();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

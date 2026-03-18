@@ -13,6 +13,7 @@ import { ContextSheet } from '@/components/layout/ContextSheet/ContextSheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
+import { useAnyWizardOpen } from '@/components/providers';
 import { ToastHost } from '@/components/ui/Toast';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -66,6 +67,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   const { stack } = useNavigationState();
   const { goBack } = useNavigationActions();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const anyWizardOpen = useAnyWizardOpen();
   const [isTaskDetailSheetOpen, setIsTaskDetailSheetOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
@@ -326,7 +328,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
       {portalTarget &&
         createPortal(
           <>
-            {!isCommandOpen && !isTaskDetailRoute && !isTaskDetailSheetOpen && (
+            {!isCommandOpen && !isTaskDetailRoute && !isTaskDetailSheetOpen && !isInboxOpen && !anyWizardOpen && (
               <button
                 type="button"
                 className={styles['app-shell__fab']}

@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigationActions } from '@/components/providers';
+import { useNavigationActions, useRegisterWizard } from '@/components/providers';
 import { useActiveCycle } from '../hooks/useActiveCycle';
 import { useCurrentWeekPlan } from '../hooks/useWeeklyPlans';
 import { useGoals } from '../hooks/useGoals';
@@ -41,6 +41,7 @@ type Props = {
 // ── Main export (guard) ───────────────────────────────────────────────────────
 
 export function DailyReviewWizard({ open, onOpenChange, date }: Props) {
+  useRegisterWizard(open);
   if (!open) return null;
   return <DailyReviewWizardInner onClose={() => onOpenChange(false)} date={date} />;
 }

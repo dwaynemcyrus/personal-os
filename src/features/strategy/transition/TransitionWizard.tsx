@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRegisterWizard } from '@/components/providers';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
@@ -666,6 +667,7 @@ export function TransitionWizard({
 
   const today = todayIsoDate();
 
+  useRegisterWizard(open);
   if (!open) return null;
 
   // Ensure state item exists and persist progress

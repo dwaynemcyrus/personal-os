@@ -16,6 +16,7 @@ import type { ItemRow } from '@/lib/db';
 import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import { fetchUserSettings } from '@/lib/userSettings';
 import type { NavigationLayer } from '@/lib/navigation/types';
+import { WizardProvider } from '@/components/providers';
 import { StrategyHomeSection } from '@/features/strategy/StrategyHomeSection';
 import styles from './App.module.css';
 
@@ -288,8 +289,10 @@ export function App() {
   const [isInboxOpen, setIsInboxOpen] = useState(false);
 
   return (
-    <AppShell isInboxOpen={isInboxOpen} onInboxOpenChange={setIsInboxOpen}>
-      <ActiveView topLayer={topLayer} onOpenInbox={() => setIsInboxOpen(true)} />
-    </AppShell>
+    <WizardProvider>
+      <AppShell isInboxOpen={isInboxOpen} onInboxOpenChange={setIsInboxOpen}>
+        <ActiveView topLayer={topLayer} onOpenInbox={() => setIsInboxOpen(true)} />
+      </AppShell>
+    </WizardProvider>
   );
 }

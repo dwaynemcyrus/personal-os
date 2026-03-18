@@ -9,6 +9,7 @@
  *   onCreated      — called with (newId, type) so callers can navigate to it
  */
 import { useState } from 'react';
+import { useRegisterWizard } from '@/components/providers';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
@@ -743,6 +744,7 @@ export function CreateDocSheet({
   context = {},
   onCreated,
 }: CreateDocSheetProps) {
+  useRegisterWizard(open);
   const [selectedType, setSelectedType] = useState<DocType | null>(initialType ?? null);
 
   if (!open) return null;
