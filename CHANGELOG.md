@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.23.0 - 2026-03-19
+- Added full 12-week strategy planning system (Plans section): setup wizard, life areas, goals & lead measures, weekly plans with auto-filled tactics, daily review wizard, weekly review wizard, scorecard with live current-week tactic grid and cycle trend bars, cycle transition wizard (12-week + 13th-week review, new cycle), and archive
+- Added StrategyHomeSection on Today view — shows today's lead measures grouped by goal with ○/✓ completion indicators, Daily Review link, and Saturday nudge banner when no weekly plan exists for next week
+- Added `useLiveWeekScore` hook — computes current-week score live from tactic entries; Plans list Scorecard subtitle updates immediately after each daily review without waiting for a saved weekly review
+- Added strategy badge dot on ContextSheet Strategy tab when a cycle transition is due
+- Replaced PlansView with StrategyView; renamed navigation routes from `plans-list`/`plan-detail` to `strategy-list`/`strategy-detail`
+- Fixed FAB visibility — FAB now hides whenever any wizard (strategy or inbox) is open, via a new `WizardProvider` context and `useRegisterWizard` hook
+- Fixed light-mode sheets — Sheet, FocusSheet, InboxWizard, SourceDetailSheet, and AreaDetailSheet were using beige/paper backgrounds; converted to dark theme (`#282828` bg, `#fcfbf8` text) matching the rest of the app
+- Fixed danger button colors in dark-theme sheets — replaced invisible dark-red `--color-error-ink` with `#f87171` and matching semi-transparent border
+- Fixed FocusSheet status colors — running state now uses `#4ade80` (green) and paused uses `#fbbf24` (amber) for visibility on dark backgrounds
+
 ## 0.22.0 - 2026-03-17
 - Added Obsidian-style template system: template notes (subtype `template`) with variable replacement (`{{title}}`, `{{date}}`, `{{time}}`, `{{datetime}}`, `{{year}}`, `{{month}}`, `{{day}}`, `{{weekday}}`) and configurable date/time format tokens
 - Added "Insert Template…" action to NoteEditor 3-dot menu — merges template into existing note at cursor, preserving frontmatter and body content
