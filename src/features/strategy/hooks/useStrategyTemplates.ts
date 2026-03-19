@@ -15,7 +15,7 @@ export type StrategyTemplateEntry = {
 export const STRATEGY_TEMPLATE_DEFS: StrategyTemplateEntry[] = [
   {
     docType: 'area',
-    label: 'Life Area',
+    label: 'Life Arena',
     defaultContent: generateDocumentContent('area', { vision: '{{vision}}' }),
   },
   {

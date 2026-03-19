@@ -21,7 +21,7 @@ type StepProps = {
   setDraft: (updater: (prev: WizardDraft) => WizardDraft) => void;
 };
 
-// ── Step 1: Life Areas ────────────────────────────────────────────────────────
+// ── Step 1: Life Arenas ───────────────────────────────────────────────────────
 
 function Step1Areas({ draft, setDraft }: StepProps) {
   const updateArea = (idx: number, field: keyof AreaDraft, value: string) => {
@@ -50,7 +50,7 @@ function Step1Areas({ draft, setDraft }: StepProps) {
   return (
     <div>
       <div className={styles.stepMeta}>Step 1 of 6</div>
-      <h2 className={styles.stepTitle}>Life Areas</h2>
+      <h2 className={styles.stepTitle}>Life Arenas</h2>
       <p className={styles.stepDesc}>
         Define the major domains of your life. You can add more later.
       </p>
@@ -58,7 +58,7 @@ function Step1Areas({ draft, setDraft }: StepProps) {
       {draft.areas.map((area, idx) => (
         <div key={area.tempId} className={styles.areaCard}>
           <div className={styles.areaCardHeader}>
-            <span className={styles.areaCardTitle}>Area {idx + 1}</span>
+            <span className={styles.areaCardTitle}>Arena {idx + 1}</span>
             {draft.areas.length > 1 && (
               <button
                 type="button"
@@ -92,7 +92,7 @@ function Step1Areas({ draft, setDraft }: StepProps) {
       ))}
 
       <button type="button" className={styles.addBtn} onClick={addArea}>
-        + Add another area
+        + Add another arena
       </button>
       <div className={styles.bodySpacer} />
     </div>
@@ -137,12 +137,12 @@ function Step2Outcomes({ draft, setDraft }: StepProps) {
       <div className={styles.stepMeta}>Step 2 of 6</div>
       <h2 className={styles.stepTitle}>Annual Outcomes</h2>
       <p className={styles.stepDesc}>
-        What do you want to achieve this year in each area?
+        What do you want to achieve this year in each arena?
       </p>
 
       {validAreas.length === 0 && (
         <p style={{ color: 'rgba(252,251,248,0.4)', fontSize: 14 }}>
-          Add life areas in Step 1 first.
+          Add life arenas in Step 1 first.
         </p>
       )}
 
@@ -189,7 +189,7 @@ function Step2Outcomes({ draft, setDraft }: StepProps) {
   );
 }
 
-// ── Step 3: Area Priorities ───────────────────────────────────────────────────
+// ── Step 3: Arena Priorities ──────────────────────────────────────────────────
 
 type AreaStatus = 'active' | 'maintenance' | 'waiting';
 
@@ -209,9 +209,9 @@ function Step3Priorities({ draft, setDraft }: StepProps) {
   return (
     <div>
       <div className={styles.stepMeta}>Step 3 of 6</div>
-      <h2 className={styles.stepTitle}>Area Priorities</h2>
+      <h2 className={styles.stepTitle}>Arena Priorities</h2>
       <p className={styles.stepDesc}>
-        Which areas will you focus on this cycle? Pick 2–3 active.
+        Which arenas will you focus on this cycle? Pick 2–3 active.
       </p>
 
       {validAreas.map((area) => {
@@ -334,11 +334,11 @@ function Step5Goals({ draft, setDraft }: StepProps) {
     <div>
       <div className={styles.stepMeta}>Step 5 of 6</div>
       <h2 className={styles.stepTitle}>Goals</h2>
-      <p className={styles.stepDesc}>Define 1 goal per active area.</p>
+      <p className={styles.stepDesc}>Define 1 goal per active arena.</p>
 
       {activeAreas.length === 0 && (
         <p style={{ color: 'rgba(252,251,248,0.4)', fontSize: 14 }}>
-          No active areas. Set priorities in Step 3.
+          No active arenas. Set priorities in Step 3.
         </p>
       )}
 

@@ -46,7 +46,7 @@ export function LifeAreasListView({ onBack }: Props) {
     <button
       type="button"
       className={viewStyles.addBtn}
-      aria-label="Add life area"
+      aria-label="Add life arena"
       onClick={() => setIsCreateOpen(true)}
     >
       +
@@ -55,11 +55,11 @@ export function LifeAreasListView({ onBack }: Props) {
 
   return (
     <>
-    <ViewShell title="Life Areas" onBack={onBack} rightSlot={addButton}>
+    <ViewShell title="Life Arenas" onBack={onBack} rightSlot={addButton}>
       {isLoading && <p className={viewStyles.loadingState}>Loading…</p>}
 
       {!isLoading && (areas ?? []).length === 0 && (
-        <p className={viewStyles.emptyState}>No life areas yet.</p>
+        <p className={viewStyles.emptyState}>No life arenas yet.</p>
       )}
 
       {!isLoading && grouped.active.length > 0 && (

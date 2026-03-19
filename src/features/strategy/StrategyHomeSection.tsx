@@ -33,7 +33,7 @@ import styles from './StrategyHomeSection.module.css';
 const STEP_LABELS: Record<number, string> = {
   1: '12-Week Review',
   2: '13th-Week Review',
-  3: 'Area Status',
+  3: 'Arena Status',
   4: 'New Cycle',
   5: 'Goals',
 };

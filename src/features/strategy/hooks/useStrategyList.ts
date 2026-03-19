@@ -79,7 +79,7 @@ export function useStrategyList() {
         .in('type', ['daily-review', 'weekly-review', '12-week-review', '13th-week-review', 'annual-review'])
         .eq('is_trashed', false);
 
-      // 7. Life area count
+      // 7. Life arena count
       const { count: areaCount } = await supabase
         .from('items')
         .select('id', { count: 'exact', head: true })

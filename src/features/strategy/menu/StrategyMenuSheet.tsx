@@ -17,7 +17,7 @@ type QuickAction = {
 };
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { type: 'area', label: 'Add Life Area', hint: 'Step 1' },
+  { type: 'area', label: 'Add Life Arena', hint: 'Step 1' },
   { type: 'annual-outcomes', label: 'Set Annual Outcomes', hint: 'Step 2' },
   { type: '12-week-overview', label: 'New 12-Week Cycle', hint: 'Step 4' },
   { type: '12-week-goal', label: 'Add Goal', hint: 'Step 5' },

@@ -57,7 +57,7 @@ function baseRow(owner: string | null) {
   };
 }
 
-// ── Life Areas ────────────────────────────────────────────────────────────────
+// ── Life Arenas ───────────────────────────────────────────────────────────────
 
 export type CreateAreaInput = {
   name: string;

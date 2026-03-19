@@ -49,7 +49,7 @@ export type DocType =
   | 'annual-review';
 
 const TYPE_LABELS: Record<DocType, string> = {
-  'area': 'Life Area',
+  'area': 'Life Arena',
   'annual-outcomes': 'Annual Outcomes',
   '12-week-overview': '12-Week Cycle',
   '12-week-goal': '12-Week Goal',
@@ -114,7 +114,7 @@ function thisMonday(): string {
   return calcWeekBounds(todayIsoDate()).start;
 }
 
-// ── Form: Life Area ───────────────────────────────────────────────────────────
+// ── Form: Life Arena ──────────────────────────────────────────────────────────
 
 function AreaForm({ onSaved, onBack }: FormProps) {
   const [name, setName] = useState('');
@@ -136,7 +136,7 @@ function AreaForm({ onSaved, onBack }: FormProps) {
 
   return (
     <>
-      <h2 className={styles.formTitle}>New Life Area</h2>
+      <h2 className={styles.formTitle}>New Life Arena</h2>
       <div className={styles.field}>
         <label className={styles.label}>Name</label>
         <input className={styles.input} placeholder="e.g. Career, Health…" value={name} onChange={e => setName(e.target.value)} />
@@ -188,9 +188,9 @@ function AnnualOutcomesForm({ onSaved, onBack }: FormProps) {
     <>
       <h2 className={styles.formTitle}>Annual Outcomes</h2>
       <div className={styles.field}>
-        <label className={styles.label}>Life area</label>
+        <label className={styles.label}>Life arena</label>
         <select className={`${styles.input} ${styles.select}`} value={areaId} onChange={e => setAreaId(e.target.value)}>
-          <option value="">Select area…</option>
+          <option value="">Select arena…</option>
           {areas.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
         </select>
       </div>
@@ -305,9 +305,9 @@ function GoalForm({ context, onSaved, onBack }: FormProps) {
       <h2 className={styles.formTitle}>New Goal</h2>
       {!cycleId && <div className={styles.errorBanner}>No active cycle found. Create a cycle first.</div>}
       <div className={styles.field}>
-        <label className={styles.label}>Life area (optional)</label>
+        <label className={styles.label}>Life arena (optional)</label>
         <select className={`${styles.input} ${styles.select}`} value={areaId} onChange={e => setAreaId(e.target.value)}>
-          <option value="">No area</option>
+          <option value="">No arena</option>
           {areas.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
         </select>
       </div>

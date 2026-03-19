@@ -302,7 +302,7 @@ function Step2ThirteenthWeek({ draft, setDraft }: StepBasicProps) {
   );
 }
 
-// ── Step 3: Area Status Reassessment ──────────────────────────────────────────
+// ── Step 3: Arena Status Reassessment ─────────────────────────────────────────
 
 function Step3AreaStatus({ draft, setDraft }: StepBasicProps) {
   const { data: areas, isLoading } = useAreasQuery();
@@ -327,17 +327,17 @@ function Step3AreaStatus({ draft, setDraft }: StepBasicProps) {
   return (
     <div>
       <div className={styles.stepMeta}>Step 3 of {TOTAL_STEPS}</div>
-      <h2 className={styles.stepTitle}>Area Status</h2>
-      <p className={styles.stepDesc}>Set each area's status for the next cycle. Aim for 2–3 active areas.</p>
+      <h2 className={styles.stepTitle}>Arena Status</h2>
+      <p className={styles.stepDesc}>Set each arena's status for the next cycle. Aim for 2–3 active arenas.</p>
 
-      {isLoading && <p className={styles.stepDesc}>Loading areas…</p>}
+      {isLoading && <p className={styles.stepDesc}>Loading arenas…</p>}
       {!isLoading && (areas ?? []).length === 0 && (
-        <p className={styles.stepDesc}>No life areas found. Add areas first.</p>
+        <p className={styles.stepDesc}>No life arenas found. Add arenas first.</p>
       )}
 
       {activeCount > 3 && (
         <div className={styles.warningBanner}>
-          {activeCount} active areas — the 12 Week Year recommends 2–3 for focus.
+          {activeCount} active arenas — the 12 Week Year recommends 2–3 for focus.
         </div>
       )}
 
@@ -533,7 +533,7 @@ function Step5Goals({ draft, setDraft }: StepBasicProps) {
         <div className={styles.stepMeta}>Step 5 of {TOTAL_STEPS}</div>
         <h2 className={styles.stepTitle}>Goals</h2>
         <p className={styles.stepDesc}>
-          No active areas selected. Go back to step 3 to set area statuses.
+          No active arenas selected. Go back to step 3 to set arena statuses.
         </p>
         <div className={styles.bodySpacer} />
       </div>
@@ -544,7 +544,7 @@ function Step5Goals({ draft, setDraft }: StepBasicProps) {
     <div>
       <div className={styles.stepMeta}>Step 5 of {TOTAL_STEPS}</div>
       <h2 className={styles.stepTitle}>Goals</h2>
-      <p className={styles.stepDesc}>One goal per active area, with lead measures.</p>
+      <p className={styles.stepDesc}>One goal per active arena, with lead measures.</p>
 
       {goals.map((goal) => (
         <div key={goal.id} className={styles.goalCard}>

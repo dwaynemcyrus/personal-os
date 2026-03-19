@@ -404,8 +404,8 @@ export function generateDocumentContent(type: string, vars: DocContentVars): str
         '## Next Cycle Draft',
         String(vars.nextCycleDraft ?? ''),
         '',
-        '## Area Status Reassessment',
-        '| Area | Current Status | Next Cycle Status | Reason |',
+        '## Arena Status Reassessment',
+        '| Arena | Current Status | Next Cycle Status | Reason |',
         '|---|---|---|---|',
       ].join('\n');
 
