@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -19,6 +20,13 @@ import { nowIso } from '@/lib/time';
 import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import { useTemplates } from '@/features/notes/hooks/useTemplates';
 import { useStrategyBadge } from '@/features/strategy/hooks/useStrategyBadge';
+import { useStrategyList } from '@/features/strategy/hooks/useStrategyList';
+import { useTransitionState } from '@/features/strategy/hooks/useTransitionState';
+import { useLiveWeekScore } from '@/features/strategy/hooks/useLiveWeekScore';
+import { calcCurrentCycleWeek } from '@/features/strategy/strategyUtils';
+import { CreateDocSheet } from '@/features/strategy/create/CreateDocSheet';
+import { TransitionWizard } from '@/features/strategy/transition/TransitionWizard';
+import type { DocType } from '@/features/strategy/create/CreateDocSheet';
 import styles from './ContextSheet.module.css';
 
 type ContextSheetProps = {
@@ -63,6 +71,12 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
   const noteCounts = useNoteGroupCounts();
   const taskCounts = useTaskBucketCounts();
   const strategyBadge = useStrategyBadge();
+  const { data: strategyData } = useStrategyList();
+  const transitionInfo = useTransitionState();
+  const liveWeekScore = useLiveWeekScore();
+  const [isStrategyCreateOpen, setIsStrategyCreateOpen] = useState(false);
+  const [isTransitionOpen, setIsTransitionOpen] = useState(false);
+  const [strategyCreateType, setStrategyCreateType] = useState<DocType | undefined>(undefined);
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -230,9 +244,25 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     onOpenChange(false);
     pushLayer({ view: 'tasks-list', filter: row.id });
   };
-  const handleStrategyPress = () => {
+  const activeCycle = strategyData?.activeCycle ?? null;
+
+  const cycleSubtitle = (() => {
+    if (!activeCycle) return null;
+    const week = calcCurrentCycleWeek(activeCycle.period_start!);
+    const clamped = Math.min(week, 12);
+    if (week > 12) return `${activeCycle.title} · Transition week`;
+    return `${activeCycle.title} · W${clamped}`;
+  })();
+
+  const scorecardSubtitle = (() => {
+    if (liveWeekScore != null) return `${liveWeekScore}%`;
+    if (strategyData?.currentWeekScore != null) return `${strategyData.currentWeekScore}%`;
+    return null;
+  })();
+
+  const navigateStrategy = (sectionId: string) => {
     onOpenChange(false);
-    pushLayer({ view: 'strategy-list' });
+    pushLayer({ view: 'strategy-detail', strategyId: sectionId });
   };
 
   const handleSaveProject = async (
@@ -556,9 +586,117 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
             {activeTab === 'strategy' && (
               <div className={styles.list}>
-                <button type="button" className={styles.row} onClick={handleStrategyPress}>
-                  <span className={styles.rowLabel}>Strategy</span>
+                {transitionInfo.isDue && (
+                  <div className={styles.transitionBanner}>
+                    <div className={styles.transitionBannerBody}>
+                      <div className={styles.transitionBannerTitle}>
+                        {transitionInfo.cycleName ?? 'Cycle'} complete.
+                      </div>
+                      {transitionInfo.isInProgress && transitionInfo.currentStep > 0 && (
+                        <div className={styles.transitionBannerStep}>
+                          Step {transitionInfo.currentStep} of 5
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.transitionBannerBtn}
+                      onClick={() => {
+                        onOpenChange(false);
+                        setIsTransitionOpen(true);
+                      }}
+                    >
+                      {transitionInfo.isInProgress ? 'Continue' : 'Start'}
+                    </button>
+                  </div>
+                )}
+
+                {activeCycle && (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.row}
+                      onClick={() => navigateStrategy('current-cycle')}
+                    >
+                      <span className={styles.rowLabel}>Current Cycle</span>
+                      {cycleSubtitle && (
+                        <span className={styles.rowSoon}>{cycleSubtitle}</span>
+                      )}
+                      <span className={styles.rowCaret} aria-hidden="true">›</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.row}
+                      onClick={() => navigateStrategy('scorecard')}
+                    >
+                      <span className={styles.rowLabel}>Scorecard</span>
+                      {scorecardSubtitle && (
+                        <span className={styles.rowCount}>{scorecardSubtitle}</span>
+                      )}
+                      <span className={styles.rowCaret} aria-hidden="true">›</span>
+                    </button>
+
+                    <div className={styles.divider} />
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className={styles.row}
+                  onClick={() => navigateStrategy('weekly-plans')}
+                >
+                  <span className={styles.rowLabel}>Weekly Plans</span>
+                  {(strategyData?.weeklyPlanCount ?? 0) > 0 && (
+                    <span className={styles.rowCount}>{strategyData!.weeklyPlanCount}</span>
+                  )}
                   <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.row}
+                  onClick={() => navigateStrategy('reviews')}
+                >
+                  <span className={styles.rowLabel}>Reviews</span>
+                  {(strategyData?.reviewCount ?? 0) > 0 && (
+                    <span className={styles.rowCount}>{strategyData!.reviewCount}</span>
+                  )}
+                  <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.row}
+                  onClick={() => navigateStrategy('life-areas')}
+                >
+                  <span className={styles.rowLabel}>Life Arenas</span>
+                  {(strategyData?.areaCount ?? 0) > 0 && (
+                    <span className={styles.rowCount}>{strategyData!.areaCount}</span>
+                  )}
+                  <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.row}
+                  onClick={() => navigateStrategy('archive')}
+                >
+                  <span className={styles.rowLabel}>Archive</span>
+                  {(strategyData?.archivedCycleCount ?? 0) > 0 && (
+                    <span className={styles.rowCount}>{strategyData!.archivedCycleCount}</span>
+                  )}
+                  <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+
+                <div className={styles.divider} />
+
+                <button
+                  type="button"
+                  className={styles.createButton}
+                  onClick={() => setIsStrategyCreateOpen(true)}
+                >
+                  Create new…
                 </button>
               </div>
             )}
@@ -667,6 +805,35 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
           onDelete={handleDeleteSource}
         />
       ) : null}
+
+      {typeof document !== 'undefined' &&
+        transitionInfo.fromCycleId &&
+        createPortal(
+          <TransitionWizard
+            open={isTransitionOpen}
+            onOpenChange={setIsTransitionOpen}
+            cycleId={transitionInfo.fromCycleId}
+            cycleName={transitionInfo.cycleName ?? 'Cycle'}
+            cycleIndex={transitionInfo.cycleIndex}
+            stateId={transitionInfo.stateId}
+            initialStep={transitionInfo.currentStep || 1}
+            initialCompletedSteps={transitionInfo.completedSteps}
+          />,
+          document.body,
+        )}
+
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <CreateDocSheet
+            open={isStrategyCreateOpen}
+            onOpenChange={(open) => {
+              setIsStrategyCreateOpen(open);
+              if (!open) setStrategyCreateType(undefined);
+            }}
+            initialType={strategyCreateType}
+          />,
+          document.body,
+        )}
     </>
   );
 }

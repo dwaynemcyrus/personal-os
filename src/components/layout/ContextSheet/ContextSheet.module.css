@@ -362,6 +362,57 @@
   color: rgba(252, 251, 248, 0.35);
 }
 
+/* ── Strategy tab: transition banner ───────────────────────────────────────── */
+
+.transitionBanner {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(252, 251, 248, 0.06);
+  border: 1px solid rgba(252, 251, 248, 0.14);
+  border-radius: 10px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.transitionBannerBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.transitionBannerTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fcfbf8;
+  line-height: 1.3;
+}
+
+.transitionBannerStep {
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.5);
+  margin-top: 1px;
+}
+
+.transitionBannerBtn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(252, 251, 248, 0.25);
+  background: transparent;
+  color: #fcfbf8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.transitionBannerBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
 .tabBadge {
   display: inline-block;
   width: 5px;

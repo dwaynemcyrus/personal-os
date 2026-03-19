@@ -53,7 +53,6 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
     case 'tasks-list':
     case 'task-detail':
       return 'Tasks';
-    case 'strategy-list':
     case 'strategy-detail':
       return 'Strategy';
     case 'settings':
@@ -100,7 +99,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   const isNotesRoute = isNotesList || isNoteDetail;
   const isTasksRoute = topLayer?.view.startsWith('task') ?? false;
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
-  const isStrategyRoute = topLayer?.view === 'strategy-list' || topLayer?.view === 'strategy-detail';
+  const isStrategyRoute = topLayer?.view === 'strategy-detail';
   const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute;
   const pageTitle = getPageTitle(topLayer);
 

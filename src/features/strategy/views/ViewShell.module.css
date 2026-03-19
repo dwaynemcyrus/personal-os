@@ -8,7 +8,7 @@
 
 .header {
   display: grid;
-  grid-template-columns: 40px 1fr 40px;
+  grid-template-columns: 40px 1fr auto;
   align-items: center;
   padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
   background: #282828;
@@ -55,6 +55,26 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 4px;
+  min-width: 40px;
+}
+
+.menuBtn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(252, 251, 248, 0.7);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menuBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
 }
 
 .body {

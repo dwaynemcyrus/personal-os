@@ -278,7 +278,7 @@ function ActiveView({
   if (!topLayer) return <NowView onOpenInbox={onOpenInbox} />;
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
-  if (topLayer.view === 'strategy-list' || topLayer.view === 'strategy-detail') return <Suspense fallback={null}><StrategyView /></Suspense>;
+  if (topLayer.view === 'strategy-detail') return <Suspense fallback={null}><StrategyView /></Suspense>;
   if (topLayer.view === 'settings') return <Suspense fallback={null}><SettingsPage /></Suspense>;
   return <NowView onOpenInbox={onOpenInbox} />;
 }

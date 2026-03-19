@@ -11,7 +11,6 @@ export type NavigationLayer =
   | { view: 'note-detail'; noteId: string }
   | { view: 'tasks-list'; filter?: TaskListFilter }
   | { view: 'task-detail'; taskId: string }
-  | { view: 'strategy-list' }
   | { view: 'strategy-detail'; strategyId: string }
   | { view: 'settings' };
 
