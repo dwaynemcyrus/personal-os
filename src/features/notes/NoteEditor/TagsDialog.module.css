@@ -10,8 +10,8 @@
   max-width: 480px;
   max-height: 560px;
   border-radius: var(--radius-16, 16px);
-  border: 1px solid var(--color-border-200);
-  background: var(--color-surface) !important;
+  border: 1px solid rgba(252, 251, 248, 0.14);
+  background: #282828 !important;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -24,7 +24,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--color-border-200);
+  border-bottom: 1px solid rgba(252, 251, 248, 0.12);
   flex-shrink: 0;
 }
 
@@ -32,7 +32,7 @@
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 .doneBtn {
@@ -58,7 +58,7 @@
 
 .noneLabel {
   font-size: 13px;
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.4);
   opacity: 0.5;
   align-self: center;
 }
@@ -103,7 +103,7 @@
 /* Input row */
 .inputRow {
   padding: 4px 16px;
-  border-bottom: 1px solid var(--color-border-200);
+  border-bottom: 1px solid rgba(252, 251, 248, 0.12);
   flex-shrink: 0;
 }
 
@@ -111,7 +111,7 @@
   width: 100%;
   border: none;
   background: transparent;
-  color: var(--color-ink);
+  color: #fcfbf8;
   font-size: 14px;
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
   padding: 8px 0;
@@ -119,8 +119,7 @@
 }
 
 .input::placeholder {
-  color: var(--color-ink-500);
-  opacity: 0.5;
+  color: rgba(252, 251, 248, 0.35);
 }
 
 /* Suggestions list */
@@ -145,13 +144,13 @@
   cursor: pointer;
   font-size: 13px;
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
-  color: var(--color-ink);
+  color: #fcfbf8;
   -webkit-tap-highlight-color: transparent;
 }
 
 .suggestion:hover,
 .suggestion:focus {
-  background: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  background: rgba(252, 251, 248, 0.08);
   outline: none;
 }
 

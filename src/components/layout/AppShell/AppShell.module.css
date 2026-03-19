@@ -1,6 +1,6 @@
 .app-shell {
   height: 100vh;
-  background: #282828;
+  background: #1a1816;
   color: #fcfbf8;
   display: flex;
   flex-direction: column;
@@ -24,7 +24,7 @@
     calc(20px + var(--safe-area-right))
     8px
     calc(20px + var(--safe-area-left));
-  background: #282828;
+  background: #1a1816;
 }
 
 .app-shell__topbar--hidden {
@@ -60,23 +60,21 @@
   height: var(--touch-target);
   border-radius: var(--radius-full);
   border: none;
-  background: var(--color-surface);
+  background: rgba(252, 251, 248, 0.08);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-ink-900);
-  box-shadow: var(--shadow-sm);
+  color: #fcfbf8;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .app-shell__icon-button:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
 .app-shell__icon-button:active {
   transform: scale(0.96);
-  box-shadow: var(--shadow-md);
 }
 
 .app-shell__icon {
@@ -88,27 +86,26 @@
   min-height: var(--touch-target);
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
-  border: 1px solid var(--color-border-200);
-  background: var(--color-surface);
-  color: var(--color-ink-900);
+  border: 1px solid rgba(252, 251, 248, 0.14);
+  background: rgba(252, 251, 248, 0.08);
+  color: #fcfbf8;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   font-size: var(--font-sm);
-  box-shadow: var(--shadow-sm);
 }
 
 .app-shell__focus-chip:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
 .app-shell__focus-chip[data-status='running'] {
-  border-color: var(--color-success-border, rgba(43, 107, 63, 0.5));
+  border-color: rgba(74, 222, 128, 0.4);
 }
 
 .app-shell__focus-chip[data-status='paused'] {
-  border-color: var(--color-warning-border, rgba(138, 105, 20, 0.5));
+  border-color: rgba(251, 191, 36, 0.4);
 }
 
 .app-shell__focus-time {
@@ -116,7 +113,7 @@
 }
 
 .app-shell__focus-status {
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 11px;
@@ -154,8 +151,8 @@
   height: 40px;
   border-radius: 12px;
   border: none;
-  background: var(--color-ink-900);
-  color: var(--color-paper);
+  background: #fcfbf8;
+  color: #1a1816;
   box-shadow: var(--shadow-fab);
   display: inline-flex;
   align-items: center;
@@ -180,8 +177,8 @@
 }
 
 .app-shell__fab:focus-visible {
-  outline: 2px solid var(--color-paper);
-  outline-offset: 2px;
+  outline: 2px solid #fcfbf8;
+  outline-offset: 4px;
 }
 
 .app-shell__fab--dragging {
@@ -204,23 +201,23 @@
   transform: translate(-50%, -50%);
   padding: 12px 16px;
   border-radius: var(--radius-pill);
-  background: rgba(20, 17, 15, 0.9);
-  color: var(--color-paper);
+  background: rgba(26, 24, 22, 0.92);
+  color: #fcfbf8;
   font-size: 13px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  border: 1px solid transparent;
+  border: 1px solid rgba(252, 251, 248, 0.14);
   box-shadow: var(--shadow-fab);
 }
 
 .app-shell__target--active {
-  background: var(--color-paper);
-  color: var(--color-ink-900);
-  border-color: var(--color-border-400);
+  background: rgba(252, 251, 248, 0.15);
+  color: #fcfbf8;
+  border-color: rgba(252, 251, 248, 0.3);
 }
 
 .app-shell__menu {
-  background: var(--color-paper);
+  background: #282828;
   padding-top: calc(var(--space-32) + 16px + var(--safe-area-top));
   padding-bottom: var(--space-32);
   gap: var(--space-5);
@@ -242,7 +239,7 @@
   padding: var(--space-3);
   border-radius: var(--radius-14);
   border: 1px solid transparent;
-  background: var(--color-surface);
+  background: rgba(252, 251, 248, 0.06);
   color: inherit;
   transition: border-color var(--duration-160) var(--ease-default),
     transform var(--transition-fast);
@@ -250,12 +247,11 @@
 }
 
 .app-shell__menu-link[data-active='true'] {
-  border-color: var(--color-ink-900);
-  box-shadow: var(--shadow-hover);
+  border-color: rgba(252, 251, 248, 0.4);
 }
 
 .app-shell__menu-link:focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }
 
@@ -270,7 +266,7 @@
 
 .app-shell__menu-description {
   font-size: var(--font-sm);
-  color: var(--color-ink-500);
+  color: rgba(252, 251, 248, 0.5);
 }
 
 @media (min-width: 744px) {
