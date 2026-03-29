@@ -1,0 +1,271 @@
+.sheet {
+  left: 24px;
+  right: 24px;
+  width: auto;
+  top: 24px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  border-radius: var(--radius-16);
+  border: 1px solid rgba(252, 251, 248, 0.14);
+  background: var(--color-ink-900) !important;
+  color: #fcfbf8;
+  padding: 0;
+  height: auto;
+  max-height: calc(100dvh - 24px - (88px + env(safe-area-inset-bottom)));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Input ─────────────────────────────────────────────────────────────────── */
+
+.inputRow {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(252, 251, 248, 0.1);
+  flex-shrink: 0;
+}
+
+.input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  font-family: inherit;
+  font-weight: var(--font-medium);
+  color: #fcfbf8;
+  padding: 0;
+  line-height: 1.4;
+}
+
+.input::placeholder {
+  color: rgba(252, 251, 248, 0.38);
+}
+
+.input:focus {
+  outline: none;
+}
+
+/* ── Results list ──────────────────────────────────────────────────────────── */
+
+.results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sectionLabel {
+  padding: 10px 20px 4px;
+  font-size: 11px;
+  font-weight: var(--font-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.44);
+}
+
+.resultList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resultItem {
+  margin: 0;
+  padding: 0;
+}
+
+.resultButton {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid rgba(252, 251, 248, 0.08);
+  background: transparent;
+  color: #fcfbf8;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.resultButton:hover,
+.resultButton:focus-visible,
+.resultButtonSelected {
+  background: rgba(252, 251, 248, 0.07);
+  outline: none;
+}
+
+.resultTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultMeta {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(252, 251, 248, 0.44);
+  white-space: nowrap;
+}
+
+.emptyState {
+  padding: 20px;
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.44);
+}
+
+/* ── Type buttons ──────────────────────────────────────────────────────────── */
+
+.typeRow {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(252, 251, 248, 0.1);
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.typeButton {
+  border: 1px solid rgba(252, 251, 248, 0.2);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: #fcfbf8;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: var(--font-medium);
+  padding: 5px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.typeButton:hover,
+.typeButton:focus-visible {
+  background: rgba(252, 251, 248, 0.1);
+  border-color: rgba(252, 251, 248, 0.4);
+  outline: none;
+}
+
+.typeButtonMore {
+  color: rgba(252, 251, 248, 0.56);
+  border-color: rgba(252, 251, 248, 0.12);
+}
+
+/* ── More expanded types ───────────────────────────────────────────────────── */
+
+.moreRow {
+  padding: 0 20px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Actions row ───────────────────────────────────────────────────────────── */
+
+.actionsRow {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(252, 251, 248, 0.1);
+  gap: 12px;
+}
+
+.rapidToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: rgba(252, 251, 248, 0.7);
+}
+
+.rapidToggle:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.toggleTrack {
+  width: 34px;
+  height: 19px;
+  border-radius: var(--radius-pill);
+  background: rgba(252, 251, 248, 0.22);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.toggleTrackOn {
+  background: #fcfbf8;
+}
+
+.toggleThumb {
+  width: 15px;
+  height: 15px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink-900);
+  box-shadow: 0 2px 6px rgba(20, 17, 15, 0.32);
+  transform: translateX(0);
+  transition: transform 0.2s ease;
+}
+
+.toggleThumbOn {
+  transform: translateX(15px);
+}
+
+.rapidLabel {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.actionButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actionBtn {
+  border: none;
+  background: transparent;
+  color: #fcfbf8;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: var(--font-medium);
+  padding: 0;
+  cursor: pointer;
+}
+
+.actionBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.actionBtnSave {
+  color: #fcfbf8;
+}
+
+.actionBtnDisabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}

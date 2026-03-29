@@ -177,6 +177,155 @@ export function mergeTemplateIntoNote(
   return mergedNote.slice(0, clampedOffset) + insertText + mergedNote.slice(clampedOffset);
 }
 
+// ── Document starter templates ─────────────────────────────────────────────
+
+/**
+ * Returns the starter body content for a given document type/subtype.
+ * Used by CommandSheet when creating a new document.
+ */
+export function getDocumentTemplate(type: string, subtype: string | null): string | null {
+  if (type === 'journal' && subtype === 'daily') {
+    return `## Morning Briefing
+
+What are the three most important things today?
+
+-
+-
+-
+
+## Time Blocks
+
+| Block | Focus |
+|-------|-------|
+| Morning | |
+| Afternoon | |
+| Evening | |
+
+## Evening Capture
+
+What happened? What carries forward?
+
+`;
+  }
+
+  if (type === 'journal' && subtype === 'scratch') {
+    return `## Stream
+
+`;
+  }
+
+  if (type === 'action' && subtype === 'task') {
+    return `## Notes
+
+`;
+  }
+
+  if (type === 'action' && subtype === 'project') {
+    return `## Outcome
+
+What does done look like?
+
+## Tasks
+
+- [ ]
+- [ ]
+- [ ]
+
+## Notes
+
+`;
+  }
+
+  if (type === 'creation' && subtype === 'essay') {
+    return `## Hook
+
+
+
+## Argument
+
+
+
+## Evidence
+
+
+
+## Counterargument
+
+
+
+## Conclusion
+
+
+`;
+  }
+
+  if (type === 'reference' && subtype === 'slip') {
+    return `## Source
+
+
+
+## Note
+
+
+
+## Links
+
+`;
+  }
+
+  if (type === 'reference' && subtype === 'literature') {
+    return `## Source
+
+
+
+## Summary
+
+
+
+## Key Ideas
+
+-
+
+## Quotes
+
+>
+
+## Links
+
+`;
+  }
+
+  if (type === 'review' && subtype === 'weekly') {
+    return `## Last Week
+
+What happened? What went well? What didn't?
+
+## Incomplete
+
+What carried over? What do I do with it?
+
+## This Week
+
+What are the priorities?
+
+-
+-
+-
+
+## Projects Check
+
+Any stalled projects? Any to close?
+
+## Inbox Clear
+
+Is inbox empty?
+
+`;
+  }
+
+  return null;
+}
+
 /**
  * Find the position to place cursor after template insertion.
  * Returns the position after the first empty task item or first empty line after a heading.

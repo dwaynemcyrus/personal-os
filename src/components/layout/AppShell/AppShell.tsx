@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { HeaderSlotCtx, type HeaderSlot } from './HeaderSlot';
-import { CaptureModal } from '@/components/layout/CaptureModal/CaptureModal';
+import { CommandSheet } from '@/components/layout/CommandSheet/CommandSheet';
 import { ContextSheet } from '@/components/layout/ContextSheet/ContextSheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
@@ -99,8 +99,9 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   const isNotesRoute = isNotesList || isNoteDetail;
   const isTasksRoute = topLayer?.view.startsWith('task') ?? false;
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
-  const isStrategyRoute = topLayer?.view === 'strategy-detail';
-  const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute;
+  const isStrategyRoute = (import.meta.env.VITE_SHOW_STRATEGY === 'true') && topLayer?.view === 'strategy-detail';
+  const isDocumentDetailRoute = topLayer?.view === 'document-detail';
+  const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute || isDocumentDetailRoute;
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
@@ -125,7 +126,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      setIsCommandOpen(true);
+      setIsContextSheetOpen(true);
     }, LONG_PRESS_MS);
   };
 
@@ -144,11 +145,11 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
       return;
     }
     clearLongPressTimer();
-    if (isContextSheetOpen) {
-      setIsContextSheetOpen(false);
+    if (isCommandOpen) {
+      setIsCommandOpen(false);
       return;
     }
-    setIsContextSheetOpen(true);
+    setIsCommandOpen(true);
   };
 
   // --- Touch event handlers (mobile fallback) ---
@@ -168,7 +169,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      setIsCommandOpen(true);
+      setIsContextSheetOpen(true);
     }, LONG_PRESS_MS);
   };
 
@@ -327,11 +328,11 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
       {portalTarget &&
         createPortal(
           <>
-            {!isCommandOpen && !isTaskDetailRoute && !isTaskDetailSheetOpen && !isInboxOpen && !anyWizardOpen && (
+            {!isTaskDetailRoute && !isDocumentDetailRoute && !isTaskDetailSheetOpen && !isInboxOpen && !anyWizardOpen && (
               <button
                 type="button"
                 className={styles['app-shell__fab']}
-                aria-label={isContextSheetOpen ? 'Close context sheet' : 'Quick capture'}
+                aria-label={isCommandOpen || isContextSheetOpen ? 'Close' : 'Open command sheet'}
                 ref={fabRef}
                 onClick={handleFabClick}
                 onContextMenu={(e) => e.preventDefault()}
@@ -340,11 +341,11 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
                 onPointerCancel={handleFabPointerCancel}
                 {...touchHandlers}
               >
-                {isContextSheetOpen ? <FabCloseIcon /> : <FabIcon />}
+                {isCommandOpen || isContextSheetOpen ? <FabCloseIcon /> : <FabIcon />}
               </button>
             )}
 
-            <CaptureModal open={isCommandOpen} onOpenChange={setIsCommandOpen} />
+            <CommandSheet open={isCommandOpen} onOpenChange={setIsCommandOpen} />
             <InboxWizard open={isInboxOpen} onOpenChange={onInboxOpenChange} />
             <ContextSheet
               open={isContextSheetOpen}

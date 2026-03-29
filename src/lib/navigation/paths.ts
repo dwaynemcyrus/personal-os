@@ -13,8 +13,9 @@ export function layerToPath(layer: NavigationLayer): string {
     case 'note-detail': return `/note/${layer.noteId}`;
     case 'tasks-list':  return layer.filter ? `/tasks/${layer.filter}` : '/tasks';
     case 'task-detail': return `/task/${layer.taskId}`;
-    case 'strategy-detail': return `/strategy/${layer.strategyId}`;
-    case 'settings':    return '/settings';
+    case 'strategy-detail':  return `/strategy/${layer.strategyId}`;
+    case 'document-detail':  return `/document/${layer.documentId}`;
+    case 'settings':         return '/settings';
   }
 }
 

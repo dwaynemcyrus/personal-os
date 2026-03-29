@@ -34,6 +34,8 @@ type ContextSheetProps = {
   onOpenChange: (open: boolean) => void;
 };
 
+const SHOW_STRATEGY = import.meta.env.VITE_SHOW_STRATEGY === 'true';
+
 type Tab = 'notes' | 'tasks' | 'strategy' | 'sources';
 
 type NoteGroupRow = {
@@ -747,7 +749,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
           </div>
 
           <div className={styles.tabs}>
-            {(['tasks', 'strategy', 'notes', 'sources'] as Tab[]).map((tab) => (
+            {(['tasks', 'strategy', 'notes', 'sources'] as Tab[]).filter((tab) => tab !== 'strategy' || SHOW_STRATEGY).map((tab) => (
               <button
                 key={tab}
                 type="button"

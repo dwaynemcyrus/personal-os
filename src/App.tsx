@@ -17,7 +17,11 @@ import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFrom
 import { fetchUserSettings } from '@/lib/userSettings';
 import type { NavigationLayer } from '@/lib/navigation/types';
 import { WizardProvider } from '@/components/providers';
-import { StrategyHomeSection } from '@/features/strategy/StrategyHomeSection';
+const SHOW_STRATEGY = import.meta.env.VITE_SHOW_STRATEGY === 'true';
+
+const StrategyHomeSection = SHOW_STRATEGY
+  ? lazy(() => import('@/features/strategy/StrategyHomeSection').then((m) => ({ default: m.StrategyHomeSection })))
+  : null;
 import styles from './App.module.css';
 
 const SettingsPage = lazy(() =>
@@ -33,8 +37,12 @@ const NotesDesktopShell = lazy(() =>
 const TaskList = lazy(() =>
   import('@/features/tasks/TaskList/TaskList').then((m) => ({ default: m.TaskList }))
 );
-const StrategyView = lazy(() =>
-  import('@/features/strategy/StrategyView').then((m) => ({ default: m.StrategyView }))
+const StrategyView = SHOW_STRATEGY
+  ? lazy(() => import('@/features/strategy/StrategyView').then((m) => ({ default: m.StrategyView })))
+  : null;
+
+const DocumentDetailView = lazy(() =>
+  import('@/features/documents/DocumentDetailView').then((m) => ({ default: m.DocumentDetailView }))
 );
 
 function useTodayDate() {
@@ -188,7 +196,9 @@ function NowView({ onOpenInbox }: { onOpenInbox: () => void }) {
         </button>
       </div>
 
-      <StrategyHomeSection />
+      {SHOW_STRATEGY && StrategyHomeSection && (
+        <Suspense fallback={null}><StrategyHomeSection /></Suspense>
+      )}
 
       <button
         type="button"
@@ -278,7 +288,8 @@ function ActiveView({
   if (!topLayer) return <NowView onOpenInbox={onOpenInbox} />;
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
-  if (topLayer.view === 'strategy-detail') return <Suspense fallback={null}><StrategyView /></Suspense>;
+  if (topLayer.view === 'strategy-detail' && SHOW_STRATEGY && StrategyView) return <Suspense fallback={null}><StrategyView /></Suspense>;
+  if (topLayer.view === 'document-detail') return <Suspense fallback={null}><DocumentDetailView documentId={topLayer.documentId} /></Suspense>;
   if (topLayer.view === 'settings') return <Suspense fallback={null}><SettingsPage /></Suspense>;
   return <NowView onOpenInbox={onOpenInbox} />;
 }

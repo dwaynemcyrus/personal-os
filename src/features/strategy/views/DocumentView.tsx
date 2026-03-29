@@ -4,6 +4,7 @@ import type { ItemRow } from '@/lib/db';
 import { formatDisplayDate } from '../strategyUtils';
 import { ViewShell, viewStyles } from './ViewShell';
 import { StrategyEditor } from './StrategyEditor';
+import { ArenaDocumentView } from './ArenaDocumentView';
 import styles from './DocumentView.module.css';
 
 type Props = { documentId: string; onBack: () => void };
@@ -42,6 +43,11 @@ function typeLabel(type: string): string {
 
 export function DocumentView({ documentId, onBack }: Props) {
   const { data: doc, isLoading } = useDocument(documentId);
+
+  // Arena documents get their own dedicated view
+  if (!isLoading && doc?.type === 'area') {
+    return <ArenaDocumentView doc={doc} onBack={onBack} />;
+  }
 
   const title = doc?.title ?? (doc?.type ? typeLabel(doc.type) : 'Document');
 
