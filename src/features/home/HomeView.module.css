@@ -1,0 +1,91 @@
+.home {
+  padding: 24px 0 40px;
+}
+
+.dateLabel {
+  padding: 0 20px 20px;
+  font-size: 13px;
+  font-weight: var(--font-medium, 500);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+}
+
+/* ── Nav list ───────────────────────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.navRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink, #fcfbf8);
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: var(--font-medium, 500);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 52px;
+}
+
+.navRow:focus-visible {
+  outline: 2px solid rgba(252, 251, 248, 0.5);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) {
+  .navRow:hover {
+    background: rgba(252, 251, 248, 0.04);
+  }
+}
+
+.navRowPrimary .navRowLabel {
+  color: #fcfbf8;
+}
+
+.navRowLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.navRowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.navRowChevron {
+  font-size: 20px;
+  line-height: 1;
+  color: rgba(252, 251, 248, 0.3);
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(252, 251, 248, 0.15);
+  color: rgba(252, 251, 248, 0.7);
+  font-size: 12px;
+  font-weight: var(--font-semibold, 600);
+  font-family: inherit;
+}
+
+.divider {
+  height: 1px;
+  margin: 4px 20px;
+  background: rgba(252, 251, 248, 0.08);
+}

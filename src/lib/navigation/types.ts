@@ -6,6 +6,8 @@ import type { TaskListFilter } from '@/features/tasks/taskBuckets';
  * Core type definitions for the SPA navigation state machine.
  */
 
+export type ActionsFilter = 'today' | 'scheduled' | 'anytime' | 'someday' | 'projects';
+
 export type NavigationLayer =
   | { view: 'notes-list'; group: 'all' | 'pinned' | 'today' | 'locked' | 'todo' | 'trash' }
   | { view: 'note-detail'; noteId: string }
@@ -13,6 +15,10 @@ export type NavigationLayer =
   | { view: 'task-detail'; taskId: string }
   | { view: 'strategy-detail'; strategyId: string }
   | { view: 'document-detail'; documentId: string }
+  | { view: 'actions'; filter: ActionsFilter }
+  | { view: 'writing' }
+  | { view: 'reference' }
+  | { view: 'inbox-list' }
   | { view: 'settings' };
 
 export interface NavigationState {

@@ -101,7 +101,8 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
   const isStrategyRoute = (import.meta.env.VITE_SHOW_STRATEGY === 'true') && topLayer?.view === 'strategy-detail';
   const isDocumentDetailRoute = topLayer?.view === 'document-detail';
-  const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute || isDocumentDetailRoute;
+  const isNewBucketRoute = topLayer?.view === 'actions' || topLayer?.view === 'writing' || topLayer?.view === 'reference' || topLayer?.view === 'inbox-list';
+  const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute || isDocumentDetailRoute || isNewBucketRoute;
   const pageTitle = getPageTitle(topLayer);
 
   const handleBack = () => {
@@ -328,7 +329,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
       {portalTarget &&
         createPortal(
           <>
-            {!isTaskDetailRoute && !isDocumentDetailRoute && !isTaskDetailSheetOpen && !isInboxOpen && !anyWizardOpen && (
+            {!isTaskDetailRoute && !isDocumentDetailRoute && !isNewBucketRoute && !isTaskDetailSheetOpen && !isInboxOpen && !anyWizardOpen && (
               <button
                 type="button"
                 className={styles['app-shell__fab']}

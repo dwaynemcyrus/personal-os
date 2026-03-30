@@ -44,6 +44,21 @@ const StrategyView = SHOW_STRATEGY
 const DocumentDetailView = lazy(() =>
   import('@/features/documents/DocumentDetailView').then((m) => ({ default: m.DocumentDetailView }))
 );
+const HomeView = lazy(() =>
+  import('@/features/home/HomeView').then((m) => ({ default: m.HomeView }))
+);
+const ActionsView = lazy(() =>
+  import('@/features/actions/ActionsView').then((m) => ({ default: m.ActionsView }))
+);
+const WritingView = lazy(() =>
+  import('@/features/writing/WritingView').then((m) => ({ default: m.WritingView }))
+);
+const ReferenceView = lazy(() =>
+  import('@/features/reference/ReferenceView').then((m) => ({ default: m.ReferenceView }))
+);
+const InboxListView = lazy(() =>
+  import('@/features/inbox/InboxListView').then((m) => ({ default: m.InboxListView }))
+);
 
 function useTodayDate() {
   const [today, setToday] = useState(() => new Date());
@@ -285,11 +300,15 @@ function ActiveView({
   topLayer: NavigationLayer | undefined;
   onOpenInbox: () => void;
 }) {
-  if (!topLayer) return <NowView onOpenInbox={onOpenInbox} />;
+  if (!topLayer) return <Suspense fallback={null}><HomeView /></Suspense>;
   if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
   if (topLayer.view === 'strategy-detail' && SHOW_STRATEGY && StrategyView) return <Suspense fallback={null}><StrategyView /></Suspense>;
   if (topLayer.view === 'document-detail') return <Suspense fallback={null}><DocumentDetailView documentId={topLayer.documentId} /></Suspense>;
+  if (topLayer.view === 'actions')    return <Suspense fallback={null}><ActionsView /></Suspense>;
+  if (topLayer.view === 'writing')    return <Suspense fallback={null}><WritingView /></Suspense>;
+  if (topLayer.view === 'reference')  return <Suspense fallback={null}><ReferenceView /></Suspense>;
+  if (topLayer.view === 'inbox-list') return <Suspense fallback={null}><InboxListView /></Suspense>;
   if (topLayer.view === 'settings') return <Suspense fallback={null}><SettingsPage /></Suspense>;
   return <NowView onOpenInbox={onOpenInbox} />;
 }
