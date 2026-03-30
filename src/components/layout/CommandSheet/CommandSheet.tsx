@@ -68,6 +68,7 @@ export function CommandSheet({ open, onOpenChange }: CommandSheetProps) {
         .from('items')
         .select('id, cuid, type, subtype, title, status, updated_at, date_trashed')
         .is('date_trashed', null)
+        .neq('type', 'inbox')
         .order('updated_at', { ascending: false })
         .limit(12);
       if (error) throw error;
