@@ -429,7 +429,73 @@
   height: 24px;
 }
 
-/* ── Goal section divider (step 5) ───────────────────────────────────────── */
+/* ── Arena sub-navigation (step 2) ──────────────────────────────────────── */
+
+.arenaNav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.arenaNavBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(252, 251, 248, 0.15);
+  background: transparent;
+  color: rgba(252, 251, 248, 0.65);
+  font-size: 16px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.arenaNavBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.arenaNavBtn:focus-visible {
+  outline: 2px solid #fcfbf8;
+  outline-offset: 2px;
+}
+
+.arenaNavLabel {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fcfbf8;
+  margin-bottom: 20px;
+}
+
+.arenaNav .arenaNavLabel {
+  margin-bottom: 0;
+}
+
+/* ── Section label (e.g. "Assessment" within arena details) ──────────────── */
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.4);
+  margin: 8px 0 14px;
+}
+
+/* ── Label hint (e.g. "(up to 6)") ──────────────────────────────────────── */
+
+.labelHint {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(252, 251, 248, 0.3);
+}
+
+/* ── Goal section divider (step 6) ───────────────────────────────────────── */
 
 .goalSection {
   margin-bottom: 24px;

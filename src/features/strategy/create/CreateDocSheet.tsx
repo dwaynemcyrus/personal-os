@@ -116,9 +116,18 @@ function thisMonday(): string {
 
 // ── Form: Life Arena ──────────────────────────────────────────────────────────
 
+const EXPERIENCE_OPTIONS = ['Satisfied', 'Unsatisfied', 'Very Unsatisfied', 'Very Satisfied'];
+
 function AreaForm({ onSaved, onBack }: FormProps) {
   const [name, setName] = useState('');
   const [vision, setVision] = useState('');
+  const [beAndFeel, setBeAndFeel] = useState(['']);
+  const [milestones, setMilestones] = useState(['']);
+  const [experience, setExperience] = useState('');
+  const [problem, setProblem] = useState('');
+  const [pain, setPain] = useState('');
+  const [relief, setRelief] = useState('');
+  const [reward, setReward] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -126,7 +135,13 @@ function AreaForm({ onSaved, onBack }: FormProps) {
     if (!name.trim()) { setError('Name is required.'); return; }
     setSaving(true); setError('');
     try {
-      const id = await createArea({ name: name.trim(), vision: vision.trim() });
+      const id = await createArea({
+        name: name.trim(),
+        vision: vision.trim(),
+        beAndFeel: beAndFeel.filter(Boolean),
+        milestones: milestones.filter(Boolean),
+        assessment: { experience, problem, pain, relief, reward },
+      });
       queryClient.invalidateQueries({ queryKey: ['strategy', 'areas'] });
       queryClient.invalidateQueries({ queryKey: ['strategy', 'list'] });
       onSaved(id);
@@ -145,11 +160,65 @@ function AreaForm({ onSaved, onBack }: FormProps) {
         <label className={styles.label}>Vision (optional)</label>
         <textarea className={styles.textarea} placeholder="Where do you want to be in this area?" value={vision} onChange={e => setVision(e.target.value)} />
       </div>
+
+      <div className={styles.field}>
+        <label className={styles.label}>Be and Feel <span className={styles.labelHint}>(up to 6, optional)</span></label>
+        <div className={styles.listGroup}>
+          {beAndFeel.map((bf, idx) => (
+            <div key={idx} className={styles.listRow}>
+              <input className={styles.input} placeholder="e.g. energetic, confident…" value={bf} onChange={e => { const n = [...beAndFeel]; n[idx] = e.target.value; setBeAndFeel(n); }} />
+              {beAndFeel.length > 1 && <button type="button" className={styles.removeBtn} onClick={() => setBeAndFeel(beAndFeel.filter((_, i) => i !== idx))}>×</button>}
+            </div>
+          ))}
+        </div>
+        {beAndFeel.length < 6 && (
+          <button type="button" className={styles.addBtn} onClick={() => setBeAndFeel([...beAndFeel, ''])}>+ Add</button>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.label}>Milestones (optional)</label>
+        <div className={styles.listGroup}>
+          {milestones.map((m, idx) => (
+            <div key={idx} className={styles.listRow}>
+              <input className={styles.input} placeholder="e.g. Run first 5K" value={m} onChange={e => { const n = [...milestones]; n[idx] = e.target.value; setMilestones(n); }} />
+              {milestones.length > 1 && <button type="button" className={styles.removeBtn} onClick={() => setMilestones(milestones.filter((_, i) => i !== idx))}>×</button>}
+            </div>
+          ))}
+        </div>
+        <button type="button" className={styles.addBtn} onClick={() => setMilestones([...milestones, ''])}>+ Add milestone</button>
+      </div>
+
+      <div className={styles.sectionLabel}>Assessment (optional)</div>
+      <div className={styles.field}>
+        <label className={styles.label}>Experience</label>
+        <select className={`${styles.input} ${styles.select}`} value={experience} onChange={e => setExperience(e.target.value)}>
+          <option value="">Select…</option>
+          {EXPERIENCE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+      <div className={styles.field}>
+        <label className={styles.label}>Problem</label>
+        <textarea className={styles.textarea} rows={2} placeholder="What's the main problem in this area?" value={problem} onChange={e => setProblem(e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label className={styles.label}>Pain</label>
+        <textarea className={styles.textarea} rows={2} placeholder="What pain does this problem cause?" value={pain} onChange={e => setPain(e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label className={styles.label}>Relief</label>
+        <textarea className={styles.textarea} rows={2} placeholder="What would relief look like?" value={relief} onChange={e => setRelief(e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label className={styles.label}>Reward</label>
+        <textarea className={styles.textarea} rows={2} placeholder="What's the reward for solving this?" value={reward} onChange={e => setReward(e.target.value)} />
+      </div>
+
       <div className={styles.bodySpacer} />
       {error && <div className={styles.errorBanner}>{error}</div>}
       <div className={styles.footer}>
         {onBack && <button type="button" className={styles.btnBack} onClick={onBack}>← Back</button>}
-        <button type="button" className={styles.btnSave} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Create Area'}</button>
+        <button type="button" className={styles.btnSave} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Create Arena'}</button>
       </div>
     </>
   );

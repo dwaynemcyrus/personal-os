@@ -62,13 +62,37 @@ function baseRow(owner: string | null) {
 export type CreateAreaInput = {
   name: string;
   vision: string;
+  beAndFeel?: string[];
+  milestones?: string[];
+  assessment?: {
+    experience: string;
+    problem: string;
+    pain: string;
+    relief: string;
+    reward: string;
+  };
 };
 
-export async function createArea({ name, vision }: CreateAreaInput): Promise<string> {
+export async function createArea({
+  name,
+  vision,
+  beAndFeel,
+  milestones,
+  assessment,
+}: CreateAreaInput): Promise<string> {
   const owner = await getCurrentUserId();
   const id = uuidv4();
   const filename = generateFilename('area', { name });
-  const content = generateDocumentContent('area', { vision });
+  const content = generateDocumentContent('area', {
+    vision,
+    beAndFeel: (beAndFeel ?? []).filter(Boolean).join('\n'),
+    milestones: (milestones ?? []).filter(Boolean).join('\n'),
+    assessmentExperience: assessment?.experience ?? '',
+    assessmentProblem: assessment?.problem ?? '',
+    assessmentPain: assessment?.pain ?? '',
+    assessmentRelief: assessment?.relief ?? '',
+    assessmentReward: assessment?.reward ?? '',
+  });
 
   const { error } = await supabase.from('items').insert({
     ...baseRow(owner),

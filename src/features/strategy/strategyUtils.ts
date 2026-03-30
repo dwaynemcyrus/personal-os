@@ -273,8 +273,24 @@ export type DocContentVars = Record<
  */
 export function generateDocumentContent(type: string, vars: DocContentVars): string {
   switch (type) {
-    case 'area':
-      return `## Vision\n\n${vars.vision ?? ''}`;
+    case 'area': {
+      const vision = String(vars.vision ?? '');
+      const bafItems = String(vars.beAndFeel ?? '').split('\n').filter(Boolean);
+      const bafLines = bafItems.length > 0 ? bafItems.map((b) => `* ${b}`).join('\n') : '*';
+      const mItems = String(vars.milestones ?? '').split('\n').filter(Boolean);
+      const mLines = mItems.length > 0 ? mItems.map((m) => `- [ ] ${m}`).join('\n') : '- [ ] ';
+      return [
+        '## Vision', '', vision, '',
+        '**Be and Feel:**', bafLines, '',
+        '## Milestones', mLines, '',
+        '## Assessment',
+        '#### Experience', String(vars.assessmentExperience ?? ''), '',
+        '#### Problem', String(vars.assessmentProblem ?? ''), '',
+        '#### Pain', String(vars.assessmentPain ?? ''), '',
+        '#### Relief', String(vars.assessmentRelief ?? ''), '',
+        '#### Reward', String(vars.assessmentReward ?? ''),
+      ].join('\n');
+    }
 
     case 'annual-outcomes': {
       const lines = String(vars.outcomes ?? '')
