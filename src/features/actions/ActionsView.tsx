@@ -3,9 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import { BackIcon } from '@/components/ui/icons';
+import { showToast } from '@/components/ui/Toast';
+import { createAndOpen } from '@/features/documents/createAndOpen';
 import type { DocumentRow } from '@/lib/db';
 import type { ActionsFilter } from '@/lib/navigation/types';
 import styles from './ActionsView.module.css';
+
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width="20" height="20">
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  );
+}
 
 function todayIso(): string {
   const d = new Date();
@@ -66,14 +76,31 @@ export function ActionsView() {
     topLayer?.view === 'actions' ? topLayer.filter : 'today';
 
   const [localFilter, setLocalFilter] = useState<ActionsFilter>(activeFilter);
+  const [creating, setCreating] = useState(false);
   const docs = useActionsDocs(localFilter);
 
-  const handleFilterChange = (f: ActionsFilter) => {
-    setLocalFilter(f);
-  };
+  const handleFilterChange = (f: ActionsFilter) => setLocalFilter(f);
 
   const handleOpen = (id: string) => {
     pushLayer({ view: 'document-detail', documentId: id });
+  };
+
+  const handleCreate = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const isProject = localFilter === 'projects';
+      const id = await createAndOpen({
+        type: 'action',
+        subtype: isProject ? 'project' : 'task',
+        defaultStatus: isProject ? 'active' : 'open',
+      });
+      pushLayer({ view: 'document-detail', documentId: id });
+    } catch {
+      showToast('Could not create — try again');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -83,7 +110,15 @@ export function ActionsView() {
           <BackIcon />
         </button>
         <span className={styles.title}>Actions</span>
-        <span />
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={() => void handleCreate()}
+          disabled={creating}
+          aria-label="New document"
+        >
+          <PlusIcon />
+        </button>
       </header>
 
       <div className={styles.filterRow}>

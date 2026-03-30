@@ -3,8 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useNavigationActions } from '@/components/providers';
 import { BackIcon } from '@/components/ui/icons';
+import { showToast } from '@/components/ui/Toast';
+import { createAndOpen } from '@/features/documents/createAndOpen';
 import type { DocumentRow } from '@/lib/db';
 import styles from './ReferenceView.module.css';
+
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width="20" height="20">
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  );
+}
 
 const SUBTYPES = ['all', 'slip', 'literature'] as const;
 type Subtype = (typeof SUBTYPES)[number];
@@ -36,6 +46,7 @@ export function ReferenceView() {
   const { goBack, pushLayer } = useNavigationActions();
   const [subtype, setSubtype] = useState<Subtype>('all');
   const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
   const deferredSearch = useDeferredValue(search);
   const allDocs = useReferenceDocs(subtype);
 
@@ -53,6 +64,23 @@ export function ReferenceView() {
     pushLayer({ view: 'document-detail', documentId: id });
   };
 
+  const handleCreate = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const config =
+        subtype === 'literature'
+          ? { type: 'reference', subtype: 'literature', defaultStatus: 'active' }
+          : { type: 'reference', subtype: 'slip',       defaultStatus: 'active' };
+      const id = await createAndOpen(config);
+      pushLayer({ view: 'document-detail', documentId: id });
+    } catch {
+      showToast('Could not create — try again');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
@@ -60,7 +88,15 @@ export function ReferenceView() {
           <BackIcon />
         </button>
         <span className={styles.title}>Reference</span>
-        <span />
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={() => void handleCreate()}
+          disabled={creating}
+          aria-label="New document"
+        >
+          <PlusIcon />
+        </button>
       </header>
 
       <div className={styles.searchRow}>

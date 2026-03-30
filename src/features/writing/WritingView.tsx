@@ -3,8 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useNavigationActions } from '@/components/providers';
 import { BackIcon } from '@/components/ui/icons';
+import { showToast } from '@/components/ui/Toast';
+import { createAndOpen } from '@/features/documents/createAndOpen';
 import type { DocumentRow } from '@/lib/db';
 import styles from './WritingView.module.css';
+
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width="20" height="20">
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  );
+}
 
 type SortKey = 'date_modified' | 'date_created' | 'growth';
 
@@ -45,10 +55,28 @@ export function WritingView() {
   const { goBack, pushLayer } = useNavigationActions();
   const [subtype, setSubtype] = useState<Subtype>('all');
   const [sort, setSort] = useState<SortKey>('date_modified');
+  const [creating, setCreating] = useState(false);
   const docs = useWritingDocs(subtype, sort);
 
   const handleOpen = (id: string) => {
     pushLayer({ view: 'document-detail', documentId: id });
+  };
+
+  const handleCreate = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const config =
+        subtype === 'framework' ? { type: 'creation',     subtype: 'framework', defaultStatus: 'draft' } :
+        subtype === 'workshop'  ? { type: 'transmission', subtype: 'workshop',  defaultStatus: 'draft' } :
+                                  { type: 'creation',     subtype: 'essay',     defaultStatus: 'draft' };
+      const id = await createAndOpen(config);
+      pushLayer({ view: 'document-detail', documentId: id });
+    } catch {
+      showToast('Could not create — try again');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -58,7 +86,17 @@ export function WritingView() {
           <BackIcon />
         </button>
         <span className={styles.title}>Writing</span>
-        <select
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={() => void handleCreate()}
+            disabled={creating}
+            aria-label="New document"
+          >
+            <PlusIcon />
+          </button>
+          <select
           className={styles.sortSelect}
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
@@ -68,6 +106,7 @@ export function WritingView() {
           <option value="date_created">Created</option>
           <option value="growth">Growth</option>
         </select>
+        </div>
       </header>
 
       <div className={styles.filterRow}>

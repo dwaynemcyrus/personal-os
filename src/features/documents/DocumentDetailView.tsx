@@ -4,10 +4,12 @@ import { supabase } from '@/lib/supabase';
 import { updateDocument } from '@/lib/db';
 import { queryClient } from '@/lib/queryClient';
 import { buildRawDocument, parseRawToDocumentPatch } from '@/lib/documentRaw';
-import { CodeMirrorEditor } from '@/components/editor';
+import { getDocumentTemplate } from '@/lib/templates';
+import { CodeMirrorEditor, type CodeMirrorEditorHandle } from '@/components/editor';
 import { BackIcon } from '@/components/ui/icons';
 import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
+import { TemplatePicker } from './TemplatePicker';
 import type { DocumentRow } from '@/lib/db';
 import styles from './DocumentDetailView.module.css';
 
@@ -41,12 +43,14 @@ export function DocumentDetailView({ documentId }: Props) {
   const { goBack } = useNavigationActions();
   const { data: doc, isLoading } = useDocumentRow(documentId);
 
-  const [rawMode, setRawMode] = useState(false);
-  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [rawMode, setRawMode]               = useState(false);
+  const [saveState, setSaveState]           = useState<SaveState>('idle');
+  const [templateOpen, setTemplateOpen]     = useState(false);
 
-  const saveTimerRef    = useRef<number | undefined>(undefined);
-  const latestValueRef  = useRef<string | null>(null);
-  const rawModeRef      = useRef(rawMode);
+  const saveTimerRef   = useRef<number | undefined>(undefined);
+  const latestValueRef = useRef<string | null>(null);
+  const rawModeRef     = useRef(rawMode);
+  const editorRef      = useRef<CodeMirrorEditorHandle>(null);
 
   useEffect(() => { rawModeRef.current = rawMode; }, [rawMode]);
 
@@ -97,6 +101,31 @@ export function DocumentDetailView({ documentId }: Props) {
     setRawMode((v) => !v);
   }, [saveState, flushSave]);
 
+  // Apply a template — replaces body content, never touches frontmatter dates
+  const handleApplyTemplate = useCallback((type: string, subtype: string | null) => {
+    const body = getDocumentTemplate(type, subtype) ?? '';
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    if (rawModeRef.current && doc) {
+      // In raw mode: rebuild the full raw string with new body
+      const newRaw = buildRawDocument({ ...doc, content: body });
+      editor.replaceContent(newRaw);
+      latestValueRef.current = newRaw;
+    } else {
+      editor.replaceContent(body);
+      latestValueRef.current = body;
+    }
+
+    setSaveState('dirty');
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      if (latestValueRef.current !== null) {
+        void flushSave(latestValueRef.current, rawModeRef.current);
+      }
+    }, SAVE_DEBOUNCE_MS);
+  }, [doc, flushSave]);
+
   const title = doc?.title ?? (doc ? `${doc.type}${doc.subtype ? `:${doc.subtype}` : ''}` : 'Document');
 
   const indicatorText =
@@ -127,6 +156,15 @@ export function DocumentDetailView({ documentId }: Props) {
           </span>
           <button
             type="button"
+            className={styles.modeToggle}
+            onClick={() => setTemplateOpen(true)}
+            title="Apply template"
+            aria-label="Apply template"
+          >
+            ¶
+          </button>
+          <button
+            type="button"
             className={`${styles.modeToggle} ${rawMode ? styles.modeToggleActive : ''}`}
             onClick={handleToggleRaw}
             aria-pressed={rawMode}
@@ -146,6 +184,7 @@ export function DocumentDetailView({ documentId }: Props) {
 
         {!isLoading && doc && (
           <CodeMirrorEditor
+            ref={editorRef}
             key={editorKey}
             initialBody={initialContent}
             onChange={handleChange}
@@ -155,6 +194,12 @@ export function DocumentDetailView({ documentId }: Props) {
           />
         )}
       </div>
+
+      <TemplatePicker
+        open={templateOpen}
+        onOpenChange={setTemplateOpen}
+        onSelect={handleApplyTemplate}
+      />
     </div>
   );
 }

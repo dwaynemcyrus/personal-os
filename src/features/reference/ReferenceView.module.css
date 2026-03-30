@@ -29,6 +29,8 @@
 
 .iconBtn svg { width: 20px; height: 20px; }
 
+.iconBtn:hover { color: var(--color-ink, #fcfbf8); }
+
 .iconBtn:focus-visible {
   outline: 2px solid rgba(252, 251, 248, 0.5);
   outline-offset: 2px;
