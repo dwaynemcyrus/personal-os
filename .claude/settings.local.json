@@ -88,7 +88,15 @@
       "Bash(ps -p 7999,99609,99758 -o pid,command)",
       "Bash(kill 7999 99609 99758)",
       "Bash(find /Users/cyrus/Code/personal-os/src/components/providers -type f 2>/dev/null || find /Users/cyrus/Code/personal-os/src -name \"providers*\" -type f 2>/dev/null | head -20)",
-      "Bash(head -50 src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx && echo \"...\" && sed -n '450,490p' src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx && echo \"...\" && sed -n '650,670p' src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx)"
+      "Bash(head -50 src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx && echo \"...\" && sed -n '450,490p' src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx && echo \"...\" && sed -n '650,670p' src/features/tasks/TaskDetailSheet/TaskDetailSheet.tsx)",
+      "Bash(find /Users/cyrus/Code/personal-os -type f \\\\\\( -name \"*.sql\" -o -path \"*supabase*\" \\\\\\) 2>/dev/null | head -30)",
+      "Bash(cat package.json | python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('\\\\n'.join\\(sorted\\(list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\) + list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\\)\\)\")",
+      "Bash(find /Users/cyrus/Code/personal-os/src -name \"templates.ts\" 2>/dev/null && find /Users/cyrus/Code/personal-os/src -name \"*.ts\" | xargs grep -l \"replaceTemplateVariables\\\\|resolveTemplate\" 2>/dev/null)",
+      "Bash(npx vite:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(__NEW_LINE_cbcc65b2171ac2d2__ git:*)",
+      "Bash(__NEW_LINE_ed5a284894175801__ git:*)",
+      "Bash(__NEW_LINE_267cb43efe9db96d__ git:*)"
     ]
   }
 }
