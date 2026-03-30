@@ -9,11 +9,8 @@ import {
 import { createPortal } from 'react-dom';
 import { HeaderSlotCtx, type HeaderSlot } from './HeaderSlot';
 import { CommandSheet } from '@/components/layout/CommandSheet/CommandSheet';
-import { ContextSheet } from '@/components/layout/ContextSheet/ContextSheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
-import { InboxWizard } from '@/components/layout/InboxWizard/InboxWizard';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
-import { useAnyWizardOpen } from '@/components/providers';
 import { ToastHost } from '@/components/ui/Toast';
 import { useTimer } from '@/features/timer';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
@@ -23,11 +20,7 @@ import styles from './AppShell.module.css';
 
 type AppShellProps = {
   children: React.ReactNode;
-  isInboxOpen: boolean;
-  onInboxOpenChange: (open: boolean) => void;
 };
-
-const LONG_PRESS_MS = 500;
 
 const useHydrated = () =>
   useSyncExternalStore(
@@ -62,17 +55,12 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
   }
 }
 
-export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   const { stack } = useNavigationState();
   const { goBack } = useNavigationActions();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
-  const anyWizardOpen = useAnyWizardOpen();
-  const [isTaskDetailSheetOpen, setIsTaskDetailSheetOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
-  const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
 
-  const longPressTimerRef = useRef<number | undefined>(undefined);
-  const longPressTriggeredRef = useRef(false);
   const fabRef = useRef<HTMLButtonElement>(null);
 
   const {
@@ -109,81 +97,7 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
     goBack();
   };
 
-  const clearLongPressTimer = useCallback(() => {
-    if (longPressTimerRef.current !== undefined) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = undefined;
-    }
-  }, []);
-
-  // --- FAB pointer event handlers ---
-
-  const handleFabPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (isCommandOpen) return;
-    if (isContextSheetOpen) return;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    event.preventDefault();
-    longPressTriggeredRef.current = false;
-    clearLongPressTimer();
-    longPressTimerRef.current = window.setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      setIsContextSheetOpen(true);
-    }, LONG_PRESS_MS);
-  };
-
-  const handleFabPointerUp = () => {
-    clearLongPressTimer();
-  };
-
-  const handleFabPointerCancel = () => {
-    clearLongPressTimer();
-    longPressTriggeredRef.current = false;
-  };
-
-  const handleFabClick = () => {
-    if (longPressTriggeredRef.current) {
-      longPressTriggeredRef.current = false;
-      return;
-    }
-    clearLongPressTimer();
-    if (isCommandOpen) {
-      setIsCommandOpen(false);
-      return;
-    }
-    setIsCommandOpen(true);
-  };
-
-  // --- Touch event handlers (mobile fallback) ---
-
   const hydrated = useHydrated();
-  const touchEnabled =
-    hydrated &&
-    (window.matchMedia('(pointer: coarse)').matches ||
-      window.matchMedia('(hover: none)').matches);
-
-  const handleTouchStart = (event: React.TouchEvent<HTMLButtonElement>) => {
-    if (isCommandOpen) return;
-    if (isContextSheetOpen) return;
-    const touch = event.touches[0];
-    if (!touch) return;
-    longPressTriggeredRef.current = false;
-    clearLongPressTimer();
-    longPressTimerRef.current = window.setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      setIsContextSheetOpen(true);
-    }, LONG_PRESS_MS);
-  };
-
-  const handleTouchEnd = () => {
-    clearLongPressTimer();
-  };
-
-  const touchHandlers = touchEnabled
-    ? {
-        onTouchStart: handleTouchStart,
-        onTouchEnd: handleTouchEnd,
-      }
-    : {};
 
   // --- Other handlers ---
 
@@ -203,24 +117,6 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
   }, []);
 
 
-  useEffect(() => {
-    const handleTaskDetailOpenChange = (event: Event) => {
-      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
-      setIsTaskDetailSheetOpen(Boolean(detail?.open));
-    };
-
-    window.addEventListener(
-      'task-detail-sheet:open-change',
-      handleTaskDetailOpenChange
-    );
-    return () => {
-      window.removeEventListener(
-        'task-detail-sheet:open-change',
-        handleTaskDetailOpenChange
-      );
-    };
-  }, []);
-
   // Cmd/Ctrl+K keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -235,6 +131,8 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
 
   const focusStatusLabel = formatFocusStatus(focusState);
   const showFocusChip = focusState !== 'idle';
+
+  const handleFabClick = () => setIsCommandOpen((prev) => !prev);
 
   const portalTarget = hydrated ? document.body : null;
 
@@ -329,29 +227,19 @@ export function AppShell({ children, isInboxOpen, onInboxOpenChange }: AppShellP
       {portalTarget &&
         createPortal(
           <>
-            {!isTaskDetailRoute && !isDocumentDetailRoute && !isNewBucketRoute && !isTaskDetailSheetOpen && !isInboxOpen && !anyWizardOpen && (
+            {!isTaskDetailRoute && !isDocumentDetailRoute && !isNewBucketRoute && (
               <button
                 type="button"
                 className={styles['app-shell__fab']}
-                aria-label={isCommandOpen || isContextSheetOpen ? 'Close' : 'Open command sheet'}
+                aria-label={isCommandOpen ? 'Close' : 'Open command sheet'}
                 ref={fabRef}
                 onClick={handleFabClick}
-                onContextMenu={(e) => e.preventDefault()}
-                onPointerDown={handleFabPointerDown}
-                onPointerUp={handleFabPointerUp}
-                onPointerCancel={handleFabPointerCancel}
-                {...touchHandlers}
               >
-                {isCommandOpen || isContextSheetOpen ? <FabCloseIcon /> : <FabIcon />}
+                {isCommandOpen ? <FabCloseIcon /> : <FabIcon />}
               </button>
             )}
 
             <CommandSheet open={isCommandOpen} onOpenChange={setIsCommandOpen} />
-            <InboxWizard open={isInboxOpen} onOpenChange={onInboxOpenChange} />
-            <ContextSheet
-              open={isContextSheetOpen}
-              onOpenChange={setIsContextSheetOpen}
-            />
           </>,
           portalTarget
         )}
