@@ -1,457 +1,470 @@
-# Personal OS - Development Plan
+# Personal OS - Rebuild Plan
 `codex resume 019c264c-af4c-7763-b52e-ab053833111a`
-## Current Status: MVP Phase - Sync Proof of Concept ✅
 
-Last updated: February 4, 2026
+## Primary Reference
+
+- Rebuild brief: `docs/_new/v1-rebuild-brief.md`
+
+## Current Direction
+
+This repository is now on a deliberate v1 rebuild path.
+
+V1 will:
+
+- standardize fully on the new document model
+- keep the existing Vite SPA shell
+- preserve the structural UI/UX patterns from legacy notes, tasks, and projects
+- rebuild in very small chunks
+- remove dependency on legacy schema assumptions
+
+V1 will not:
+
+- continue the old RxDB/legacy-items architecture
+- preserve dropped legacy tables as active dependencies
+- do broad mixed refactors
+- port old feature code unchanged
 
 ---
 
-## Active Chunk: CodeMirror Hybrid Integration
+## Current Reality
 
-**Goal:** Incrementally layer `codemirror-for-writers` into the notes editor while preserving frontmatter workflow and local package usage.
+The repo currently contains two overlapping systems:
 
-### Plan
-- [ ] Update `CodeMirrorEditor` to use `hybridMarkdown(...)` as the primary editor extension stack.
-- [ ] Keep frontmatter hidden/edit workflow intact (`frontmatterExtension` + frontmatter sheet behavior).
-- [ ] Keep wiki-link autocomplete but remove conflicting in-editor replacement/click layers.
-- [ ] Switch focus/typewriter behavior to package-native focus/typewriter mode.
-- [ ] Verify with `npm run lint` and `npm run type-check`.
+1. New document-model surfaces
+   - Home
+   - Command sheet
+   - Inbox
+   - Document detail
+   - Actions
+   - Writing
+   - Reference
 
-### Risks
-- Hybrid preview decorations can conflict with existing custom wiki-link/callout replacement widgets if both run simultaneously.
-- Local package points to `../codemirror-for-writers`; if `dist/` artifacts are missing, imports can fail until library build artifacts exist.
+2. Legacy schema-dependent surfaces
+   - notes
+   - tasks
+   - projects
+   - strategy
+   - backup / restore / import / export
+
+The rebuild exists to converge these into one coherent product.
+
+---
+
+## Product Principles
+
+- Build from the visual language in `ContextSheet`
+- Preserve the interaction structure of legacy notes, tasks, and projects
+- Use the new `items` document model as the only source of truth
+- Favor small diffs over ambitious rewrites
+- Keep the app working after every chunk
+- Prefer explicit verification over assumptions
+
+---
+
+## Preservation Targets
+
+### Notes
+
+Preserve:
+
+- grouped entry points
+- list/detail split on desktop
+- mobile list-to-detail behavior
+- row density and metadata treatment
+- focused editor experience
+
+Rebuild against:
+
+- canonical document rows
+- canonical frontmatter parsing
+- canonical content storage
+
+### Tasks
+
+Preserve:
+
+- bucketed navigation
+- chip-based filtering
+- dense task rows
+- scheduling affordances
+- rich task detail sheet
+
+Rebuild against:
+
+- `action:task` documents
+- canonical status and date fields
+
+### Projects
+
+Preserve:
+
+- project list
+- project detail sheet
+- quick-add task flow
+- grouped hierarchy behavior where still valid
+
+Rebuild against:
+
+- `action:project` documents
+- shared action model with tasks
+
+---
+
+## Active Plan
+
+## Chunk 0 - Freeze The Canonical Contract
+
+**Goal:** Make the rebuild direction explicit so all future work follows the same architecture.
+
+### Scope
+
+- rewrite `PLANS.md`
+- maintain the rebuild brief in `docs/_new/v1-rebuild-brief.md`
+- document the canonical v1 direction before more implementation work lands
+
+### Exit Conditions
+
+- planning docs describe the same architecture
+- old roadmap language is removed from the main plan
+- future work can reference one current plan
 
 ### Verification
-- `npm run lint`
+
+- manual doc review
+
+### Status
+
+- [x] completed
+
+---
+
+## Chunk 1 - Harden The New Document Core
+
+**Goal:** Make the current document-model app surfaces stable enough to serve as the base for all future rebuild work.
+
+### Focus Areas
+
+- canonical `items` create/update helpers
+- query invalidation consistency
+- document editor save behavior
+- Home, Command, Inbox, Actions, Writing, Reference, Document Detail coherence
+- navigation restore for the new views
+
+### Files Likely To Change
+
+- `src/lib/db.ts`
+- `src/lib/navigation/paths.ts`
+- `src/App.tsx`
+- `src/features/home/HomeView.tsx`
+- `src/components/layout/CommandSheet/CommandSheet.tsx`
+- `src/features/inbox/InboxListView.tsx`
+- `src/features/documents/DocumentDetailView.tsx`
+- `src/features/actions/ActionsView.tsx`
+- `src/features/writing/WritingView.tsx`
+- `src/features/reference/ReferenceView.tsx`
+
+### Exit Conditions
+
+- the new primary surfaces behave consistently on one schema
+- refresh and direct navigation work for the new v1 views
+- no active v1 path in this chunk relies on legacy helpers
+
+### Verification
+
 - `npm run type-check`
+- `npm run lint`
+- `npm run build`
+- manual flow checks for:
+  - sign in
+  - daily note open/create
+  - command capture to inbox
+  - open document from recent/search
+  - open inbox list
+  - open actions/writing/reference
+
+### Status
+
+- [ ] next
 
 ---
 
-## Phase 1: Foundation (CURRENT)
+## Chunk 2 - Rebuild Notes On The Canonical Model
 
-**Goal:** Get sync working reliably
+**Goal:** Preserve the legacy notes UX structure while removing dependency on legacy tables and columns.
 
-### ✅ Completed
-- [x] Supabase project setup
-- [x] RxDB + Supabase sync for single table
-- [x] Basic Next.js project structure
-- [x] TypeScript strict mode
-- [x] Agent files (architecture, frontend, execplans)
-- [x] Single-route architecture note (`docs/single-route-architecture.md`)
+### Preserve
 
-### 🚧 In Progress
-- [x] Verify sync works offline→online
-- [x] Test on two browser tabs
-- [x] Test on mobile device
+- overview to list to detail structure
+- grouped note entry points
+- mobile/desktop shell split
+- editor-focused detail view
 
-### ⏳ Next Up
-- [x] Expand to full schema (projects, tasks, notes, habits, time_entries)
-- [ ] Test sync for all tables
-- [ ] Review markdown-first editor build spec (`docs/build-specs/md-first-editor.md`)
+### Replace
 
----
+- `item_content`
+- `item_links`
+- `item_versions`
+- legacy note metadata assumptions
 
-## Phase 2: Core Schema + Full Sync (with Minimal CRUD Validation)
+### Files Likely To Change
 
-**Goal:** All data models syncing correctly
+- `src/features/notes/**/*`
+- `src/components/editor/**/*`
+- `src/lib/documentRaw.ts`
+- `src/lib/templates.ts`
+- `src/lib/markdown/**/*`
 
-### Day 1: Data Model + Docs
-- [x] Update `docs/schema.md` conventions to use `is_trashed` (canonical) + `trashed_at`
-- [x] Add `trashed_at TIMESTAMPTZ DEFAULT NULL` to **all** tables (including `habit_completions` and `sync_test`); set only on delete
-- [x] Create/verify Supabase tables for: projects, tasks, notes, habits, habit_completions, time_entries
-- [x] Add indexes for `is_trashed` + `trashed_at` where appropriate
-- [x] Decide/confirm `trashed_at` default behavior (see risks)
+### Exit Conditions
 
-### Day 2: RxDB Collections + Migrations
-- [x] Define RxDB schemas for all collections (with `is_trashed` + `trashed_at`)
-- [x] Add collection registration in `src/lib/db.ts`
-- [x] Add migration strategy for any schema version bumps (greenfield, but keep structure)
-- [x] Add shared TypeScript types per collection
+- notes list and detail are powered by the canonical document model
+- the preserved notes UX remains recognizable
+- no active note flow depends on dropped legacy tables
 
-### Day 3: Sync Expansion
-- [x] Generalize sync logic to handle multiple collections (avoid duplicate polling/subscriptions)
-- [x] Ensure soft deletes sync across devices (`is_trashed` + `trashed_at`)
-- [x] Add per-collection pull/push with conflict resolution (LWW on `updated_at`)
-- [x] Add offline→online recovery hooks
+### Verification
 
-### Day 4: Minimal CRUD Validation UI
-- [x] Add a single `/app/dev` validation page with minimal CRUD for each collection (create/list/update/delete)
-- [x] Keep UI simple and mobile-first; use 44px touch targets
-- [x] Validate relationships: tasks → projects, time_entries → tasks, habit_completions → habits
-- [x] Add basic empty/loading states
+- `npm run type-check`
+- `npm run lint`
+- `npm run build`
+- manual note flow checks for:
+  - open grouped notes views
+  - open a note
+  - edit and save
+  - create from template
+  - trash and restore behavior
 
-### Day 5: Verification + Hardening
-- [x] Test multi-table sync (create project → add task → sync both)
-- [x] Verify referential integrity (task.project_id, time_entries.task_id, habit_completions.habit_id)
-- [x] Test offline→online for each collection
-- [x] Verify soft delete propagation across two tabs/devices
-- [x] Run lint + type-check (add missing scripts if needed)
+### Status
 
-**Completion criteria:**
-- Can create/edit/delete in each table offline
-- Changes sync to Supabase when online
-- No data loss after browser refresh
-- Works across two devices
+- [ ] pending
 
 ---
 
-## Phase 3: Navigation Shell
+## Chunk 3 - Rebuild Tasks As `action:task`
 
-**Goal:** App structure and navigation working
+**Goal:** Preserve legacy task UX while moving task behavior onto canonical action documents.
 
-### Tasks
-- [x] Create layout shell (TopBar, FAB, SlideMenu)
-- [x] Implement menu button (top-left on home)
-- [x] Implement back button (top-left on other pages)
-- [x] Create slide-in menu (80% width, 3 sections)
-- [x] Add FAB (bottom center)
-- [x] Setup routes (/, /strategy, /knowledge, /execution)
-- [x] Add safe area insets for iPhone
+### Preserve
 
-**Completion criteria:**
-- Can navigate between all root pages
-- Back button works based on depth
-- Menu opens/closes smoothly
-- FAB visible and tappable (44px minimum)
+- task buckets
+- chip filters
+- row density
+- checkbox completion flow
+- task detail sheet
+- scheduling fields
 
----
+### Replace
 
-## Phase 4: Timer Feature
+- `item_status`
+- `is_someday`
+- `is_waiting`
+- other legacy task-only schema fields where they conflict with the new model
 
-**Goal:** Start/stop timer, track time entries
+### Files Likely To Change
 
-### Tasks
-- [x] Create Timer component
-- [x] Start timer (insert time_entry with started_at)
-- [x] Stop timer (update stopped_at, calculate duration)
-- [x] Display elapsed time (update every second)
-- [x] Persist active timer across refresh
-- [x] Restore timer on app load
-- [x] Add unplanned time labels + suggestions
-- [x] Group time entries by session + date in Execution
-- [x] Show session details inline (segments, project, type)
-- [ ] Add haptic feedback on start/stop
-- [x] Test sync (start on phone, see on desktop)
+- `src/features/tasks/**/*`
+- `src/features/actions/**/*`
+- `src/lib/db.ts`
+- `src/lib/templates.ts`
 
-**Completion criteria:**
-- Timer doesn't lose data on refresh
-- Elapsed time accurate to the second
-- Syncs across devices
-- Works offline
+### Exit Conditions
 
----
+- task list and detail work on canonical action documents
+- today/upcoming/backlog/someday behavior is defined on the new model
+- the UI preserves the current task feel
 
-## Phase 5: Task Management
+### Verification
 
-**Goal:** Create/complete/delete tasks
+- `npm run type-check`
+- `npm run lint`
+- `npm run build`
+- manual task flow checks for:
+  - create task
+  - edit task
+  - complete/uncomplete task
+  - schedule task
+  - move across filters
 
-### Tasks
-- [x] TaskList component (mobile-first)
-- [x] Create task form
-- [x] Toggle task completion (checkbox)
-- [x] Delete task (swipe or button)
-- [x] Link tasks to projects
-- [x] Filter tasks (all, active, completed)
-- [x] Add to /execution page
+### Status
 
-**Completion criteria:**
-- Can create tasks offline
-- Completion syncs immediately
-- Deletion works (soft delete)
-- Tasks show under correct project
+- [ ] pending
 
 ---
 
-## Phase 6: Project Management
+## Chunk 4 - Rebuild Projects As `action:project`
 
-**Goal:** Organize tasks into projects
+**Goal:** Preserve project list/detail UX while standardizing projects on the canonical action model.
 
-### Tasks
-- [x] ProjectList component
-- [x] Create project form
-- [x] ProjectDetail page (shows tasks)
-- [x] Edit project
-- [x] Delete project
-- [x] Add to /execution page
-- [x] Project detail sheet enhancements (quick add, date clear, compact task detail sheet)
+### Preserve
 
-**Completion criteria:**
-- Can create projects offline
-- Can view tasks within project
-- Edit/delete works
-- Syncs across devices
+- project list
+- project detail sheet
+- quick-add tasks inside project detail
+- grouped/hierarchical presentation where still useful
 
----
+### Files Likely To Change
 
-## Phase 7: Note Taking
+- `src/features/projects/**/*`
+- `src/features/actions/**/*`
+- `src/features/tasks/**/*`
 
-**Goal:** Create/edit notes with basic editor
+### Exit Conditions
 
-### Tasks
-- [x] NotesList component
-- [x] Create note
-- [x] Basic textarea editor (MVP)
-- [x] Auto-save on blur (debounced)
-- [x] Delete note (trash)
-- [x] Add to thoughts context
-- [x] Fullscreen note editor sheet (right swipe to exit, 30% threshold, 48px edge exclusion)
-- [x] Fix note editor list/task rendering + cursor movement + gutter click
-- [x] Note editor actions menu (close + trash)
-- [x] Thoughts menu + notes list sheets (stacked navigation)
-- [x] Pin/unpin notes with pinned-first sorting
-- [x] Coming soon toast for placeholder thoughts views
-- [x] Markdown-first editor rollout (phase 1: reader scaffold)
-- [x] Markdown-first editor rollout (phase 2: markdown-it reader render)
-- [ ] Markdown-first editor rollout (phase 3: shiki reader highlighting)
-- [x] Markdown-first editor rollout (phase 4a: frontmatter parse on save)
-- [x] Markdown-first editor rollout (phase 4b: frontmatter sheet)
-- [x] Markdown-first editor rollout (phase 4c: hide frontmatter in editor/reader)
+- project list and project detail work on canonical documents
+- project/task relationship is coherent with the rebuilt task model
+- preserved project UX remains intact
 
-**Completion criteria:**
-- Can create notes offline
-- Auto-save works (no manual save needed)
-- Syncs content changes
-- Works on mobile
+### Verification
 
-**Later:** Replace textarea with CodeMirror
+- `npm run type-check`
+- `npm run lint`
+- `npm run build`
+- manual project flow checks for:
+  - create project
+  - edit project
+  - quick-add task
+  - open linked tasks from project context
+
+### Status
+
+- [ ] pending
 
 ---
 
-## Phase 8: Habit Tracking
+## Chunk 5 - Rewrite Portability And Trust Features
 
-**Goal:** Daily habit check-ins
+**Goal:** Make personal data import/export/backup/restore trustworthy on the canonical schema.
 
-### Tasks
-- [ ] HabitList component
-- [ ] Create habit
-- [ ] Check habit for today
-- [ ] Show last 7 days
-- [ ] Streak counter
-- [ ] Add to /execution page
+### Focus Areas
 
-**Completion criteria:**
-- Can check habit offline
-- Completion syncs
-- Shows accurate streak
-- Mobile-optimized UI
+- backup
+- restore
+- wipe
+- markdown export
+- markdown import
 
----
+### Files Likely To Change
 
-## Phase 9: Command Center (FAB)
+- `src/lib/backup.ts`
+- `src/lib/exportNotes.ts`
+- `src/lib/importNotes.ts`
+- `src/features/settings/SettingsPage.tsx`
 
-**Goal:** Quick capture and search
+### Exit Conditions
 
-### Tasks
-- [x] Command center sheet full screen (on FAB tap)
-- [x] Quick capture input
-- [ ] Parse input (create task, note, etc.)
-- [ ] Search functionality (across all content)
-- [x] Keyboard shortcuts
-- [ ] Haptic feedback
+- no portability feature depends on dropped legacy tables
+- exported data reflects the canonical markdown document model
+- restore behavior is understandable and safe
 
-**Completion criteria:**
-- Opens instantly on FAB tap
-- Can create task/note from single input
-- Search finds results across all data
-- Works offline
+### Verification
 
----
+- `npm run type-check`
+- `npm run lint`
+- `npm run build`
+- manual checks for:
+  - export a document set
+  - re-import exported markdown
+  - create backup
+  - validate restore path on a test dataset
 
-## Phase 10: FAB Navigation
+### Status
 
-**GoUpdate the `/CHANGELOG.md` with a summary of our changes and the recommended version release number. Read the latest changelog entry for context. Then commit using `git tag -a vX.X.X -m "". then ask for confirmation.al:** Drag FAB to navigate
-
-### Tasks
-- [x] FAB hold detection (500ms)
-- [x] Show 3 target zones (strategy, knowledge, execution)
-- [ ] Drag mechanics (framer-motion)
-- [x] Visual feedback (zones highlight on drag)
-- [x] Navigate on drop to zone
-- [ ] Haptic feedback on zone enter
-- [x] Cancel drag (drag outside zones)
-
-**Completion criteria:**
-- Hold FAB → zones appear
-- Drag to zone → navigates
-- Smooth animations
-- Works on touch devices
+- [ ] pending
 
 ---
 
-## Phase 11: Gestures & Polish
+## Chunk 6 - Reassess Strategy After Core Stabilization
 
-**Goal:** Native app feel
+**Goal:** Keep strategy code hidden and out of the critical path until the core rebuild is stable.
 
-### Tasks
-- [ ] Pull-to-refresh (trigger sync)
-- [ ] Swipe-to-go-back, swiping the full sheet to the right at 80% pull the auto pull triggers (like Bear app)
-- [ ] Skeleton loading states (all lists)
-- [ ] Offline indicator banner/chiklet
-- [ ] Sync status indicator (subtle)
-- [ ] Loading transitions
-- [ ] Empty states
+### Rules
 
-**Completion criteria:**
-- Pull-to-refresh works on all list pages
-- Swipe back works (not on home)
-- All loading states use skeletons
-- User always knows sync status
-- Feels native on mobile
+- strategy stays hidden by default
+- no new strategy work until chunks 1-5 are stable
+- strategy can be ported later only if it fits the canonical document model cleanly
 
----
+### Exit Conditions
 
-## Phase 12: CodeMirror Integration
+- strategy is clearly deprioritized without being deleted
+- no core v1 decision is blocked by strategy work
 
-**Goal:** Rich text editing for notes
+### Verification
 
-### Tasks
-- [ ] Install CodeMirror dependencies
-- [ ] Create Editor component wrapper
-- [ ] Add markdown support
-- [ ] Syntax highlighting
-- [ ] Auto-save integration
-- [ ] Replace textarea in NoteEditor
-- [ ] Test on mobile (keyboard handling)
+- manual review of visibility and routing behavior
 
-**Completion criteria:**
-- Editor loads <500ms
-- Markdown preview works
-- Auto-save doesn't interrupt typing
-- Works on mobile keyboards
+### Status
+
+- [ ] pending
 
 ---
 
-## Phase 13: Dark Mode
+## Chunk 7 - Remove Or Quarantine Remaining Legacy Paths
 
-**Goal:** Support light and dark themes
+**Goal:** End the rebuild with one understandable architecture.
 
-### Tasks
-- [ ] Setup CSS custom properties for themes
-- [ ] Add theme toggle in menu
-- [ ] Persist theme preference (localStorage)
-- [ ] Update all components for dark mode
-- [ ] Respect system preference
-- [ ] Smooth transition animation
+### Focus Areas
 
-**Completion criteria:**
-- Dark mode works everywhere
-- No flashing on page load
-- Persists across sessions
-- Smooth transition
+- delete dead code where safe
+- isolate transitional code where immediate deletion is too risky
+- remove stale docs
+- remove legacy helpers that no longer serve the rebuilt app
 
----
+### Exit Conditions
 
-## Phase 14: PWA
+- active v1 code has one clear architectural story
+- dead or misleading paths are no longer mixed into primary flows
 
-**Goal:** Installable on mobile/desktop
+### Verification
 
-### Tasks
-- [x] Configure next-pwa
-- [ ] Create manifest.json
-- [ ] Add app icons (512x512, 192x192, etc.)
-- [x] Service worker setup
-- [x] Offline fallback page
-- [ ] Install prompts
-- [ ] Test installation on iOS and Android
+- `npm run type-check`
+- `npm run lint`
+- `npm run build`
+- final manual architecture review
 
-### Offline Navigation (Current Focus)
-- [x] Service worker for offline navigation
-- [x] Dedicated /offline route
-- [x] Precache core routes (/, /strategy, /knowledge, /execution)
+### Status
 
-**Completion criteria:**
-- App installable from browser
-- Works offline after install
-- Icons show correctly
-- Splash screen works
+- [ ] pending
 
 ---
 
-## Phase 15: Info Sheets
+## Quality Gates
 
-**Goal:** Stats and details per page
+For any chunk that touches logic, routing, state, or data behavior:
 
-### Tasks
-- [ ] Info button in TopBar (next to more button)
-- [ ] ProjectInfo sheet (task count, time spent)
-- [ ] HabitInfo sheet (streak, completion rate)
-- [ ] TaskInfo sheet (time entries, created date)
-- [ ] NoteInfo sheet (word count, created/updated)
+- run `npm run type-check`
+- run `npm run lint`
+- run `npm run build`
+- run or add tests when the behavior is failure-prone
 
-**Completion criteria:**
-- Info button shows when data available
-- Sheet opens from bottom
-- Shows relevant stats
-- Mobile-optimized
+For documentation-only chunks:
 
----
+- manual review is acceptable
 
-## Maintenance
+Current repo status:
 
-### 2026-02-04
-- [x] Clear lint errors (exclude generated service worker files, fix hooks lint issues)
-- [x] Fix AppShell hydration mismatch with hydration-safe portal gating
-- [x] Add thoughts sheets, note pinning, and restore sheet drag visuals
+- `type-check` passes
+- `build` passes
+- `lint` currently fails
+- `test` currently has no test files
+
+That means part of the rebuild path must include restoring meaningful quality gates.
 
 ---
 
-## Backlog (Not Prioritized)
+## Risks To Watch
 
-- [ ] Export/import data (JSON, CSV)
-- [ ] Keyboard shortcuts (desktop)
-- [ ] Undo/redo
-- [ ] Tags/labels system
-- [ ] Advanced search filters
-- [ ] Analytics dashboard
-- [ ] Charts/visualizations
-- [ ] Multi-user (authentication)
-- [ ] Real-time collaboration
-- [ ] Recurring tasks
-- [ ] Task templates
-- [ ] Voice input
-- [ ] Attachments/files
+- preserving UX too literally and accidentally re-importing legacy schema assumptions
+- mixing old and new task/project models during the transition
+- rebuilding notes without first defining the canonical metadata contract
+- leaving settings portability broken too late into the rebuild
+- relying on stale docs instead of current code and migrations
 
 ---
 
-## Known Issues
+## Immediate Working Rule
 
-_Track bugs and blockers here as they arise_
+From this point forward:
 
-Example:
-- [ ] Sync fails on large notes >1MB
-- [ ] Timer loses seconds on slow network
-- [ ] FAB overlaps keyboard on Android
-
----
-
-## Decisions Log
-
-### Why RxDB over PowerSync?
-- Free and open source
-- Simpler for single user
-- More control over sync logic
-- No licensing costs
-
-### Why CSS Modules over Tailwind?
-- Better for custom design system
-- No utility class bloat
-- More explicit styling
-- Easier to maintain custom themes
-
-### Why Radix UI over Headless UI?
-- More components (30+ vs 10)
-- Better accessibility defaults
-- Framework agnostic
-- Not tied to Tailwind
-
-### Why Last-Write-Wins conflict resolution?
-- Simple for MVP
-- Works for single user
-- Can upgrade to CRDTs later if needed
-- Timestamp-based is reliable
-
-### Why separate habits and habit_completions tables?
-- Normalized data structure
-- Easy to query completion history
-- Can add metadata per completion
-- Scales better than JSONB array
+- preserve legacy UX patterns
+- rebuild on the new document model only
+- move in small chunks
+- verify every chunk
+- do not widen scope silently
