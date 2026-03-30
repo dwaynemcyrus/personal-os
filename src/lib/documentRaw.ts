@@ -25,7 +25,7 @@ import type { DocumentRow, DocumentPatch } from './db';
 const FM_KEYS: (keyof DocumentRow)[] = [
   'cuid', 'type', 'subtype', 'title', 'status', 'access',
   'area', 'workbench', 'resources', 'dependencies', 'blocked',
-  'slug', 'published', 'tier', 'growth', 'rating', 'processed',
+  'slug', 'published', 'tier', 'growth', 'rating',
   'start_date', 'end_date', 'date_created', 'date_modified', 'date_trashed',
   'tags',
 ];
@@ -34,7 +34,7 @@ const FM_KEYS: (keyof DocumentRow)[] = [
 const PATCHABLE = new Set<string>([
   'title', 'status', 'subtype', 'content', 'area', 'workbench',
   'resources', 'dependencies', 'blocked', 'slug', 'published',
-  'tier', 'growth', 'rating', 'processed',
+  'tier', 'growth', 'rating',
   'start_date', 'end_date', 'date_created', 'date_modified', 'date_trashed',
   'tags', 'access', 'frontmatter',
 ]);

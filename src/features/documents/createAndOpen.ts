@@ -32,7 +32,6 @@ export async function createAndOpen(config: Config): Promise<string> {
     tier: null,
     growth: null,
     rating: null,
-    processed: config.type === 'inbox' ? false : null,
     start_date: null,
     end_date: null,
     date_created: now,

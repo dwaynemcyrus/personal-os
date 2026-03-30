@@ -30,7 +30,6 @@ function buildInboxDoc(trimmed: string) {
     tier: null,
     growth: null,
     rating: null,
-    processed: false as boolean | null,
     start_date: null,
     end_date: null,
     date_created: now,

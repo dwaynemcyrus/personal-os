@@ -30,7 +30,6 @@ export type DocumentRow = {
   tier: string | null;
   growth: string | null;
   rating: number | null;
-  processed: boolean | null;
   start_date: string | null;
   end_date: string | null;
   date_created: string | null;
@@ -79,7 +78,7 @@ export type DocumentPatch = Partial<
     DocumentRow,
     | 'title' | 'status' | 'subtype' | 'content' | 'frontmatter'
     | 'area' | 'workbench' | 'resources' | 'dependencies' | 'blocked'
-    | 'slug' | 'published' | 'tier' | 'growth' | 'rating' | 'processed'
+    | 'slug' | 'published' | 'tier' | 'growth' | 'rating'
     | 'start_date' | 'end_date' | 'date_created' | 'date_modified' | 'date_trashed'
     | 'tags' | 'access'
   >

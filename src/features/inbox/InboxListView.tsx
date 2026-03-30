@@ -12,9 +12,9 @@ function useInboxDocs(): DocumentRow[] {
     queryFn: async (): Promise<DocumentRow[]> => {
       const { data, error } = await supabase
         .from('items')
-        .select('id, cuid, type, title, status, processed, date_created, updated_at')
+        .select('id, cuid, type, title, status, date_created, updated_at')
         .eq('type', 'inbox')
-        .eq('processed', false)
+        .eq('status', 'unprocessed')
         .is('date_trashed', null)
         .order('date_created', { ascending: false })
         .limit(200);

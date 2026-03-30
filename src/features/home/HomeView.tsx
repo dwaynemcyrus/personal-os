@@ -61,7 +61,7 @@ function useInboxCount() {
         .from('items')
         .select('id', { count: 'exact', head: true })
         .eq('type', 'inbox')
-        .eq('processed', false)
+        .eq('status', 'unprocessed')
         .is('date_trashed', null);
       return count ?? 0;
     },
@@ -102,7 +102,6 @@ export function HomeView() {
         tier: null,
         growth: null,
         rating: null,
-        processed: null,
         start_date: null,
         end_date: null,
         date_created: now,
