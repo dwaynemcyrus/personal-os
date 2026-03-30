@@ -99,7 +99,7 @@ export function CommandSheet({ open, onOpenChange }: CommandSheetProps) {
 
   const handleOpenAutoFocus = useCallback((e: Event) => {
     e.preventDefault();
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   // ── Cancel — dismiss without saving ──────────────────────────────────────
