@@ -29,13 +29,44 @@
 }
 
 .list {
-  list-style: none;
   margin: 0;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   flex: 1;
   min-height: 0;
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 20px;
+  font-size: 14px;
+  color: rgba(252, 251, 248, 0.44);
+}
+
+.group {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0 2px;
+}
+
+.group:first-child {
+  padding-top: 8px;
+}
+
+.groupLabel {
+  padding: 0 20px;
+  font-size: 11px;
+  font-weight: var(--font-medium, 500);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(252, 251, 248, 0.42);
+}
+
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .row {

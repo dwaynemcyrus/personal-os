@@ -41,8 +41,8 @@ function getPageTitle(topLayer: NavigationLayer | undefined): string {
           topLayer.group
         ] ?? 'Notes'
       );
-    case 'note-detail':
-      return 'Note';
+    case 'document-detail':
+      return 'Document';
     case 'tasks-list':
     case 'task-detail':
       return 'Tasks';
@@ -83,8 +83,6 @@ export function AppShell({ children }: AppShellProps) {
   const topLayer = stack[stack.length - 1];
   const isRoot = stack.length === 0;
   const isNotesList = topLayer?.view === 'notes-list';
-  const isNoteDetail = topLayer?.view === 'note-detail';
-  const isNotesRoute = isNotesList || isNoteDetail;
   const isTasksRoute = topLayer?.view.startsWith('task') ?? false;
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
   const isStrategyRoute = (import.meta.env.VITE_SHOW_STRATEGY === 'true') && topLayer?.view === 'strategy-detail';
@@ -160,7 +158,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
           <div className={styles['app-shell__topbar-title']} aria-hidden="true" />
           <div className={styles['app-shell__topbar-right']}>
-            {isNoteDetail && headerSlot.right}
+            {isDocumentDetailRoute && headerSlot.right}
             {showFocusChip ? (
               <button
                 type="button"
@@ -186,7 +184,7 @@ export function AppShell({ children }: AppShellProps) {
         <main
           className={[
             styles['app-shell__content'],
-            isNoteDetail     ? styles['app-shell__content--note-detail']  : '',
+            isDocumentDetailRoute ? styles['app-shell__content--note-detail'] : '',
             isNotesList      ? styles['app-shell__content--notes']         : '',
             isTasksRoute     ? styles['app-shell__content--tasks']         : '',
             isStrategyRoute  ? styles['app-shell__content--strategy']      : '',

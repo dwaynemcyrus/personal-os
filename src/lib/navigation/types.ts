@@ -10,7 +10,6 @@ export type ActionsFilter = 'today' | 'scheduled' | 'anytime' | 'someday' | 'pro
 
 export type NavigationLayer =
   | { view: 'notes-list'; group: 'all' | 'pinned' | 'today' | 'locked' | 'todo' | 'trash' }
-  | { view: 'note-detail'; noteId: string }
   | { view: 'tasks-list'; filter?: TaskListFilter }
   | { view: 'task-detail'; taskId: string }
   | { view: 'strategy-detail'; strategyId: string }

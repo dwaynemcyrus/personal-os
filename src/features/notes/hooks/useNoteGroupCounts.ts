@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { NoteGroup } from './useGroupedNotes';
+import type { ItemRow } from '@/lib/db';
+import { isTodayNote, isTodoNote } from '../noteUtils';
 
 type GroupCounts = Record<NoteGroup, number>;
 
@@ -17,13 +19,21 @@ export function useNoteGroupCounts(): GroupCounts {
   const { data } = useQuery({
     queryKey: ['notes', 'counts'],
     queryFn: async (): Promise<NoteCounts> => {
-      const { data, error } = await supabase.rpc('get_note_counts');
-      if (error) {
-        // Fallback: return zeros if RPC not yet deployed
-        console.warn('[useNoteGroupCounts] get_note_counts RPC error:', error);
-        return { all: 0, today: 0, todo: 0, pinned: 0, trash: 0 };
-      }
-      return (data ?? { all: 0, today: 0, todo: 0, pinned: 0, trash: 0 }) as NoteCounts;
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, updated_at, created_at, is_pinned, is_trashed, inbox_at, subtype, content')
+        .eq('type', 'note');
+      if (error) throw error;
+
+      const notes = ((data ?? []) as unknown as ItemRow[]).filter((note) => note.subtype !== 'template');
+      const activeNotes = notes.filter((note) => !note.is_trashed && !note.inbox_at);
+      return {
+        all: activeNotes.length,
+        today: activeNotes.filter((note) => isTodayNote(note)).length,
+        todo: activeNotes.filter((note) => isTodoNote(note)).length,
+        pinned: activeNotes.filter((note) => note.is_pinned).length,
+        trash: notes.filter((note) => note.is_trashed).length,
+      };
     },
     staleTime: 60_000,
     refetchOnWindowFocus: true,

@@ -1,25 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { ItemRow } from '@/lib/db';
+import type { DocumentRow } from '@/lib/db';
 
-export type TemplateItem = Pick<ItemRow, 'id' | 'title'>;
+export type TemplateItem = Pick<DocumentRow, 'id' | 'title' | 'subtype'>;
 
 /**
- * Shared hook for fetching the list of template notes.
- * Backed by the ['notes', 'templates'] react-query cache key.
+ * Shared hook for fetching the list of global template documents.
+ * Backed by the ['document-templates'] react-query cache key.
  */
 export function useTemplates(options: { enabled?: boolean } = {}) {
   const { enabled = true } = options;
   return useQuery({
-    queryKey: ['notes', 'templates'],
+    queryKey: ['document-templates'],
     queryFn: async (): Promise<TemplateItem[]> => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('items')
-        .select('id, title')
-        .eq('type', 'note')
-        .eq('subtype', 'template')
-        .eq('is_trashed', false)
+        .select('id, title, subtype')
+        .eq('type', 'template')
+        .is('date_trashed', null)
         .order('title', { ascending: true });
+      if (error) throw error;
       return (data ?? []) as TemplateItem[];
     },
     staleTime: 60_000,

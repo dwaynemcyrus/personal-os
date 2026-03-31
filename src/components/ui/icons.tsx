@@ -50,3 +50,22 @@ export function ChevronRightIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function LinkIcon({ className }: IconProps) {
+  return (
+    <svg {...svgBase} className={className}>
+      <path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5.93" />
+      <path d="M14 11a5 5 0 0 0-7.07 0L5.52 12.41a5 5 0 1 0 7.07 7.07L14 18.07" />
+    </svg>
+  );
+}
+
+export function HistoryIcon({ className }: IconProps) {
+  return (
+    <svg {...svgBase} className={className}>
+      <path d="M3 12a9 9 0 1 0 3-6.71" />
+      <path d="M3 3v6h6" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}

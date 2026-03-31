@@ -52,7 +52,8 @@ export function TemplatePicker({
             className={styles.item}
             onClick={() => onSelect(t.id)}
           >
-            {t.title ?? 'Untitled template'}
+            <span className={styles.itemTitle}>{t.title ?? 'Untitled template'}</span>
+            <span className={styles.itemMeta}>{t.subtype ?? 'template'}</span>
           </button>
         ))}
       </SheetContent>

@@ -2,10 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
 import { insertItem } from '@/lib/db';
-import { fetchUserSettings, DEFAULT_USER_SETTINGS } from '@/lib/userSettings';
-import { replaceTemplateVariables } from '@/lib/templates';
 import { nowIso, nowIsoSeconds, nowIsoSecondsFilename } from '@/lib/time';
 import { generateSlug } from '@/lib/slug';
+import { resolveTemplateBody } from '@/hooks/useDocumentTemplate';
 
 type CreateOptions = {
   /** Note title. Defaults to current ISO timestamp. */
@@ -34,25 +33,20 @@ export async function createNoteFromTemplate(
   let content = '';
 
   if (templateId) {
-    // Fetch template content
-    const { data: contentRow } = await supabase
-      .from('item_content')
-      .select('content')
-      .eq('item_id', templateId)
+    const { data: templateRow, error } = await supabase
+      .from('items')
+      .select('id, content')
+      .eq('type', 'template')
+      .eq('id', templateId)
+      .is('date_trashed', null)
       .maybeSingle();
 
-    const rawTemplate = contentRow?.content ?? '';
+    if (error) throw error;
+    if (!templateRow) throw new Error('Selected template no longer exists.');
 
-    if (rawTemplate) {
-      // Fetch user settings for date/time formats
-      const settings = await fetchUserSettings();
-      content = replaceTemplateVariables(rawTemplate, {
-        date: new Date(),
-        dateFormat: settings?.template_date_format ?? DEFAULT_USER_SETTINGS.template_date_format,
-        timeFormat: settings?.template_time_format ?? DEFAULT_USER_SETTINGS.template_time_format,
-        title: opts.title ?? '',
-      });
-    }
+    content = await resolveTemplateBody(templateRow.content ?? '', {
+      title: opts.title ?? '',
+    });
   }
 
   await insertItem({
@@ -77,7 +71,7 @@ export async function createNoteFromTemplate(
 
   queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
   queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
-  queryClient.invalidateQueries({ queryKey: ['notes', 'templates'] });
+  queryClient.invalidateQueries({ queryKey: ['document-templates'] });
 
   return noteId;
 }

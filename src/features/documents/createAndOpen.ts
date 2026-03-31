@@ -1,7 +1,7 @@
 import { createDocument } from '@/lib/db';
 import { generateCuid } from '@/lib/cuid';
-import { getDocumentTemplate } from '@/lib/templates';
 import { queryClient } from '@/lib/queryClient';
+import { resolveDocumentTemplateContent } from '@/hooks/useDocumentTemplate';
 
 type Config = {
   type: string;
@@ -16,6 +16,13 @@ type Config = {
  */
 export async function createAndOpen(config: Config): Promise<string> {
   const now = new Date().toISOString();
+  const content = await resolveDocumentTemplateContent(config.type, config.subtype, {
+    title: config.title ?? null,
+  });
+  if (content === null) {
+    throw new Error(`Missing template for ${config.type}${config.subtype ? `:${config.subtype}` : ''}`);
+  }
+
   const id = await createDocument({
     cuid: generateCuid(),
     type: config.type,
@@ -38,7 +45,7 @@ export async function createAndOpen(config: Config): Promise<string> {
     date_modified: null,
     date_trashed: null,
     tags: [],
-    content: getDocumentTemplate(config.type, config.subtype),
+    content,
     frontmatter: null,
     area: null,
   });

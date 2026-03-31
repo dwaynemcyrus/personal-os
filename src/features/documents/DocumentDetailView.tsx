@@ -4,12 +4,15 @@ import { supabase } from '@/lib/supabase';
 import { updateDocument } from '@/lib/db';
 import { queryClient } from '@/lib/queryClient';
 import { buildRawDocument, parseRawToDocumentPatch } from '@/lib/documentRaw';
-import { getDocumentTemplate } from '@/lib/templates';
+import { resolveTemplateBody } from '@/hooks/useDocumentTemplate';
+import { maybeCreateAutoItemHistorySnapshot } from '@/lib/itemHistory';
 import { CodeMirrorEditor, type CodeMirrorEditorHandle } from '@/components/editor';
-import { BackIcon } from '@/components/ui/icons';
+import { BackIcon, HistoryIcon, LinkIcon } from '@/components/ui/icons';
 import { useNavigationActions } from '@/components/providers';
 import { showToast } from '@/components/ui/Toast';
-import { TemplatePicker } from './TemplatePicker';
+import { TemplatePicker, type TemplateOption } from './TemplatePicker';
+import { DocumentBacklinksSheet } from './DocumentBacklinksSheet';
+import { DocumentHistorySheet } from './DocumentHistorySheet';
 import type { DocumentRow } from '@/lib/db';
 import styles from './DocumentDetailView.module.css';
 
@@ -40,12 +43,14 @@ function useDocumentRow(id: string) {
 type Props = { documentId: string };
 
 export function DocumentDetailView({ documentId }: Props) {
-  const { goBack } = useNavigationActions();
+  const { goBack, pushLayer } = useNavigationActions();
   const { data: doc, isLoading } = useDocumentRow(documentId);
 
   const [rawMode, setRawMode]               = useState(false);
   const [saveState, setSaveState]           = useState<SaveState>('idle');
   const [templateOpen, setTemplateOpen]     = useState(false);
+  const [backlinksOpen, setBacklinksOpen]   = useState(false);
+  const [historyOpen, setHistoryOpen]       = useState(false);
 
   const saveTimerRef   = useRef<number | undefined>(undefined);
   const latestValueRef = useRef<string | null>(null);
@@ -57,6 +62,23 @@ export function DocumentDetailView({ documentId }: Props) {
   // Flush any pending save on unmount
   useEffect(() => () => { clearTimeout(saveTimerRef.current); }, []);
 
+  const buildSnapshotFromValue = useCallback((value: string, isRaw: boolean) => {
+    if (!doc) return value;
+    const patch = isRaw
+      ? parseRawToDocumentPatch(value)
+      : { content: value || null };
+    return buildRawDocument({ ...doc, ...patch });
+  }, [doc]);
+
+  const getCurrentSnapshot = useCallback(() => {
+    if (!doc) return '';
+    const latestValue = latestValueRef.current;
+    if (latestValue !== null) {
+      return buildSnapshotFromValue(latestValue, rawModeRef.current);
+    }
+    return buildSnapshotFromValue(rawMode ? buildRawDocument(doc) : (doc.content ?? ''), rawMode);
+  }, [buildSnapshotFromValue, doc, rawMode]);
+
   const flushSave = useCallback(async (value: string, isRaw: boolean) => {
     clearTimeout(saveTimerRef.current);
     setSaveState('saving');
@@ -65,15 +87,23 @@ export function DocumentDetailView({ documentId }: Props) {
         ? parseRawToDocumentPatch(value)
         : { content: value || null };
       await updateDocument(documentId, patch);
+      const savedSnapshot = buildSnapshotFromValue(value, isRaw);
+      if (doc?.type === 'note') {
+        await maybeCreateAutoItemHistorySnapshot(documentId, savedSnapshot, doc.updated_at);
+      }
       queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+      queryClient.invalidateQueries({ queryKey: ['document-backlinks'] });
+      queryClient.invalidateQueries({ queryKey: ['item-history', documentId] });
       queryClient.invalidateQueries({ queryKey: ['command-sheet', 'recent'] });
+      queryClient.invalidateQueries({ queryKey: ['document-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['document-template'] });
       setSaveState('saved');
       setTimeout(() => setSaveState('idle'), 2000);
     } catch {
       setSaveState('error');
       showToast('Could not save — try again');
     }
-  }, [documentId]);
+  }, [buildSnapshotFromValue, doc?.type, doc?.updated_at, documentId]);
 
   const handleChange = useCallback((value: string) => {
     latestValueRef.current = value;
@@ -102,31 +132,60 @@ export function DocumentDetailView({ documentId }: Props) {
   }, [saveState, flushSave]);
 
   // Apply a template — replaces body content, never touches frontmatter dates
-  const handleApplyTemplate = useCallback((type: string, subtype: string | null) => {
-    const body = getDocumentTemplate(type, subtype) ?? '';
+  const handleApplyTemplate = useCallback(async (template: TemplateOption) => {
     const editor = editorRef.current;
     if (!editor) return;
 
-    if (rawModeRef.current && doc) {
-      // In raw mode: rebuild the full raw string with new body
-      const newRaw = buildRawDocument({ ...doc, content: body });
-      editor.replaceContent(newRaw);
-      latestValueRef.current = newRaw;
-    } else {
-      editor.replaceContent(body);
-      latestValueRef.current = body;
-    }
+    try {
+      const body = await resolveTemplateBody(template.content, {
+        title: doc?.title ?? '',
+      });
 
-    setSaveState('dirty');
-    clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = window.setTimeout(() => {
-      if (latestValueRef.current !== null) {
-        void flushSave(latestValueRef.current, rawModeRef.current);
+      if (rawModeRef.current && doc) {
+        // In raw mode: rebuild the full raw string with new body
+        const newRaw = buildRawDocument({ ...doc, content: body });
+        editor.replaceContent(newRaw);
+        latestValueRef.current = newRaw;
+      } else {
+        editor.replaceContent(body);
+        latestValueRef.current = body;
       }
-    }, SAVE_DEBOUNCE_MS);
+
+      setSaveState('dirty');
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = window.setTimeout(() => {
+        if (latestValueRef.current !== null) {
+          void flushSave(latestValueRef.current, rawModeRef.current);
+        }
+      }, SAVE_DEBOUNCE_MS);
+    } catch {
+      showToast('Could not apply template — try again');
+    }
   }, [doc, flushSave]);
 
   const title = doc?.title ?? (doc ? `${doc.type}${doc.subtype ? `:${doc.subtype}` : ''}` : 'Document');
+  const isNoteDocument = doc?.type === 'note';
+
+  const handleRestoreSnapshot = useCallback(async (snapshot: string) => {
+    if (!doc) return;
+
+    const patch = parseRawToDocumentPatch(snapshot);
+    await updateDocument(documentId, patch);
+    queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+    queryClient.invalidateQueries({ queryKey: ['document-backlinks'] });
+    queryClient.invalidateQueries({ queryKey: ['item-history', documentId] });
+
+    if (rawModeRef.current) {
+      editorRef.current?.replaceContent(snapshot);
+      latestValueRef.current = snapshot;
+    } else {
+      editorRef.current?.replaceContent(patch.content ?? '');
+      latestValueRef.current = patch.content ?? '';
+    }
+
+    setSaveState('saved');
+    window.setTimeout(() => setSaveState('idle'), 2000);
+  }, [doc, documentId]);
 
   const indicatorText =
     saveState === 'saving' ? 'Saving…' :
@@ -154,6 +213,28 @@ export function DocumentDetailView({ documentId }: Props) {
           >
             {indicatorText}
           </span>
+          {isNoteDocument ? (
+            <button
+              type="button"
+              className={styles.modeToggle}
+              onClick={() => setBacklinksOpen(true)}
+              title="Show backlinks"
+              aria-label="Show backlinks"
+            >
+              <LinkIcon />
+            </button>
+          ) : null}
+          {isNoteDocument ? (
+            <button
+              type="button"
+              className={styles.modeToggle}
+              onClick={() => setHistoryOpen(true)}
+              title="Show version history"
+              aria-label="Show version history"
+            >
+              <HistoryIcon />
+            </button>
+          ) : null}
           <button
             type="button"
             className={styles.modeToggle}
@@ -199,6 +280,23 @@ export function DocumentDetailView({ documentId }: Props) {
         open={templateOpen}
         onOpenChange={setTemplateOpen}
         onSelect={handleApplyTemplate}
+      />
+
+      <DocumentBacklinksSheet
+        open={backlinksOpen}
+        onOpenChange={setBacklinksOpen}
+        documentId={documentId}
+        documentTitle={doc?.title}
+        onOpenDocument={(id) => pushLayer({ view: 'document-detail', documentId: id })}
+      />
+
+      <DocumentHistorySheet
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        itemId={documentId}
+        getCurrentSnapshot={getCurrentSnapshot}
+        getSourceUpdatedAt={() => doc?.updated_at ?? null}
+        onRestoreSnapshot={handleRestoreSnapshot}
       />
     </div>
   );

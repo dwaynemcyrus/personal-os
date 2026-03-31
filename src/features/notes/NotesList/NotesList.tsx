@@ -13,7 +13,6 @@ import {
   formatNoteTitle,
   formatRelativeTime,
 } from '../noteUtils';
-import type { ItemRow } from '@/lib/db';
 import { BackIcon, PlusIcon } from '@/components/ui/icons';
 import styles from './NotesList.module.css';
 
@@ -39,7 +38,7 @@ export function NotesList({ group }: NotesListProps) {
   const { data: templateNotes = [] } = useTemplates();
 
   const handleNotePress = (noteId: string) => {
-    pushLayer({ view: 'note-detail', noteId });
+    pushLayer({ view: 'document-detail', documentId: noteId });
   };
 
   const handleNewNote = async (templateId: string | null) => {
@@ -47,7 +46,7 @@ export function NotesList({ group }: NotesListProps) {
     try {
       const noteId = await createNoteFromTemplate(templateId);
       queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
-      pushLayer({ view: 'note-detail', noteId });
+      pushLayer({ view: 'document-detail', documentId: noteId });
     } catch {
       showToast('Could not create note — please try again.');
     }
@@ -57,7 +56,7 @@ export function NotesList({ group }: NotesListProps) {
     try {
       const noteId = await createNoteFromTemplate(templateId);
       queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
-      pushLayer({ view: 'note-detail', noteId });
+      pushLayer({ view: 'document-detail', documentId: noteId });
     } catch {
       showToast('Could not create note — please try again.');
     }
@@ -103,7 +102,7 @@ export function NotesList({ group }: NotesListProps) {
           <p className={styles.empty}>No notes here yet.</p>
         ) : (
           notes.map((note) => {
-            const rawContent = ((note as unknown as { item_content?: { content?: string | null } }).item_content?.content ?? note.content ?? '').slice(0, 500);
+            const rawContent = (note.content ?? '').slice(0, 500);
             const title = formatNoteTitle(extractNoteTitle(rawContent || null, note.title ?? ''));
             const snippet = extractNoteSnippet(rawContent || null);
             const updatedLabel = formatRelativeTime(note.updated_at);
@@ -162,9 +161,9 @@ export function NotesList({ group }: NotesListProps) {
                   <button
                     type="button"
                     className={styles.templateItem}
-                    onClick={() => pushLayer({ view: 'note-detail', noteId: t.id })}
+                    onClick={() => pushLayer({ view: 'document-detail', documentId: t.id })}
                   >
-                    <span>{t.title ?? 'Untitled'}</span>
+                    <span>{t.title ?? t.subtype ?? 'Untitled'}</span>
                   </button>
                   <button
                     type="button"

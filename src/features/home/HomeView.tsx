@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { createDocument } from '@/lib/db';
-import { generateCuid } from '@/lib/cuid';
-import { getDocumentTemplate } from '@/lib/templates';
 import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
+import { createAndOpen } from '@/features/documents/createAndOpen';
 import type { DocumentRow } from '@/lib/db';
 import styles from './HomeView.module.css';
 
@@ -85,32 +83,11 @@ export function HomeView() {
     setCreatingDaily(true);
     try {
       const today = todayIso();
-      const now = new Date().toISOString();
-      const id = await createDocument({
-        cuid: generateCuid(),
+      const id = await createAndOpen({
         type: 'journal',
         subtype: 'daily',
         title: today,
-        status: 'active',
-        access: 'private',
-        workbench: false,
-        resources: [],
-        dependencies: [],
-        blocked: false,
-        slug: null,
-        published: false,
-        tier: null,
-        growth: null,
-        rating: null,
-        start_date: null,
-        end_date: null,
-        date_created: now,
-        date_modified: null,
-        date_trashed: null,
-        tags: [],
-        content: getDocumentTemplate('journal', 'daily'),
-        frontmatter: null,
-        area: null,
+        defaultStatus: 'active',
       });
       queryClient.invalidateQueries({ queryKey: ['daily-note'] });
       pushLayer({ view: 'document-detail', documentId: id });

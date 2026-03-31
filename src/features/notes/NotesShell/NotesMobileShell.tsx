@@ -1,7 +1,7 @@
 import { useNavigationState, useNavigationActions } from '@/components/providers';
+import { DocumentDetailView } from '@/features/documents/DocumentDetailView';
 import { useSwipeBack } from '@/hooks/useSwipeBack';
 import { NotesList } from '../NotesList/NotesList';
-import { NoteDetailPage } from '../NoteDetailPage/NoteDetailPage';
 import styles from './NotesMobileShell.module.css';
 
 export function NotesMobileShell() {
@@ -12,9 +12,9 @@ export function NotesMobileShell() {
 
   const topLayer = stack[stack.length - 1];
 
-  // Note detail: no overflow:hidden wrappers — AppShell content area scrolls
-  if (topLayer?.view === 'note-detail') {
-    return <NoteDetailPage noteId={topLayer.noteId} />;
+  // Document detail stays inside the notes shell on mobile so the AppShell content area can scroll.
+  if (topLayer?.view === 'document-detail') {
+    return <DocumentDetailView documentId={topLayer.documentId} />;
   }
 
   return (

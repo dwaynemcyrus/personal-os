@@ -7,11 +7,6 @@ import type { NavigationLayer } from '@/lib/navigation/types';
 import { WizardProvider } from '@/components/providers';
 const SHOW_STRATEGY = import.meta.env.VITE_SHOW_STRATEGY === 'true';
 
-const StrategyHomeSection = SHOW_STRATEGY
-  ? lazy(() => import('@/features/strategy/StrategyHomeSection').then((m) => ({ default: m.StrategyHomeSection })))
-  : null;
-import styles from './App.module.css';
-
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
@@ -57,9 +52,30 @@ function NotesShell() {
   );
 }
 
-function ActiveView({ topLayer }: { topLayer: NavigationLayer | undefined }) {
+function isNotesDocumentStack(stack: NavigationLayer[]): boolean {
+  const topLayer = stack[stack.length - 1];
+
+  if (!topLayer) return false;
+  if (topLayer.view === 'notes-list') return true;
+  if (topLayer.view !== 'document-detail') return false;
+
+  const lastNotesListIndex = stack.findLastIndex((layer) => layer.view === 'notes-list');
+  if (lastNotesListIndex === -1) return false;
+
+  return stack
+    .slice(lastNotesListIndex + 1)
+    .every((layer) => layer.view === 'document-detail');
+}
+
+function ActiveView({
+  stack,
+  topLayer,
+}: {
+  stack: NavigationLayer[];
+  topLayer: NavigationLayer | undefined;
+}) {
   if (!topLayer) return <Suspense fallback={null}><HomeView /></Suspense>;
-  if (topLayer.view === 'notes-list' || topLayer.view === 'note-detail') return <NotesShell />;
+  if (isNotesDocumentStack(stack)) return <NotesShell />;
   if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
   if (topLayer.view === 'strategy-detail' && SHOW_STRATEGY && StrategyView) return <Suspense fallback={null}><StrategyView /></Suspense>;
   if (topLayer.view === 'document-detail') return <Suspense fallback={null}><DocumentDetailView documentId={topLayer.documentId} /></Suspense>;
@@ -79,7 +95,7 @@ export function App() {
   return (
     <WizardProvider>
       <AppShell>
-        <ActiveView topLayer={topLayer} />
+        <ActiveView stack={stack} topLayer={topLayer} />
       </AppShell>
     </WizardProvider>
   );

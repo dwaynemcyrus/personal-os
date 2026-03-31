@@ -1,6 +1,4 @@
 import { useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
 import { exportNotesZip } from '@/lib/exportNotes';
 import { importNotesFromFiles } from '@/lib/importNotes';
@@ -9,8 +7,7 @@ import { showToast } from '@/components/ui/Toast';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { upsertUserSettings, DEFAULT_USER_SETTINGS } from '@/lib/userSettings';
 import { replaceTemplateVariables } from '@/lib/templates';
-import type { ItemRow } from '@/lib/db';
-import { TemplatePicker } from '@/features/notes/TemplatePicker/TemplatePicker';
+import { TemplatesSection } from './TemplatesSection';
 import styles from './SettingsPage.module.css';
 
 export function SettingsPage() {
@@ -24,29 +21,12 @@ export function SettingsPage() {
   const [wipeConfirming, setWipeConfirming] = useState(false);
   const [wipeInput, setWipeInput] = useState('');
   const [isWiping, setIsWiping] = useState(false);
-  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [dateFormat, setDateFormat] = useState('');
   const [timeFormat, setTimeFormat] = useState('');
 
   const importRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   const restoreMergeRef = useRef<HTMLInputElement>(null);
-
-  // Fetch template note title for the daily note template picker display
-  const { data: templateNote } = useQuery({
-    queryKey: ['note', settings.daily_note_template_id],
-    queryFn: async (): Promise<ItemRow | null> => {
-      if (!settings.daily_note_template_id) return null;
-      const { data } = await supabase
-        .from('items')
-        .select('id, title')
-        .eq('id', settings.daily_note_template_id)
-        .maybeSingle();
-      return data as ItemRow | null;
-    },
-    enabled: Boolean(settings.daily_note_template_id),
-    staleTime: 60_000,
-  });
 
   // Keep local format state in sync with loaded settings
   const effectiveDateFormat = settings.template_date_format || DEFAULT_USER_SETTINGS.template_date_format;
@@ -182,12 +162,6 @@ export function SettingsPage() {
     }
   };
 
-  const handleDailyTemplateSelect = async (templateId: string | null) => {
-    setIsTemplatePickerOpen(false);
-    await upsertUserSettings({ daily_note_template_id: templateId });
-    queryClient.invalidateQueries({ queryKey: ['user-settings'] });
-  };
-
   const handleDateFormatBlur = async () => {
     const val = dateFormat.trim();
     if (!val || val === effectiveDateFormat) return;
@@ -202,25 +176,13 @@ export function SettingsPage() {
     queryClient.invalidateQueries({ queryKey: ['user-settings'] });
   };
 
-  const dailyTemplateName = templateNote?.title ?? (settings.daily_note_template_id ? 'Loading…' : null);
-
   return (
     <div className={styles.page}>
+      <TemplatesSection />
 
-      {/* Templates */}
+      {/* Template Tokens */}
       <section className={styles.section}>
-        <div className={styles.sectionLabel}>Templates</div>
-
-        <div className={styles.templateRow}>
-          <span className={styles.templateRowLabel}>Daily note template</span>
-          <button
-            type="button"
-            className={`${styles.templateRowValue} ${!dailyTemplateName ? styles.templateNone : ''}`}
-            onClick={() => setIsTemplatePickerOpen(true)}
-          >
-            {dailyTemplateName ?? 'None'}
-          </button>
-        </div>
+        <div className={styles.sectionLabel}>Template Tokens</div>
 
         <div className={styles.formatRow}>
           <span className={styles.formatLabel}>Date format</span>
@@ -387,13 +349,6 @@ export function SettingsPage() {
         )}
       </section>
 
-      <TemplatePicker
-        open={isTemplatePickerOpen}
-        onOpenChange={setIsTemplatePickerOpen}
-        onSelect={(id) => void handleDailyTemplateSelect(id)}
-        showBlankOption
-        blankLabel="None (no template)"
-      />
     </div>
   );
 }

@@ -10,7 +10,6 @@ const TASK_FILTERS = new Set<string>([
 export function layerToPath(layer: NavigationLayer): string {
   switch (layer.view) {
     case 'notes-list':  return `/notes/${layer.group}`;
-    case 'note-detail': return `/note/${layer.noteId}`;
     case 'tasks-list':  return layer.filter ? `/tasks/${layer.filter}` : '/tasks';
     case 'task-detail': return `/task/${layer.taskId}`;
     case 'strategy-detail':  return `/strategy/${layer.strategyId}`;
@@ -39,7 +38,8 @@ export function pathToLayer(pathname: string): NavigationLayer | null {
     return { view: 'notes-list', group: 'all' };
   }
 
-  if (seg0 === 'note' && seg1) return { view: 'note-detail', noteId: seg1 };
+  if (seg0 === 'note' && seg1) return { view: 'document-detail', documentId: seg1 };
+  if (seg0 === 'document' && seg1) return { view: 'document-detail', documentId: seg1 };
 
   if (seg0 === 'tasks') {
     if (seg1 && TASK_FILTERS.has(seg1)) {

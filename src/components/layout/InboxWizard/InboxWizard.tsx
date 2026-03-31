@@ -48,24 +48,8 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     staleTime: 60_000,
   });
 
-  // Fetch content for the current inbox note from item_content
   const currentNote = inboxNotes[0];
-  const { data: contentRow } = useQuery({
-    queryKey: ['note', currentNote?.id, 'content'],
-    queryFn: async (): Promise<{ content: string | null } | null> => {
-      if (!currentNote?.id) return null;
-      const { data } = await supabase
-        .from('item_content')
-        .select('content')
-        .eq('item_id', currentNote.id)
-        .maybeSingle();
-      return data ?? { content: null };
-    },
-    enabled: Boolean(currentNote?.id),
-    staleTime: 30_000,
-  });
-
-  const currentContent = contentRow?.content ?? currentNote?.content ?? null;
+  const currentContent = currentNote?.content ?? null;
 
   useEffect(() => {
     if (inboxNotes.length === 0) { setEditTitle(''); return; }

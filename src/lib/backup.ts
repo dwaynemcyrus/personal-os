@@ -1,19 +1,21 @@
 import { supabase } from './supabase';
 import { nowIso } from './time';
 
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 4;
 
 const TABLES = [
   'items',
-  'item_content',
-  'item_links',
-  'item_versions',
+  'item_history',
   'time_entries',
   'tags',
 ] as const;
 
+type BackupTable = typeof TABLES[number];
+type BackupRecord = Record<string, unknown>;
+type BackupCollections = Partial<Record<BackupTable, BackupRecord[]>>;
+
 // Tables deleted explicitly by owner.
-// item_links / item_versions / item_content are omitted — they cascade from items.
+// item_history and legacy companion tables are omitted from explicit deletion because they cascade from items.
 // tags has no owner column so it uses a separate delete-all approach.
 const OWNER_DELETE_TABLES = ['time_entries', 'items'] as const;
 
@@ -64,7 +66,7 @@ export async function wipeAllData(
   if (tagsError) throw tagsError;
 
   // Delete time_entries by owner, then items by owner.
-  // Deleting items cascades to item_links, item_versions, item_content at the DB level.
+  // Deleting items cascades to item_history and any remaining legacy companion tables at the DB level.
   for (const table of OWNER_DELETE_TABLES) {
     onProgress?.(`Deleting ${table}…`);
     const { error } = await supabase.from(table).delete().eq('owner', user.id);
@@ -74,11 +76,6 @@ export async function wipeAllData(
 
 export type RestoreResult = { restored: number };
 
-// Tables whose primary key column is not 'id'
-const ALT_PK: Partial<Record<typeof TABLES[number], string>> = {
-  item_content: 'item_id',
-};
-
 export async function restoreBackup(
   file: File,
   merge: boolean,
@@ -86,7 +83,10 @@ export async function restoreBackup(
 ): Promise<RestoreResult> {
   onProgress?.('Reading backup file…');
   const text = await file.text();
-  const backup = JSON.parse(text) as { collections?: Record<string, unknown[]> };
+  const backup = JSON.parse(text) as { version?: number; collections?: BackupCollections };
+  if (backup.version !== BACKUP_VERSION) {
+    throw new Error(`Unsupported backup version: expected ${BACKUP_VERSION}.`);
+  }
   if (!backup.collections) throw new Error('Invalid backup file — missing collections.');
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -102,7 +102,7 @@ export async function restoreBackup(
 
     let restored = 0;
     for (const table of TABLES) {
-      const records = (backup.collections[table] ?? []) as Record<string, unknown>[];
+      const records = backup.collections[table] ?? [];
       if (!records.length) continue;
       onProgress?.(`Restoring ${table} (${records.length} records)…`);
       const toInsert = table === 'items'
@@ -119,10 +119,10 @@ export async function restoreBackup(
   // Merge: insert only records not already present in Supabase
   let restored = 0;
   for (const table of TABLES) {
-    const records = (backup.collections[table] ?? []) as Record<string, unknown>[];
+    const records = backup.collections[table] ?? [];
     if (!records.length) continue;
 
-    const pkCol = ALT_PK[table] ?? 'id';
+    const pkCol = 'id';
     onProgress?.(`Merging ${table} (${records.length} records)…`);
 
     for (const record of records) {

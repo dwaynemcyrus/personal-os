@@ -138,7 +138,66 @@ Rebuild against:
 
 ---
 
-## Chunk 1 - Harden The New Document Core
+## Chunk 1 - Add DB-Backed Template Settings
+
+**Goal:** Move template defaults into canonical `items` rows and expose them in Settings before switching document creation away from hard-coded fallbacks.
+
+### Focus Areas
+
+- seed the 44 schema-backed templates into `items` as `type = template`
+- add a canonical template lookup helper
+- replace the settings daily-note template row with grouped template management
+- keep editing inside the existing `DocumentDetailView`
+
+### Files Likely To Change
+
+- `src/lib/templateSeed.ts`
+- `src/hooks/useDocumentTemplate.ts`
+- `src/features/settings/TemplatesSection.tsx`
+- `src/features/settings/SettingsPage.tsx`
+- `src/features/settings/SettingsPage.module.css`
+- `src/features/documents/createAndOpen.ts`
+- `src/features/home/HomeView.tsx`
+- `src/features/documents/TemplatePicker.tsx`
+- `src/features/documents/TemplatePicker.module.css`
+- `src/features/documents/DocumentDetailView.tsx`
+- `src/lib/templates.ts`
+
+### Exit Conditions
+
+- settings lists all 44 template slots
+- seeding inserts only missing template rows
+- tapping a seeded template opens `document-detail`
+- new document creation reads stored templates only
+- the document detail `¶` picker reads stored template content only
+
+### Verification
+
+- `npm run type-check`
+- `npm run lint`
+- `npm test`
+- manual flow checks for:
+  - seed defaults in Settings
+  - open a seeded template
+  - edit and save template content
+  - refresh and confirm the edit persists
+
+### Status
+
+- [ ] in progress
+- progress:
+  - template creation and insertion now use global `type = template` rows
+  - active note content reads/writes now use `items.content`
+  - notes now open through `document-detail` while preserving the notes shell layout
+  - note export, inbox review, and backup restore now treat `items.content` as the canonical note body
+  - backlinks are now available from `document-detail` for notes via canonical `items.content` wikilink scans
+  - version history is being rebuilt onto a new canonical `item_history` model rather than reviving `item_versions`
+  - inactive legacy note editor files and note-only legacy helper paths are being removed from the active codebase
+  - orphaned note-detail and notes-only barrel leftovers are being removed as part of the final notes sweep
+
+---
+
+## Chunk 2 - Harden The New Document Core
 
 **Goal:** Make the current document-model app surfaces stable enough to serve as the base for all future rebuild work.
 
@@ -188,7 +247,7 @@ Rebuild against:
 
 ---
 
-## Chunk 2 - Rebuild Notes On The Canonical Model
+## Chunk 3 - Rebuild Notes On The Canonical Model
 
 **Goal:** Preserve the legacy notes UX structure while removing dependency on legacy tables and columns.
 
@@ -234,11 +293,11 @@ Rebuild against:
 
 ### Status
 
-- [ ] pending
+- [ ] in progress
 
 ---
 
-## Chunk 3 - Rebuild Tasks As `action:task`
+## Chunk 4 - Rebuild Tasks As `action:task`
 
 **Goal:** Preserve legacy task UX while moving task behavior onto canonical action documents.
 
@@ -289,7 +348,7 @@ Rebuild against:
 
 ---
 
-## Chunk 4 - Rebuild Projects As `action:project`
+## Chunk 5 - Rebuild Projects As `action:project`
 
 **Goal:** Preserve project list/detail UX while standardizing projects on the canonical action model.
 
@@ -329,7 +388,7 @@ Rebuild against:
 
 ---
 
-## Chunk 5 - Rewrite Portability And Trust Features
+## Chunk 6 - Rewrite Portability And Trust Features
 
 **Goal:** Make personal data import/export/backup/restore trustworthy on the canonical schema.
 
@@ -371,7 +430,7 @@ Rebuild against:
 
 ---
 
-## Chunk 6 - Reassess Strategy After Core Stabilization
+## Chunk 7 - Reassess Strategy After Core Stabilization
 
 **Goal:** Keep strategy code hidden and out of the critical path until the core rebuild is stable.
 
@@ -396,7 +455,7 @@ Rebuild against:
 
 ---
 
-## Chunk 7 - Remove Or Quarantine Remaining Legacy Paths
+## Chunk 8 - Remove Or Quarantine Remaining Legacy Paths
 
 **Goal:** End the rebuild with one understandable architecture.
 

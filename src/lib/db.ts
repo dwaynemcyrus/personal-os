@@ -69,6 +69,21 @@ export type FinanceEntryRow = {
   created_at: string;
 };
 
+export type ItemHistoryRow = {
+  id: string;
+  item_id: string;
+  snapshot: string;
+  snapshot_format: 'raw_markdown';
+  created_by: 'auto' | 'manual' | 'restore_guard';
+  change_summary: string | null;
+  source_updated_at: string | null;
+  is_trashed: boolean;
+  trashed_at: string | null;
+  owner: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type NewDocument = Omit<DocumentRow, 'id' | 'created_at' | 'updated_at' | 'owner'> & {
   id?: string;
 };
@@ -172,36 +187,6 @@ export type ItemRow = {
 };
 
 export type ItemDocument = ItemRow;
-
-export type ItemLinkRow = {
-  id: string;
-  source_id: string;
-  target_id: string | null;
-  target_title: string;
-  header: string | null;
-  alias: string | null;
-  position: number;
-  created_at: string;
-  updated_at: string;
-  is_trashed: boolean;
-  trashed_at: string | null;
-  owner: string | null;
-};
-
-export type ItemVersionRow = {
-  id: string;
-  item_id: string;
-  content: string | null;
-  properties: string | null;
-  version_number: number;
-  created_by: string;
-  change_summary: string | null;
-  created_at: string;
-  updated_at: string;
-  is_trashed: boolean;
-  trashed_at: string | null;
-  owner: string | null;
-};
 
 export type TimeEntryRow = {
   id: string;
@@ -337,41 +322,5 @@ export async function patchItem(id: string, patch: ItemPatch): Promise<void> {
     update.has_todos = patch.content ? patch.content.includes('- [ ]') : false;
   }
   const { error } = await supabase.from('items').update(update).eq('id', id);
-  if (error) throw error;
-}
-
-export type NewItemLink = {
-  id: string;
-  source_id: string;
-  target_id: string | null;
-  target_title: string;
-  header: string | null;
-  alias: string | null;
-  position: number;
-  created_at: string;
-  updated_at: string;
-};
-
-export async function insertItemLink(link: NewItemLink): Promise<void> {
-  const owner = await getCurrentUserId();
-  const { error } = await supabase.from('item_links').insert({ ...link, is_trashed: false, trashed_at: null, owner });
-  if (error) throw error;
-}
-
-export type NewItemVersion = {
-  id: string;
-  item_id: string;
-  content: string | null;
-  properties: string | null;
-  version_number: number;
-  created_by: 'auto' | 'manual';
-  change_summary: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export async function insertItemVersion(v: NewItemVersion): Promise<void> {
-  const owner = await getCurrentUserId();
-  const { error } = await supabase.from('item_versions').insert({ ...v, is_trashed: false, trashed_at: null, owner });
   if (error) throw error;
 }

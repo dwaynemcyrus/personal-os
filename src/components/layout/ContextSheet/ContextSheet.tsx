@@ -431,7 +431,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                           try {
                             onOpenChange(false);
                             const noteId = await createNoteFromTemplate(null);
-                            pushLayer({ view: 'note-detail', noteId });
+                            pushLayer({ view: 'document-detail', documentId: noteId });
                           } catch {
                             showToast('Could not create note — please try again.');
                           }
@@ -451,7 +451,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                               className={styles.templateRowEdit}
                               onClick={() => {
                                 onOpenChange(false);
-                                pushLayer({ view: 'note-detail', noteId: t.id });
+                                pushLayer({ view: 'document-detail', documentId: t.id });
                               }}
                             >
                               <span>{t.title ?? 'Untitled'}</span>
@@ -464,7 +464,7 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                                 try {
                                   onOpenChange(false);
                                   const noteId = await createNoteFromTemplate(t.id);
-                                  pushLayer({ view: 'note-detail', noteId });
+                                  pushLayer({ view: 'document-detail', documentId: noteId });
                                 } catch {
                                   showToast('Could not create note — please try again.');
                                 }

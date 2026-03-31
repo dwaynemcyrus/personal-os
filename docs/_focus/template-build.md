@@ -7,7 +7,7 @@
 
 ## Background
 
-Templates are currently hardcoded strings in `src/lib/templates.ts`. Only 8 of the 47 document subtypes defined in the schema have starter content, and there is no UI to view or edit them. This plan replaces the hardcoded system with database-backed templates that are editable through the existing `DocumentDetailView`.
+Templates are currently hardcoded strings in `src/lib/templates.ts`. Only 8 of the 44 document subtypes defined in the schema have starter content, and there is no UI to view or edit them. This plan replaces the hardcoded system with database-backed templates that are editable through the existing `DocumentDetailView`.
 
 ---
 
@@ -30,7 +30,7 @@ Templates are per-user via existing RLS. The existing `items_type_subtype_idx` i
 
 ---
 
-## Templates to Seed (47 subtypes)
+## Templates to Seed (44 subtypes)
 
 | Type | Subtypes |
 |---|---|
@@ -64,7 +64,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { subtype: 'journal:istikarah',    title: 'Istikarah',       content: '...' },
   { subtype: 'journal:dream',        title: 'Dream',           content: '...' },
   { subtype: 'journal:devlog',       title: 'Devlog',          content: '...' },
-  // ... all 47 entries
+  // ... all 44 entries
 ];
 
 /**
@@ -81,12 +81,11 @@ Seeding logic: for each entry in `DEFAULT_TEMPLATES`, check if a row already exi
 
 ### Step 2 — `src/hooks/useDocumentTemplate.ts` (new)
 
-Reactive hook for fetching a template from the DB with a hardcoded fallback.
+Reactive hook for fetching a template from the DB.
 
 ```ts
 /**
  * Returns the DB template for a given document type/subtype.
- * Falls back to the hardcoded getDocumentTemplate() if none is found.
  */
 export function useDocumentTemplate(
   type: string,
@@ -100,13 +99,11 @@ export function useDocumentTemplate(
 
 Query: `items WHERE type='template' AND subtype='{type}:{subtype}' AND date_trashed IS NULL LIMIT 1`
 
-Fallback: calls `getDocumentTemplate(type, subtype)` from `src/lib/templates.ts` if the DB returns nothing. This ensures the app works before templates are seeded.
-
 ---
 
 ### Step 3 — Update `src/features/documents/createAndOpen.ts`
 
-Replace the synchronous `getDocumentTemplate(type, subtype)` call with an async DB lookup before document creation. The new document's `content` field is set to the user's current (possibly edited) template body.
+Replace the synchronous hardcoded template lookup with an async DB lookup before document creation. The new document's `content` field is set to the user's current (possibly edited) template body.
 
 ```ts
 // Before
@@ -150,9 +147,9 @@ A new section for the Settings page:
 
 ---
 
-### Step 7 — Deprecate `getDocumentTemplate()` in `src/lib/templates.ts`
+### Step 7 — Remove hardcoded runtime fallback
 
-Once seeding is in place `templates.ts` becomes fallback-only. The hardcoded strings stay but are no longer the primary source. Mark the function with a deprecation comment. Remove in a future cleanup pass once all users have seeded their templates.
+Once seeding is in place, document creation and template application should depend on stored `items` rows only. Missing templates should fail clearly instead of silently falling back to stale hardcoded bodies.
 
 ---
 
@@ -160,13 +157,13 @@ Once seeding is in place `templates.ts` becomes fallback-only. The hardcoded str
 
 | File | Action |
 |---|---|
-| `src/lib/templateSeed.ts` | **Create** — 47 templates + `seedDefaultTemplates()` |
-| `src/hooks/useDocumentTemplate.ts` | **Create** — reactive DB lookup with fallback |
+| `src/lib/templateSeed.ts` | **Create** — 44 templates + `seedDefaultTemplates()` |
+| `src/hooks/useDocumentTemplate.ts` | **Create** — reactive DB lookup and template resolution helpers |
 | `src/features/settings/TemplatesSection.tsx` | **Create** — grouped list + seed button |
 | `src/features/settings/SettingsPage.tsx` | **Modify** — add TemplatesSection, remove legacy picker |
 | `src/features/documents/createAndOpen.ts` | **Modify** — async DB template lookup on create |
 | `src/features/documents/TemplatePicker.tsx` | **Modify** — DB-driven, grouped by type |
-| `src/lib/templates.ts` | **Keep** — fallback only, mark deprecated |
+| `src/lib/templates.ts` | **Keep** — template variable utilities only |
 
 ---
 
@@ -184,5 +181,5 @@ Once seeding is in place `templates.ts` becomes fallback-only. The hardcoded str
 
 - No database migration required — reuses existing `items` table and indexes
 - Seeding is idempotent — safe to run multiple times; existing edits are never overwritten
-- The fallback in `useDocumentTemplate` and `fetchTemplateContent` means the app degrades gracefully if a user hasn't seeded yet
+- Runtime template usage depends on stored template rows in `items`
 - Template variable substitution (`{{date}}`, `{{title}}`, etc.) is handled at creation time by the existing `replaceTemplateVariables()` in `templates.ts` — no changes needed there
