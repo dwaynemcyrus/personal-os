@@ -116,38 +116,6 @@ export function HomeView() {
 
         <div className={styles.divider} />
 
-        {/* Actions */}
-        <button
-          type="button"
-          className={styles.navRow}
-          onClick={() => pushLayer({ view: 'actions', filter: 'today' })}
-        >
-          <span className={styles.navRowLabel}>Actions</span>
-          <span className={styles.navRowChevron}>›</span>
-        </button>
-
-        {/* Writing */}
-        <button
-          type="button"
-          className={styles.navRow}
-          onClick={() => pushLayer({ view: 'writing' })}
-        >
-          <span className={styles.navRowLabel}>Writing</span>
-          <span className={styles.navRowChevron}>›</span>
-        </button>
-
-        {/* Reference */}
-        <button
-          type="button"
-          className={styles.navRow}
-          onClick={() => pushLayer({ view: 'reference' })}
-        >
-          <span className={styles.navRowLabel}>Reference</span>
-          <span className={styles.navRowChevron}>›</span>
-        </button>
-
-        <div className={styles.divider} />
-
         {/* Inbox */}
         <button
           type="button"

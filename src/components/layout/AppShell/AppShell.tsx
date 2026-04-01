@@ -9,6 +9,7 @@ import {
 import { createPortal } from 'react-dom';
 import { HeaderSlotCtx, type HeaderSlot } from './HeaderSlot';
 import { CommandSheet } from '@/components/layout/CommandSheet/CommandSheet';
+import { ContextSheet } from '@/components/layout/ContextSheet/ContextSheet';
 import { FocusSheet } from '@/components/layout/FocusSheet';
 import { SheetManager } from '@/components/layout/SheetManager/SheetManager';
 import { ToastHost } from '@/components/ui/Toast';
@@ -21,6 +22,8 @@ import styles from './AppShell.module.css';
 type AppShellProps = {
   children: React.ReactNode;
 };
+
+const FAB_HOLD_MS = 450;
 
 const useHydrated = () =>
   useSyncExternalStore(
@@ -59,9 +62,13 @@ export function AppShell({ children }: AppShellProps) {
   const { stack } = useNavigationState();
   const { goBack } = useNavigationActions();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [isContextOpen, setIsContextOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
+  const [isFabPressing, setIsFabPressing] = useState(false);
 
   const fabRef = useRef<HTMLButtonElement>(null);
+  const holdTimeoutRef = useRef<number | null>(null);
+  const holdTriggeredRef = useRef(false);
 
   const {
     state: focusState,
@@ -87,7 +94,7 @@ export function AppShell({ children }: AppShellProps) {
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
   const isStrategyRoute = (import.meta.env.VITE_SHOW_STRATEGY === 'true') && topLayer?.view === 'strategy-detail';
   const isDocumentDetailRoute = topLayer?.view === 'document-detail';
-  const isNewBucketRoute = topLayer?.view === 'actions' || topLayer?.view === 'writing' || topLayer?.view === 'reference' || topLayer?.view === 'inbox-list';
+  const isNewBucketRoute = topLayer?.view === 'actions' || topLayer?.view === 'reference' || topLayer?.view === 'inbox-list';
   const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute || isDocumentDetailRoute || isNewBucketRoute;
   const pageTitle = getPageTitle(topLayer);
 
@@ -130,7 +137,56 @@ export function AppShell({ children }: AppShellProps) {
   const focusStatusLabel = formatFocusStatus(focusState);
   const showFocusChip = focusState !== 'idle';
 
-  const handleFabClick = () => setIsCommandOpen((prev) => !prev);
+  const clearFabHold = useCallback(() => {
+    if (holdTimeoutRef.current !== null) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    setIsFabPressing(false);
+  }, []);
+
+  useEffect(() => () => clearFabHold(), [clearFabHold]);
+
+  const openContextSheet = useCallback(() => {
+    holdTriggeredRef.current = true;
+    clearFabHold();
+    setIsCommandOpen(false);
+    setIsContextOpen(true);
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(10);
+    }
+  }, [clearFabHold]);
+
+  const handleFabPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    clearFabHold();
+    holdTriggeredRef.current = false;
+    setIsFabPressing(true);
+    holdTimeoutRef.current = window.setTimeout(openContextSheet, FAB_HOLD_MS);
+  }, [clearFabHold, openContextSheet]);
+
+  const handleFabPointerUp = useCallback(() => {
+    clearFabHold();
+    if (holdTriggeredRef.current) {
+      window.setTimeout(() => {
+        holdTriggeredRef.current = false;
+      }, 0);
+    }
+  }, [clearFabHold]);
+
+  const handleFabPointerLeave = useCallback(() => {
+    clearFabHold();
+  }, [clearFabHold]);
+
+  const handleFabClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (holdTriggeredRef.current) {
+      holdTriggeredRef.current = false;
+      event.preventDefault();
+      return;
+    }
+    setIsContextOpen(false);
+    setIsCommandOpen((prev) => !prev);
+  }, []);
 
   const portalTarget = hydrated ? document.body : null;
 
@@ -228,16 +284,25 @@ export function AppShell({ children }: AppShellProps) {
             {!isTaskDetailRoute && !isDocumentDetailRoute && !isNewBucketRoute && (
               <button
                 type="button"
-                className={styles['app-shell__fab']}
-                aria-label={isCommandOpen ? 'Close' : 'Open command sheet'}
+                className={[
+                  styles['app-shell__fab'],
+                  isFabPressing ? styles['app-shell__fab--pressing'] : '',
+                ].filter(Boolean).join(' ')}
+                aria-label={isCommandOpen ? 'Close command sheet' : 'Open command sheet'}
                 ref={fabRef}
+                onPointerDown={handleFabPointerDown}
+                onPointerUp={handleFabPointerUp}
+                onPointerCancel={handleFabPointerUp}
+                onPointerLeave={handleFabPointerLeave}
                 onClick={handleFabClick}
+                onContextMenu={(event) => event.preventDefault()}
               >
                 {isCommandOpen ? <FabCloseIcon /> : <FabIcon />}
               </button>
             )}
 
             <CommandSheet open={isCommandOpen} onOpenChange={setIsCommandOpen} />
+            <ContextSheet open={isContextOpen} onOpenChange={setIsContextOpen} />
           </>,
           portalTarget
         )}

@@ -15,7 +15,6 @@ export type NavigationLayer =
   | { view: 'strategy-detail'; strategyId: string }
   | { view: 'document-detail'; documentId: string }
   | { view: 'actions'; filter: ActionsFilter }
-  | { view: 'writing' }
   | { view: 'reference' }
   | { view: 'inbox-list' }
   | { view: 'settings' };

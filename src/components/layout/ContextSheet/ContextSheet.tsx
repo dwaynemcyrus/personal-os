@@ -17,7 +17,6 @@ import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/Proje
 import { AreaDetailSheet } from '@/features/projects/AreaDetailSheet/AreaDetailSheet';
 import { SourceDetailSheet } from '@/features/sources/SourceDetailSheet/SourceDetailSheet';
 import { nowIso } from '@/lib/time';
-import { createNoteFromTemplate } from '@/features/notes/hooks/useCreateNoteFromTemplate';
 import { useTemplates } from '@/features/notes/hooks/useTemplates';
 import { useStrategyBadge } from '@/features/strategy/hooks/useStrategyBadge';
 import { useStrategyList } from '@/features/strategy/hooks/useStrategyList';
@@ -423,56 +422,21 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
                   {notesTemplatesOpen && (
                     <div className={styles.notesTemplatesList}>
-                      {/* Blank note — visually distinct, full white */}
-                      <button
-                        type="button"
-                        className={styles.notesTemplatesBlank}
-                        onClick={async () => {
-                          try {
-                            onOpenChange(false);
-                            const noteId = await createNoteFromTemplate(null);
-                            pushLayer({ view: 'document-detail', documentId: noteId });
-                          } catch {
-                            showToast('Could not create note — please try again.');
-                          }
-                        }}
-                      >
-                        <span>Blank note</span>
-                        <span className={styles.rowCaret} aria-hidden="true">›</span>
-                      </button>
-
                       {templates.length === 0 ? (
                         <p className={styles.createEmptyMessage}>No templates yet</p>
                       ) : (
                         templates.map((t) => (
-                          <div key={t.id} className={styles.templateRow}>
-                            <button
-                              type="button"
-                              className={styles.templateRowEdit}
-                              onClick={() => {
-                                onOpenChange(false);
-                                pushLayer({ view: 'document-detail', documentId: t.id });
-                              }}
-                            >
-                              <span>{t.title ?? 'Untitled'}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.templateRowUse}
-                              aria-label={`Create note from "${t.title ?? 'Untitled'}"`}
-                              onClick={async () => {
-                                try {
-                                  onOpenChange(false);
-                                  const noteId = await createNoteFromTemplate(t.id);
-                                  pushLayer({ view: 'document-detail', documentId: noteId });
-                                } catch {
-                                  showToast('Could not create note — please try again.');
-                                }
-                              }}
-                            >
-                              <span className={styles.rowCaret} aria-hidden="true">›</span>
-                            </button>
-                          </div>
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={styles.templateRowEdit}
+                            onClick={() => {
+                              onOpenChange(false);
+                              pushLayer({ view: 'document-detail', documentId: t.id });
+                            }}
+                          >
+                            <span>{t.title ?? 'Untitled'}</span>
+                          </button>
                         ))
                       )}
                     </div>

@@ -243,7 +243,10 @@ Rebuild against:
 
 ### Status
 
-- [ ] next
+- [ ] in progress
+- progress:
+  - FAB hold now opens the current `ContextSheet` while tap still opens `CommandSheet`
+  - `/` no longer exposes `Actions`, `Writing`, or `Reference` as primary shortcuts
 
 ---
 
@@ -294,6 +297,9 @@ Rebuild against:
 ### Status
 
 - [ ] in progress
+- progress:
+  - the notes list now acts as the canonical authored-documents surface, excluding legacy `type = note`
+  - list creation now defaults to `journal:scratch`, and the standalone `writing` bridge/route is being removed
 
 ---
 

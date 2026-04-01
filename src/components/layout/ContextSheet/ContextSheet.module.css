@@ -267,54 +267,14 @@
   flex-direction: column;
 }
 
-/* Blank note — first row, full white, visually distinct */
-.notesTemplatesBlank {
+.templateRowEdit {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
   min-height: 36px;
   padding: 0;
   border: none;
   border-top: 1px solid rgba(252, 251, 248, 0.06);
-  background: transparent;
-  color: #fcfbf8;
-  font: inherit;
-  font-size: 13px;
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.notesTemplatesBlank:active {
-  background: rgba(252, 251, 248, 0.04);
-}
-
-.notesTemplatesBlank:focus-visible {
-  outline: 2px solid #fcfbf8;
-  outline-offset: -2px;
-}
-
-/* Template rows — muted, same as NotesList */
-.templateRow {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid rgba(252, 251, 248, 0.06);
-}
-
-.templateRow:active {
-  background: rgba(252, 251, 248, 0.04);
-}
-
-.templateRowEdit {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0;
-  border: none;
   background: transparent;
   color: rgba(252, 251, 248, 0.7);
   font: inherit;
@@ -332,25 +292,6 @@
 }
 
 .templateRowEdit:focus-visible {
-  outline: 2px solid #fcfbf8;
-  outline-offset: 2px;
-}
-
-.templateRowUse {
-  flex-shrink: 0;
-  width: 28px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border: none;
-  background: transparent;
-  color: rgba(252, 251, 248, 0.7);
-  font-size: 16px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.templateRowUse:focus-visible {
   outline: 2px solid #fcfbf8;
   outline-offset: 2px;
 }

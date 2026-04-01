@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useNavigationActions } from '@/components/providers';
+import {
+  Dropdown,
+  DropdownCheckboxItem,
+  DropdownContent,
+  DropdownTrigger,
+} from '@/components/ui/Dropdown';
 import { showToast } from '@/components/ui/Toast';
+import { createAndOpen } from '@/features/documents/createAndOpen';
 import { useGroupedNotes } from '../hooks/useGroupedNotes';
-import type { NoteGroup } from '../hooks/useGroupedNotes';
-import { createNoteFromTemplate } from '../hooks/useCreateNoteFromTemplate';
+import type { NoteGroup, NoteListSort } from '../hooks/useGroupedNotes';
 import { useTemplates } from '../hooks/useTemplates';
-import { TemplatePicker } from '../TemplatePicker/TemplatePicker';
 import {
   extractNoteSnippet,
   extractNoteTitle,
@@ -25,15 +30,34 @@ const GROUP_LABELS: Record<NoteGroup, string> = {
   trash: 'Trash',
 };
 
+const SORT_OPTIONS: Array<{ value: NoteListSort; label: string }> = [
+  { value: 'date_modified', label: 'Modified' },
+  { value: 'date_created', label: 'Created' },
+  { value: 'growth', label: 'Growth' },
+];
+
+function getTimestampTitle(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+function getDocumentMetaLabel(note: { type: string; subtype: string | null; status: string | null }): string | null {
+  const kind = note.subtype ?? note.type;
+  if (!kind && !note.status) return null;
+  return [kind, note.status].filter(Boolean).join(' · ');
+}
+
 type NotesListProps = {
   group: NoteGroup;
 };
 
 export function NotesList({ group }: NotesListProps) {
   const { pushLayer, goBack } = useNavigationActions();
-  const { notes, isLoading } = useGroupedNotes(group);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [sort, setSort] = useState<NoteListSort>('date_modified');
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const { notes, isLoading } = useGroupedNotes(group, sort);
 
   const { data: templateNotes = [] } = useTemplates();
 
@@ -41,24 +65,23 @@ export function NotesList({ group }: NotesListProps) {
     pushLayer({ view: 'document-detail', documentId: noteId });
   };
 
-  const handleNewNote = async (templateId: string | null) => {
-    setIsPickerOpen(false);
+  const handleNewDocument = async () => {
+    if (isCreating) return;
+    setIsCreating(true);
     try {
-      const noteId = await createNoteFromTemplate(templateId);
+      const noteId = await createAndOpen({
+        type: 'journal',
+        subtype: 'scratch',
+        defaultStatus: 'active',
+        title: getTimestampTitle(),
+      });
       queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['notes', 'counts'] });
       pushLayer({ view: 'document-detail', documentId: noteId });
     } catch {
-      showToast('Could not create note — please try again.');
-    }
-  };
-
-  const handleNewFromTemplate = async (templateId: string) => {
-    try {
-      const noteId = await createNoteFromTemplate(templateId);
-      queryClient.invalidateQueries({ queryKey: ['notes', 'list'] });
-      pushLayer({ view: 'document-detail', documentId: noteId });
-    } catch {
-      showToast('Could not create note — please try again.');
+      showToast('Could not create document — please try again.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -83,23 +106,48 @@ export function NotesList({ group }: NotesListProps) {
           <BackIcon />
         </button>
         <h1 className={styles.title}>{label}</h1>
-        {canCreate && (
-          <button
-            type="button"
-            className={styles.newButton}
-            onClick={() => setIsPickerOpen(true)}
-            aria-label="New note"
-          >
-            <PlusIcon />
-          </button>
-        )}
+        <div className={styles.headerActions}>
+          <Dropdown>
+            <DropdownTrigger asChild>
+              <button
+                type="button"
+                className={styles.moreButton}
+                aria-label="Sort notes list"
+              >
+                ⋯
+              </button>
+            </DropdownTrigger>
+            <DropdownContent align="end" sideOffset={8}>
+              {SORT_OPTIONS.map((option) => (
+                <DropdownCheckboxItem
+                  key={option.value}
+                  checked={sort === option.value}
+                  onCheckedChange={() => setSort(option.value)}
+                >
+                  {option.label}
+                </DropdownCheckboxItem>
+              ))}
+            </DropdownContent>
+          </Dropdown>
+          {canCreate && (
+            <button
+              type="button"
+              className={styles.newButton}
+              onClick={() => void handleNewDocument()}
+              disabled={isCreating}
+              aria-label="New scratch document"
+            >
+              <PlusIcon />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={styles.list}>
         {isLoading ? (
           <p className={styles.empty}>Loading...</p>
         ) : notes.length === 0 ? (
-          <p className={styles.empty}>No notes here yet.</p>
+          <p className={styles.empty}>No documents here yet.</p>
         ) : (
           notes.map((note) => {
             const rawContent = (note.content ?? '').slice(0, 500);
@@ -121,8 +169,8 @@ export function NotesList({ group }: NotesListProps) {
                 ) : null}
                 <div className={styles.itemMeta}>
                   <span className={styles.itemDate}>{updatedLabel}</span>
-                  {note.is_pinned ? (
-                    <span className={styles.itemPinned}>Pinned</span>
+                  {getDocumentMetaLabel(note) ? (
+                    <span className={styles.itemPinned}>{getDocumentMetaLabel(note)}</span>
                   ) : null}
                   {Array.isArray(note.tags) && note.tags.includes('imported') ? (
                     <span className={styles.itemImported}>Imported</span>
@@ -165,28 +213,12 @@ export function NotesList({ group }: NotesListProps) {
                   >
                     <span>{t.title ?? t.subtype ?? 'Untitled'}</span>
                   </button>
-                  <button
-                    type="button"
-                    className={styles.templateUseButton}
-                    onClick={() => void handleNewFromTemplate(t.id)}
-                    title={`Create new note from "${t.title ?? 'Untitled'}"`}
-                    aria-label={`Use "${t.title ?? 'Untitled'}"`}
-                  >
-                    <span aria-hidden="true">›</span>
-                  </button>
                 </div>
               ))
             )}
           </div>
         )}
       </div>
-
-      <TemplatePicker
-        open={isPickerOpen}
-        onOpenChange={setIsPickerOpen}
-        onSelect={(id) => void handleNewNote(id)}
-        showBlankOption
-      />
     </div>
   );
 }
