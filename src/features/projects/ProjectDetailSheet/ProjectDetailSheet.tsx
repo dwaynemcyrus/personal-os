@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { ItemDocument } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
+import { deriveCanonicalTaskStatus, type CanonicalTaskStatus } from '@/features/tasks/taskStatus';
 import { CalendarPicker } from '@/features/tasks/TaskDetailSheet/CalendarPicker';
 import styles from './ProjectDetailSheet.module.css';
 
@@ -63,9 +64,9 @@ type ProjectDetailSheetProps = {
     updates: {
       title: string;
       content: string;
-      item_status: ProjectStatus;
+      status: ProjectStatus;
       startDate: string | null;
-      dueDate: string | null;
+      endDate: string | null;
       parentId: string | null;
     }
   ) => Promise<void> | void;
@@ -77,12 +78,9 @@ type ProjectDetailSheetProps = {
       title: string;
       description: string;
       parentId: string | null;
-      isNext: boolean;
+      status: CanonicalTaskStatus;
       startDate: string | null;
-      dueDate: string | null;
-      isSomeday: boolean;
-      isWaiting: boolean;
-      waitingNote: string | null;
+      endDate: string | null;
       tags: string[];
     }
   ) => Promise<void> | void;
@@ -132,10 +130,10 @@ export function ProjectDetailSheet({
   const [title, setTitle] = useState(project?.title ?? '');
   const [content, setContent] = useState(project?.content ?? '');
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>(
-    (project?.item_status as ProjectStatus) ?? 'backlog'
+    (project?.status as ProjectStatus) ?? (project?.item_status as ProjectStatus) ?? 'backlog'
   );
   const [startDateInput, setStartDateInput] = useState(toDateInputValue(project?.start_date ?? null));
-  const [dueDateInput, setDueDateInput] = useState(toDateInputValue(project?.due_date ?? null));
+  const [dueDateInput, setDueDateInput] = useState(toDateInputValue(project?.end_date ?? project?.due_date ?? null));
   const [parentId, setParentId] = useState(project?.parent_id ?? '');
 
   // Task state
@@ -156,9 +154,9 @@ export function ProjectDetailSheet({
     if (!project) return;
     setTitle(project.title ?? '');
     setContent(project.content ?? '');
-    setProjectStatus((project.item_status as ProjectStatus) ?? 'backlog');
+    setProjectStatus((project.status as ProjectStatus) ?? (project.item_status as ProjectStatus) ?? 'backlog');
     setStartDateInput(toDateInputValue(project.start_date ?? null));
-    setDueDateInput(toDateInputValue(project.due_date ?? null));
+    setDueDateInput(toDateInputValue(project.end_date ?? project.due_date ?? null));
     setParentId(project.parent_id ?? '');
   }, [project]);
 
@@ -174,12 +172,18 @@ export function ProjectDetailSheet({
   }, [project, tasks]);
 
   const activeTasks = useMemo(() => {
-    const base = projectTasks.filter((t) => !t.completed && !t.is_someday);
-    return [...base.filter((t) => t.is_next), ...base.filter((t) => !t.is_next)];
+    const base = projectTasks.filter((t) => {
+      const taskStatus = deriveCanonicalTaskStatus(t);
+      return taskStatus === 'active' || taskStatus === 'next' || taskStatus === 'waiting';
+    });
+    return [
+      ...base.filter((t) => deriveCanonicalTaskStatus(t) === 'next'),
+      ...base.filter((t) => deriveCanonicalTaskStatus(t) !== 'next'),
+    ];
   }, [projectTasks]);
 
-  const somedayTasks = projectTasks.filter((t) => !t.completed && t.is_someday);
-  const completedTasks = projectTasks.filter((t) => t.completed);
+  const somedayTasks = projectTasks.filter((t) => deriveCanonicalTaskStatus(t) === 'someday');
+  const completedTasks = projectTasks.filter((t) => deriveCanonicalTaskStatus(t) === 'done');
   const hiddenCount = somedayTasks.length + completedTasks.length;
 
   const selectedTask = useMemo(
@@ -220,18 +224,18 @@ export function ProjectDetailSheet({
   // ─── Auto-save ────────────────────────────────────────────────────────────
 
   const doSave = (opts: {
-    item_status?: ProjectStatus;
+    status?: ProjectStatus;
     startDate?: string | null;
-    dueDate?: string | null;
+    endDate?: string | null;
     parentId?: string | null;
   } = {}): Promise<void> => {
     if (!project || !title.trim()) return Promise.resolve();
     const payload = {
       title: title.trim(),
       content: content.trim(),
-      item_status: opts.item_status ?? projectStatus,
+      status: opts.status ?? projectStatus,
       startDate: opts.startDate !== undefined ? opts.startDate : fromDateInputValue(startDateInput),
-      dueDate: opts.dueDate !== undefined ? opts.dueDate : fromDateInputValue(dueDateInput),
+      endDate: opts.endDate !== undefined ? opts.endDate : fromDateInputValue(dueDateInput),
       parentId: opts.parentId !== undefined ? opts.parentId : (parentId || null),
     };
     const projectId = project.id;
@@ -257,7 +261,7 @@ export function ProjectDetailSheet({
 
   const handleStatusSelect = async (newStatus: ProjectStatus) => {
     setProjectStatus(newStatus);
-    await doSave({ item_status: newStatus });
+    await doSave({ status: newStatus });
   };
 
   const handleQuickAdd = async (event: FormEvent<HTMLFormElement>) => {
@@ -306,13 +310,13 @@ export function ProjectDetailSheet({
     const today = getTodayDateInputValue();
     setDueDateInput(today);
     setIsDueSheetOpen(false);
-    await doSave({ dueDate: fromDateInputValue(today) });
+    await doSave({ endDate: fromDateInputValue(today) });
   };
 
   const handleDueClear = async () => {
     setDueDateInput('');
     setIsDueSheetOpen(false);
-    await doSave({ dueDate: null });
+    await doSave({ endDate: null });
   };
 
   // Move handlers
@@ -457,7 +461,7 @@ export function ProjectDetailSheet({
                     onClick={() => setSelectedTaskId(task.id)}
                   >
                     <span className={styles.taskTitle}>{task.title}</span>
-                    {task.is_next && <span className={styles.taskBadge}>Next</span>}
+                    {deriveCanonicalTaskStatus(task) === 'next' && <span className={styles.taskBadge}>Next</span>}
                   </button>
                 </div>
               ))}

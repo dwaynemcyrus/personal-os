@@ -4,7 +4,10 @@ import { supabase } from '@/lib/supabase';
 import { updateDocument } from '@/lib/db';
 import { queryClient } from '@/lib/queryClient';
 import { buildRawDocument, parseRawToDocumentPatch } from '@/lib/documentRaw';
-import { resolveTemplateBody } from '@/hooks/useDocumentTemplate';
+import {
+  mergeTemplatePatchIntoDocument,
+  resolveTemplateDocumentPatch,
+} from '@/hooks/useDocumentTemplate';
 import { maybeCreateAutoItemHistorySnapshot } from '@/lib/itemHistory';
 import { CodeMirrorEditor, type CodeMirrorEditorHandle } from '@/components/editor';
 import { BackIcon, HistoryIcon, LinkIcon } from '@/components/ui/icons';
@@ -131,37 +134,44 @@ export function DocumentDetailView({ documentId }: Props) {
     setRawMode((v) => !v);
   }, [saveState, flushSave]);
 
-  // Apply a template — replaces body content, never touches frontmatter dates
+  // Apply a template — replaces body content and merges missing template defaults.
   const handleApplyTemplate = useCallback(async (template: TemplateOption) => {
     const editor = editorRef.current;
-    if (!editor) return;
+    if (!editor || !doc) return;
 
     try {
-      const body = await resolveTemplateBody(template.content, {
+      const templatePatch = await resolveTemplateDocumentPatch(template.type, template.subtype, {
         title: doc?.title ?? '',
       });
+      if (!templatePatch) {
+        showToast('Could not apply template — try again');
+        return;
+      }
+
+      const mergedPatch = mergeTemplatePatchIntoDocument(doc, templatePatch);
+      await updateDocument(documentId, mergedPatch);
+      const nextDoc = { ...doc, ...mergedPatch };
 
       if (rawModeRef.current && doc) {
-        // In raw mode: rebuild the full raw string with new body
-        const newRaw = buildRawDocument({ ...doc, content: body });
+        const newRaw = buildRawDocument(nextDoc);
         editor.replaceContent(newRaw);
         latestValueRef.current = newRaw;
       } else {
-        editor.replaceContent(body);
-        latestValueRef.current = body;
+        editor.replaceContent(mergedPatch.content ?? '');
+        latestValueRef.current = mergedPatch.content ?? '';
       }
 
-      setSaveState('dirty');
       clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = window.setTimeout(() => {
-        if (latestValueRef.current !== null) {
-          void flushSave(latestValueRef.current, rawModeRef.current);
-        }
-      }, SAVE_DEBOUNCE_MS);
+      queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+      queryClient.invalidateQueries({ queryKey: ['document-backlinks'] });
+      queryClient.invalidateQueries({ queryKey: ['item-history', documentId] });
+      queryClient.invalidateQueries({ queryKey: ['command-sheet', 'recent'] });
+      setSaveState('saved');
+      window.setTimeout(() => setSaveState('idle'), 2000);
     } catch {
       showToast('Could not apply template — try again');
     }
-  }, [doc, flushSave]);
+  }, [doc, documentId]);
 
   const title = doc?.title ?? (doc ? `${doc.type}${doc.subtype ? `:${doc.subtype}` : ''}` : 'Document');
   const isNoteDocument = doc?.type === 'note';

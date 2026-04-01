@@ -94,7 +94,7 @@ export function AppShell({ children }: AppShellProps) {
   const isTaskDetailRoute = topLayer?.view === 'task-detail';
   const isStrategyRoute = (import.meta.env.VITE_SHOW_STRATEGY === 'true') && topLayer?.view === 'strategy-detail';
   const isDocumentDetailRoute = topLayer?.view === 'document-detail';
-  const isNewBucketRoute = topLayer?.view === 'actions' || topLayer?.view === 'reference' || topLayer?.view === 'inbox-list';
+  const isNewBucketRoute = topLayer?.view === 'inbox-list';
   const hideTopbar = isNotesList || isTasksRoute || isStrategyRoute || isDocumentDetailRoute || isNewBucketRoute;
   const pageTitle = getPageTitle(topLayer);
 

@@ -7,10 +7,12 @@ import { queryClient } from '@/lib/queryClient';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import { showToast } from '@/components/ui/Toast';
 import { useNavigationActions } from '@/components/providers';
+import { createAndOpen } from '@/features/documents/createAndOpen';
 import { useNoteGroupCounts } from '@/features/notes/hooks/useNoteGroupCounts';
 import type { NoteGroup } from '@/features/notes/hooks/useGroupedNotes';
 import { useTaskBucketCounts } from '@/features/tasks/hooks/useTaskBucketCounts';
 import type { TaskListFilter } from '@/features/tasks/taskBuckets';
+import { getLegacyTaskFields, type CanonicalTaskStatus } from '@/features/tasks/taskStatus';
 import type { ItemRow } from '@/lib/db';
 import { insertItem, patchItem } from '@/lib/db';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
@@ -84,9 +86,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     queryFn: async (): Promise<ItemRow[]> => {
       const { data, error } = await supabase
         .from('items')
-        .select('id, title, is_trashed, item_status, parent_id')
-        .eq('type', 'project')
-        .eq('is_trashed', false)
+        .select('id, title, is_trashed, item_status, status, parent_id, subtype, date_trashed')
+        .eq('type', 'action')
+        .eq('subtype', 'project')
+        .is('date_trashed', null)
         .order('title', { ascending: true });
       if (error) throw error;
       return (data ?? []) as unknown as ItemRow[];
@@ -114,9 +117,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     queryFn: async (): Promise<ItemRow[]> => {
       const { data, error } = await supabase
         .from('items')
-        .select('id, title, is_trashed, item_status, is_next, is_someday, is_waiting, completed, parent_id')
-        .eq('type', 'task')
-        .eq('is_trashed', false);
+        .select('id, title, is_trashed, item_status, status, is_next, is_someday, is_waiting, completed, parent_id, subtype, date_trashed')
+        .eq('type', 'action')
+        .eq('subtype', 'task')
+        .is('date_trashed', null);
       if (error) throw error;
       return (data ?? []) as unknown as ItemRow[];
     },
@@ -131,6 +135,21 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
         .select('id, title, url, content_type, read_status, updated_at, is_trashed')
         .eq('type', 'source')
         .eq('is_trashed', false)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: referenceDocs = [] } = useQuery({
+    queryKey: ['reference', 'context'],
+    queryFn: async (): Promise<ItemRow[]> => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, title, subtype, updated_at, date_trashed')
+        .eq('type', 'reference')
+        .is('date_trashed', null)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as ItemRow[];
@@ -186,6 +205,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     reading: sources.filter((s) => s.read_status === 'reading'),
     read: sources.filter((s) => s.read_status === 'read'),
   }), [sources]);
+  const referenceBySubtype = useMemo(() => ({
+    slip: referenceDocs.filter((doc) => doc.subtype === 'slip'),
+    literature: referenceDocs.filter((doc) => doc.subtype === 'literature'),
+  }), [referenceDocs]);
 
   // --- Handlers ---
 
@@ -202,7 +225,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     if (mode === 'project') {
       await insertItem({
         id: uuidv4(),
-        type: 'project',
+        type: 'action',
+        subtype: 'project',
+        status: 'backlog',
+        date_trashed: null,
         parent_id: null,
         title: trimmed,
         item_status: 'backlog',
@@ -268,16 +294,19 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
   const handleSaveProject = async (
     projectId: string,
-    updates: { title: string; content: string; item_status: string; startDate: string | null; dueDate: string | null; parentId: string | null }
+    updates: { title: string; content: string; status: string; startDate: string | null; endDate: string | null; parentId: string | null }
   ) => {
     const trimmed = updates.title.trim();
     if (!trimmed) return;
     await patchItem(projectId, {
+      status: updates.status,
       title: trimmed,
       content: updates.content.trim() || null,
-      item_status: updates.item_status,
+      item_status: updates.status,
       start_date: updates.startDate,
-      due_date: updates.dueDate,
+      due_date: updates.endDate,
+      end_date: updates.endDate,
+      parent_id: updates.parentId,
       updated_at: nowIso(),
     });
     invalidateProjects();
@@ -285,12 +314,12 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
   const handleDeleteProject = async (projectId: string) => {
     const timestamp = nowIso();
-    await patchItem(projectId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(projectId, { is_trashed: true, trashed_at: timestamp, date_trashed: timestamp, updated_at: timestamp });
     invalidateProjects();
   };
 
   const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
-    await patchItem(taskId, { completed: nextValue, updated_at: nowIso() });
+    await patchItem(taskId, { completed: nextValue, status: nextValue ? 'done' : 'active', updated_at: nowIso() });
     invalidateTasks();
   };
 
@@ -298,22 +327,25 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     taskId: string,
     updates: {
       title: string; description: string; parentId: string | null;
-      isNext: boolean; startDate: string | null; dueDate: string | null;
-      isSomeday: boolean; isWaiting: boolean; waitingNote: string | null; tags: string[];
+      status: CanonicalTaskStatus; startDate: string | null; endDate: string | null; tags: string[];
     }
   ) => {
     const trimmed = updates.title.trim();
     if (!trimmed) return;
+    const legacyFields = getLegacyTaskFields(updates.status);
     await patchItem(taskId, {
+      status: updates.status,
       title: trimmed,
       content: updates.description.trim() || null,
       tags: updates.tags,
-      is_next: updates.isNext,
+      is_next: legacyFields.is_next,
       start_date: updates.startDate,
-      due_date: updates.dueDate,
-      is_someday: updates.isSomeday,
-      is_waiting: updates.isWaiting,
-      waiting_note: updates.waitingNote,
+      due_date: updates.endDate,
+      end_date: updates.endDate,
+      completed: legacyFields.completed,
+      is_someday: legacyFields.is_someday,
+      is_waiting: legacyFields.is_waiting,
+      waiting_note: null,
       parent_id: updates.parentId,
       updated_at: nowIso(),
     });
@@ -332,7 +364,10 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     const timestamp = nowIso();
     await insertItem({
       id: uuidv4(),
-      type: 'task',
+      type: 'action',
+      subtype: 'task',
+      status: 'active',
+      date_trashed: null,
       parent_id: projectId,
       title: trimmed,
       tags: null,
@@ -362,10 +397,18 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
   const handleSaveSource = async (updates: Partial<ItemRow>) => {
     if (!selectedSourceId) return;
-    const { title, content, subtype, url } = updates;
+    const { title, content, subtype, url, content_type, read_status } = updates;
     await supabase
       .from('items')
-      .update({ title: title ?? null, content: content ?? null, subtype: subtype ?? null, url: url ?? null, updated_at: nowIso() })
+      .update({
+        title: title ?? null,
+        content: content ?? null,
+        subtype: subtype ?? null,
+        url: url ?? null,
+        content_type: content_type ?? null,
+        read_status: read_status ?? null,
+        updated_at: nowIso(),
+      })
       .eq('id', selectedSourceId);
     queryClient.invalidateQueries({ queryKey: ['sources'] });
   };
@@ -376,6 +419,20 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
     await patchItem(selectedSourceId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
     queryClient.invalidateQueries({ queryKey: ['sources'] });
     setSelectedSourceId(null);
+  };
+
+  const handleCreateReference = async (subtype: 'slip' | 'literature') => {
+    try {
+      onOpenChange(false);
+      const documentId = await createAndOpen({
+        type: 'reference',
+        subtype,
+        defaultStatus: 'active',
+      });
+      pushLayer({ view: 'document-detail', documentId });
+    } catch {
+      showToast('Could not create — try again');
+    }
   };
 
   return (
@@ -669,6 +726,20 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
 
             {activeTab === 'sources' && (
               <div className={styles.list}>
+                <span className={styles.createLabel}>Create</span>
+                <button type="button" className={styles.row} onClick={() => void handleCreateReference('slip')}>
+                  <span className={styles.rowLabel}>New Slip</span>
+                  <span className={styles.rowSoon}>reference</span>
+                  <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+                <button type="button" className={styles.row} onClick={() => void handleCreateReference('literature')}>
+                  <span className={styles.rowLabel}>New Literature</span>
+                  <span className={styles.rowSoon}>reference</span>
+                  <span className={styles.rowCaret} aria-hidden="true">›</span>
+                </button>
+
+                <div className={styles.divider} />
+
                 {sources.length === 0 && (
                   <span className={styles.rowLabel} style={{ opacity: 0.5 }}>No sources yet</span>
                 )}
@@ -706,6 +777,52 @@ export function ContextSheet({ open, onOpenChange }: ContextSheetProps) {
                         <span className={styles.rowCaret} aria-hidden="true">›</span>
                       </button>
                     ))}
+                  </>
+                )}
+
+                {(referenceBySubtype.slip.length > 0 || referenceBySubtype.literature.length > 0) && (
+                  <>
+                    <div className={styles.divider} />
+                    {referenceBySubtype.slip.length > 0 && (
+                      <>
+                        <span className={styles.createLabel}>Slips</span>
+                        {referenceBySubtype.slip.map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            className={styles.row}
+                            onClick={() => {
+                              onOpenChange(false);
+                              pushLayer({ view: 'document-detail', documentId: doc.id });
+                            }}
+                          >
+                            <span className={styles.rowLabel}>{doc.title || 'Untitled'}</span>
+                            <span className={styles.rowSoon}>reference</span>
+                            <span className={styles.rowCaret} aria-hidden="true">›</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {referenceBySubtype.literature.length > 0 && (
+                      <>
+                        <span className={styles.createLabel}>Literature</span>
+                        {referenceBySubtype.literature.map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            className={styles.row}
+                            onClick={() => {
+                              onOpenChange(false);
+                              pushLayer({ view: 'document-detail', documentId: doc.id });
+                            }}
+                          >
+                            <span className={styles.rowLabel}>{doc.title || 'Untitled'}</span>
+                            <span className={styles.rowSoon}>reference</span>
+                            <span className={styles.rowCaret} aria-hidden="true">›</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
                   </>
                 )}
               </div>

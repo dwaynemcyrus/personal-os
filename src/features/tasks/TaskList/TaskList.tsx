@@ -6,6 +6,7 @@ import { queryClient } from '@/lib/queryClient';
 import type { ItemRow } from '@/lib/db';
 import { insertItem, patchItem } from '@/lib/db';
 import { TaskDetailSheet } from '@/features/tasks/TaskDetailSheet/TaskDetailSheet';
+import { getLegacyTaskFields, type CanonicalTaskStatus } from '@/features/tasks/taskStatus';
 import { formatRelativeTime } from '@/features/notes/noteUtils';
 import { useNavigationState, useNavigationActions } from '@/components/providers';
 import {
@@ -127,6 +128,7 @@ export function TaskList() {
     await insertItem({
       id: taskId,
       type: 'task',
+      status: 'active',
       parent_id: null,
       title: 'Untitled task',
       content: null,
@@ -153,27 +155,28 @@ export function TaskList() {
       title: string;
       description: string;
       parentId: string | null;
-      isNext: boolean;
+      status: CanonicalTaskStatus;
       startDate: string | null;
-      dueDate: string | null;
-      isSomeday: boolean;
-      isWaiting: boolean;
-      waitingNote: string | null;
+      endDate: string | null;
       tags: string[];
     }
   ) => {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
+    const legacyFields = getLegacyTaskFields(updates.status);
     await patchItem(taskId, {
+      status: updates.status,
       title: trimmedTitle,
       content: updates.description.trim() || null,
       parent_id: updates.parentId,
-      is_next: updates.isNext,
+      is_next: legacyFields.is_next,
       start_date: updates.startDate,
-      due_date: updates.dueDate,
-      is_someday: updates.isSomeday,
-      is_waiting: updates.isWaiting,
-      waiting_note: updates.waitingNote,
+      due_date: updates.endDate,
+      end_date: updates.endDate,
+      completed: legacyFields.completed,
+      is_someday: legacyFields.is_someday,
+      is_waiting: legacyFields.is_waiting,
+      waiting_note: null,
       tags: updates.tags,
       updated_at: nowIso(),
     });
@@ -187,7 +190,7 @@ export function TaskList() {
   };
 
   const handleToggleComplete = async (taskId: string, nextValue: boolean) => {
-    await patchItem(taskId, { completed: nextValue, updated_at: nowIso() });
+    await patchItem(taskId, { completed: nextValue, status: nextValue ? 'done' : 'active', updated_at: nowIso() });
     invalidateTasks();
   };
 

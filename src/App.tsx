@@ -17,9 +17,6 @@ const NotesMobileShell = lazy(() =>
 const NotesDesktopShell = lazy(() =>
   import('@/features/notes/NotesShell/NotesDesktopShell').then((m) => ({ default: m.NotesDesktopShell }))
 );
-const TaskList = lazy(() =>
-  import('@/features/tasks/TaskList/TaskList').then((m) => ({ default: m.TaskList }))
-);
 const StrategyView = SHOW_STRATEGY
   ? lazy(() => import('@/features/strategy/StrategyView').then((m) => ({ default: m.StrategyView })))
   : null;
@@ -33,8 +30,8 @@ const HomeView = lazy(() =>
 const ActionsView = lazy(() =>
   import('@/features/actions/ActionsView').then((m) => ({ default: m.ActionsView }))
 );
-const ReferenceView = lazy(() =>
-  import('@/features/reference/ReferenceView').then((m) => ({ default: m.ReferenceView }))
+const TaskList = lazy(() =>
+  import('@/features/tasks/TaskList/TaskList').then((m) => ({ default: m.TaskList }))
 );
 const InboxListView = lazy(() =>
   import('@/features/inbox/InboxListView').then((m) => ({ default: m.InboxListView }))
@@ -73,11 +70,10 @@ function ActiveView({
 }) {
   if (!topLayer) return <Suspense fallback={null}><HomeView /></Suspense>;
   if (isNotesDocumentStack(stack)) return <NotesShell />;
-  if (topLayer.view === 'tasks-list' || topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
+  if (topLayer.view === 'tasks-list') return <Suspense fallback={null}><ActionsView /></Suspense>;
+  if (topLayer.view === 'task-detail') return <Suspense fallback={null}><TaskList /></Suspense>;
   if (topLayer.view === 'strategy-detail' && SHOW_STRATEGY && StrategyView) return <Suspense fallback={null}><StrategyView /></Suspense>;
   if (topLayer.view === 'document-detail') return <Suspense fallback={null}><DocumentDetailView documentId={topLayer.documentId} /></Suspense>;
-  if (topLayer.view === 'actions')    return <Suspense fallback={null}><ActionsView /></Suspense>;
-  if (topLayer.view === 'reference')  return <Suspense fallback={null}><ReferenceView /></Suspense>;
   if (topLayer.view === 'inbox-list') return <Suspense fallback={null}><InboxListView /></Suspense>;
   if (topLayer.view === 'settings') return <Suspense fallback={null}><SettingsPage /></Suspense>;
   return null;

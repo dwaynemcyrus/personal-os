@@ -15,20 +15,20 @@ type Props = {
   itemId: string;
   /**
    * Initial content from the parent's existing items query — used immediately
-   * while the item_content query is still loading.
+   * while the latest item row is still loading.
    */
   fallbackContent?: string | null;
 };
 
-/** Fetches the freshest content from item_content table. */
+/** Fetches the freshest content from items table. */
 function useItemContent(itemId: string) {
   return useQuery({
-    queryKey: ['item-content', itemId],
+    queryKey: ['strategy-item-content', itemId],
     queryFn: async (): Promise<string> => {
       const { data } = await supabase
-        .from('item_content')
+        .from('items')
         .select('content')
-        .eq('item_id', itemId)
+        .eq('id', itemId)
         .maybeSingle();
       return data?.content ?? '';
     },

@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
 import type { ItemRow } from '@/lib/db';
 import { parseTags } from '@/lib/db';
+import { deriveCanonicalTaskStatus, type CanonicalTaskStatus } from '@/features/tasks/taskStatus';
 import { CalendarPicker } from './CalendarPicker';
 import { nowIso } from '@/lib/time';
 import styles from './TaskDetailSheet.module.css';
@@ -31,12 +32,9 @@ type TaskDetailSheetProps = {
     title: string;
     description: string;
     parentId: string | null;
-    isNext: boolean;
+    status: CanonicalTaskStatus;
     startDate: string | null;
-    dueDate: string | null;
-    isSomeday: boolean;
-    isWaiting: boolean;
-    waitingNote: string | null;
+    endDate: string | null;
     tags: string[];
   }) => Promise<void> | void;
   onDelete: (taskId: string) => Promise<void> | void;
@@ -110,12 +108,9 @@ export function TaskDetailSheet({
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.content ?? '');
   const [parentId, setParentId] = useState(task?.parent_id ?? '');
-  const [isNext, setIsNext] = useState(!!task?.is_next);
+  const [status, setStatus] = useState<CanonicalTaskStatus>(deriveCanonicalTaskStatus(task ?? {}));
   const [startDateInput, setStartDateInput] = useState(toDateInputValue(task?.start_date ?? null));
-  const [dueDateInput, setDueDateInput] = useState(toDateInputValue(task?.due_date ?? null));
-  const [isSomeday, setIsSomeday] = useState(!!task?.is_someday);
-  const [isWaiting, setIsWaiting] = useState(!!task?.is_waiting);
-  const [waitingNote, setWaitingNote] = useState(task?.waiting_note ?? '');
+  const [dueDateInput, setDueDateInput] = useState(toDateInputValue(task?.end_date ?? task?.due_date ?? null));
   const [tags, setTags] = useState<string[]>(dedupeTags(parseTags(task?.tags ?? null)));
 
   // Catalogs via react-query
@@ -193,12 +188,9 @@ export function TaskDetailSheet({
     setTitle(task.title ?? '');
     setDescription(task.content ?? '');
     setParentId(task.parent_id ?? '');
-    setIsNext(!!task.is_next);
+    setStatus(deriveCanonicalTaskStatus(task));
     setStartDateInput(toDateInputValue(task.start_date ?? null));
-    setDueDateInput(toDateInputValue(task.due_date ?? null));
-    setIsSomeday(!!task.is_someday);
-    setIsWaiting(!!task.is_waiting);
-    setWaitingNote(task.waiting_note ?? '');
+    setDueDateInput(toDateInputValue(task.end_date ?? task.due_date ?? null));
     setTags(dedupeTags(parseTags(task.tags ?? null)));
     setTagInput('');
     setShowTagInput(false);
@@ -306,15 +298,15 @@ export function TaskDetailSheet({
 
   // Meta label values
   const isStartToday = startDateInput === getTodayDateInputValue();
-  const whenLabel = isWaiting
+  const whenLabel = status === 'waiting'
     ? 'Waiting'
-    : isSomeday
+    : status === 'someday'
     ? 'Someday'
     : isStartToday
     ? 'Today'
     : formatMetaDateLabel(fromDateInputValue(startDateInput));
   const dueLabel = formatMetaDateLabel(fromDateInputValue(dueDateInput));
-  const hasWhen = isSomeday || isWaiting || Boolean(startDateInput);
+  const hasWhen = status === 'someday' || status === 'waiting' || Boolean(startDateInput);
   const hasDue = Boolean(dueDateInput);
 
   // ─── Auto-save helper ────────────────────────────────────────────────────
@@ -322,35 +314,26 @@ export function TaskDetailSheet({
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
   const doSave = (opts: {
-    isNext?: boolean;
+    status?: CanonicalTaskStatus;
     startDate?: string | null;
-    dueDate?: string | null;
-    isSomeday?: boolean;
-    isWaiting?: boolean;
-    waitingNote?: string | null;
+    endDate?: string | null;
     tags?: string[];
     parentId?: string | null;
   } = {}): Promise<void> => {
     if (!task || !title.trim()) return Promise.resolve();
-    const resolvedIsSomeday = opts.isSomeday ?? isSomeday;
-    const resolvedIsWaiting = opts.isWaiting ?? isWaiting;
+    const resolvedStatus = opts.status ?? status;
     const resolvedStartDate = opts.startDate !== undefined
       ? opts.startDate
-      : (resolvedIsSomeday || resolvedIsWaiting ? null : fromDateInputValue(startDateInput));
-    const resolvedDueDate = opts.dueDate !== undefined ? opts.dueDate : fromDateInputValue(dueDateInput);
+      : (resolvedStatus === 'someday' || resolvedStatus === 'waiting' ? null : fromDateInputValue(startDateInput));
+    const resolvedEndDate = opts.endDate !== undefined ? opts.endDate : fromDateInputValue(dueDateInput);
     const resolvedParentId = opts.parentId !== undefined ? opts.parentId : (parentId || null);
-    const resolvedIsNext = opts.isNext ?? isNext;
-    const resolvedWaitingNote = opts.waitingNote !== undefined ? opts.waitingNote : (waitingNote || null);
     const payload = {
       title: title.trim(),
       description: description.trim(),
       parentId: resolvedParentId,
-      isNext: resolvedIsNext,
+      status: resolvedStatus,
       startDate: resolvedStartDate,
-      dueDate: resolvedDueDate,
-      isSomeday: resolvedIsSomeday,
-      isWaiting: resolvedIsWaiting,
-      waitingNote: resolvedWaitingNote,
+      endDate: resolvedEndDate,
       tags: dedupeTags(opts.tags ?? tags),
     };
     const taskId = task.id;
@@ -381,9 +364,9 @@ export function TaskDetailSheet({
   };
 
   const handleToggleNext = async () => {
-    const next = !isNext;
-    setIsNext(next);
-    await doSave({ isNext: next });
+    const nextStatus: CanonicalTaskStatus = status === 'next' ? 'active' : 'next';
+    setStatus(nextStatus);
+    await doSave({ status: nextStatus });
   };
 
   const handleToggleComplete = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -540,36 +523,30 @@ export function TaskDetailSheet({
   const handleWhenToday = async () => {
     const today = getTodayDateInputValue();
     setStartDateInput(today);
-    setIsSomeday(false);
-    setIsNext(false);
-    setIsWaiting(false);
-    setWaitingNote('');
+    setStatus('active');
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: fromDateInputValue(today), isSomeday: false, isNext: false, isWaiting: false, waitingNote: null });
+    await doSave({ startDate: fromDateInputValue(today), status: 'active' });
   };
 
   const handleWhenSomeday = async () => {
-    setIsSomeday(true);
+    setStatus('someday');
     setStartDateInput('');
-    setIsWaiting(false);
-    setWaitingNote('');
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: null, isSomeday: true, isWaiting: false, waitingNote: null });
+    await doSave({ startDate: null, status: 'someday' });
   };
 
-  const handleWhenWaiting = () => {
-    setIsWaiting(true);
-    setIsSomeday(false);
+  const handleWhenWaiting = async () => {
+    setStatus('waiting');
     setStartDateInput('');
+    setIsWhenSheetOpen(false);
+    await doSave({ startDate: null, status: 'waiting' });
   };
 
   const handleWhenClear = async () => {
     setStartDateInput('');
-    setIsSomeday(false);
-    setIsWaiting(false);
-    setWaitingNote('');
+    setStatus('active');
     setIsWhenSheetOpen(false);
-    await doSave({ startDate: null, isSomeday: false, isWaiting: false, waitingNote: null });
+    await doSave({ startDate: null, status: 'active' });
   };
 
   const handleWhenSheetOpenChange = (open: boolean) => {
@@ -587,13 +564,13 @@ export function TaskDetailSheet({
     const today = getTodayDateInputValue();
     setDueDateInput(today);
     setIsDueSheetOpen(false);
-    await doSave({ dueDate: fromDateInputValue(today) });
+    await doSave({ endDate: fromDateInputValue(today) });
   };
 
   const handleDueClear = async () => {
     setDueDateInput('');
     setIsDueSheetOpen(false);
-    await doSave({ dueDate: null });
+    await doSave({ endDate: null });
   };
 
   const handleDueSheetOpenChange = (open: boolean) => {
@@ -662,7 +639,7 @@ export function TaskDetailSheet({
                   Save
                 </DropdownItem>
                 <DropdownItem onSelect={() => void handleToggleNext()}>
-                  {isNext ? 'Unmark Next' : 'Mark Next'}
+                  {status === 'next' ? 'Unmark Next' : 'Mark Next'}
                 </DropdownItem>
                 <DropdownItem data-variant="danger" onSelect={() => void handleDelete()}>
                   Delete
@@ -1016,7 +993,7 @@ export function TaskDetailSheet({
 
           <div className={styles['task-detail__metaSheetContent']}>
             <div className={styles['task-detail__metaActions']}>
-              <button type="button" className={`${styles['task-detail__metaAction']}${isWaiting ? '' : ''}`} onClick={handleWhenToday}>
+              <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenToday}>
                 Today
               </button>
               <button type="button" className={styles['task-detail__metaAction']} onClick={handleWhenSomeday}>
@@ -1024,8 +1001,8 @@ export function TaskDetailSheet({
               </button>
               <button
                 type="button"
-                className={`${styles['task-detail__metaAction']}${isWaiting ? ` ${styles['task-detail__metaAction--active']}` : ''}`}
-                onClick={handleWhenWaiting}
+                className={`${styles['task-detail__metaAction']}${status === 'waiting' ? ` ${styles['task-detail__metaAction--active']}` : ''}`}
+                onClick={() => void handleWhenWaiting()}
               >
                 Waiting
               </button>
@@ -1035,30 +1012,13 @@ export function TaskDetailSheet({
                 </button>
               )}
             </div>
-
-            {isWaiting ? (
-              <div className={styles['task-detail__waitingSection']}>
-                <label className={styles['task-detail__waitingLabel']}>
-                  Waiting on
-                </label>
-                <textarea
-                  className={styles['task-detail__waitingInput']}
-                  value={waitingNote}
-                  onChange={e => setWaitingNote(e.target.value)}
-                  placeholder="What are you waiting for?"
-                  rows={3}
-                />
-              </div>
-            ) : (
-              <CalendarPicker
-                value={startDateInput}
-                onChange={v => {
-                  setStartDateInput(v);
-                  setIsSomeday(false);
-                  setIsWaiting(false);
-                }}
-              />
-            )}
+            <CalendarPicker
+              value={startDateInput}
+              onChange={v => {
+                setStartDateInput(v);
+                setStatus(v ? 'active' : status === 'waiting' || status === 'someday' ? 'active' : status);
+              }}
+            />
           </div>
         </SheetContent>
       </Sheet>

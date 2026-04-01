@@ -4,7 +4,7 @@ import type { TaskListFilter } from '@/features/tasks/taskBuckets';
 const NOTE_GROUPS = new Set(['all', 'today', 'todo', 'pinned', 'locked', 'trash']);
 
 const TASK_FILTERS = new Set<string>([
-  'backlog', 'next', 'today', 'someday', 'waiting', 'logbook',
+  'backlog', 'upcoming', 'today', 'someday', 'logbook', 'trash',
 ]);
 
 export function layerToPath(layer: NavigationLayer): string {
@@ -14,8 +14,6 @@ export function layerToPath(layer: NavigationLayer): string {
     case 'task-detail': return `/task/${layer.taskId}`;
     case 'strategy-detail':  return `/strategy/${layer.strategyId}`;
     case 'document-detail':  return `/document/${layer.documentId}`;
-    case 'actions':          return `/actions/${layer.filter}`;
-    case 'reference':        return '/reference';
     case 'inbox-list':       return '/inbox';
     case 'settings':         return '/settings';
   }
@@ -47,8 +45,17 @@ export function pathToLayer(pathname: string): NavigationLayer | null {
     return { view: 'tasks-list' };
   }
 
+  if (seg0 === 'actions') {
+    if (seg1 === 'scheduled') return { view: 'tasks-list', filter: 'upcoming' };
+    if (seg1 === 'anytime') return { view: 'tasks-list', filter: 'backlog' };
+    if (seg1 === 'today') return { view: 'tasks-list', filter: 'today' };
+    if (seg1 === 'someday') return { view: 'tasks-list', filter: 'someday' };
+    return { view: 'tasks-list' };
+  }
+
   if (seg0 === 'task' && seg1) return { view: 'task-detail', taskId: seg1 };
   if (seg0 === 'strategy' && seg1) return { view: 'strategy-detail', strategyId: seg1 };
+  if (seg0 === 'reference') return null;
   if (seg0 === 'settings') return { view: 'settings' };
 
   return null;

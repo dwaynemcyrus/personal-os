@@ -1,13 +1,10 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigationActions } from '@/components/providers';
-import { showToast } from '@/components/ui/Toast';
-import { queryClient } from '@/lib/queryClient';
 import {
   DEFAULT_TEMPLATES,
   TEMPLATE_TYPE_LABELS,
   TEMPLATE_TYPE_ORDER,
-  seedDefaultTemplates,
+  getTemplateLookupKey,
   splitTemplateKey,
 } from '@/lib/templateSeed';
 import { fetchAllDocumentTemplates } from '@/hooks/useDocumentTemplate';
@@ -15,30 +12,15 @@ import styles from './SettingsPage.module.css';
 
 export function TemplatesSection() {
   const { pushLayer } = useNavigationActions();
-  const [isSeeding, setIsSeeding] = useState(false);
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['document-templates'],
     queryFn: fetchAllDocumentTemplates,
     staleTime: 60_000,
   });
 
-  const templateMap = new Map(templates.map((template) => [template.subtype, template]));
-
-  const handleSeedDefaults = async () => {
-    if (isSeeding) return;
-
-    setIsSeeding(true);
-    try {
-      const inserted = await seedDefaultTemplates();
-      queryClient.invalidateQueries({ queryKey: ['document-templates'] });
-      queryClient.invalidateQueries({ queryKey: ['document-template'] });
-      showToast(inserted > 0 ? `Added ${inserted} templates.` : 'All templates already seeded.');
-    } catch {
-      showToast('Could not seed templates — please try again.');
-    } finally {
-      setIsSeeding(false);
-    }
-  };
+  const templateMap = new Map(
+    templates.map((template) => [getTemplateLookupKey(template.type, template.subtype), template])
+  );
 
   return (
     <section className={styles.section}>
@@ -54,7 +36,7 @@ export function TemplatesSection() {
             <div className={styles.templateGroupRows}>
               {group.map((template) => {
                 const existing = templateMap.get(template.subtype) ?? null;
-                const metaLabel = isLoading ? 'Loading…' : existing?.id ? 'Edit' : 'Not seeded';
+                const metaLabel = isLoading ? 'Loading…' : existing?.id ? 'Edit' : 'Missing';
                 const isDisabled = isLoading || !existing?.id;
 
                 return (
@@ -80,18 +62,12 @@ export function TemplatesSection() {
         );
       })}
 
-      <button
-        type="button"
-        className={styles.seedButton}
-        onClick={() => void handleSeedDefaults()}
-        disabled={isSeeding}
-        aria-busy={isSeeding}
-      >
-        {isSeeding ? 'Seeding…' : 'Seed Defaults'}
-      </button>
-
       {isLoading && <p className={styles.templateHint}>Loading templates…</p>}
-      {!isLoading && <p className={styles.templateHint}>Template rows open in the existing document editor.</p>}
+      {!isLoading && (
+        <p className={styles.templateHint}>
+          Template rows are provisioned from the schema migration and open in the existing document editor.
+        </p>
+      )}
     </section>
   );
 }

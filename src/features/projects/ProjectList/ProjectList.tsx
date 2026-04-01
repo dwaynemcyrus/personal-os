@@ -8,6 +8,7 @@ import type { ItemRow } from '@/lib/db';
 import { insertItem, patchItem } from '@/lib/db';
 import { nowIso } from '@/lib/time';
 import { ProjectDetailSheet } from '@/features/projects/ProjectDetailSheet/ProjectDetailSheet';
+import { deriveCanonicalTaskStatus, getLegacyTaskFields, type CanonicalTaskStatus } from '@/features/tasks/taskStatus';
 import styles from './ProjectList.module.css';
 
 type ProjectFilter = 'all' | 'backlog' | 'active' | 'someday' | 'archived';
@@ -20,8 +21,8 @@ const getTime = (value: string | null) => {
 };
 
 const sortProjects = (a: ItemRow, b: ItemRow) => {
-  const aDue = getTime(a.due_date ?? null);
-  const bDue = getTime(b.due_date ?? null);
+  const aDue = getTime(a.end_date ?? a.due_date ?? null);
+  const bDue = getTime(b.end_date ?? b.due_date ?? null);
   if (aDue !== null && bDue !== null && aDue !== bDue) return aDue - bDue;
   if (aDue !== null && bDue === null) return -1;
   if (aDue === null && bDue !== null) return 1;
@@ -38,8 +39,9 @@ export function ProjectList() {
       const { data, error } = await supabase
         .from('items')
         .select('*')
-        .eq('type', 'project')
-        .eq('is_trashed', false)
+        .eq('type', 'action')
+        .eq('subtype', 'project')
+        .is('date_trashed', null)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as ItemRow[];
@@ -54,8 +56,9 @@ export function ProjectList() {
       const { data, error } = await supabase
         .from('items')
         .select('*')
-        .eq('type', 'task')
-        .eq('is_trashed', false)
+        .eq('type', 'action')
+        .eq('subtype', 'task')
+        .is('date_trashed', null)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as ItemRow[];
@@ -78,7 +81,8 @@ export function ProjectList() {
   const activeTaskCounts = useMemo(() => {
     const counts = new Map<string, number>();
     tasks.forEach((task) => {
-      if (task.completed) return;
+      const taskStatus = deriveCanonicalTaskStatus(task);
+      if (taskStatus === 'done' || taskStatus === 'someday') return;
       if (!task.parent_id) return;
       counts.set(task.parent_id, (counts.get(task.parent_id) ?? 0) + 1);
     });
@@ -92,7 +96,7 @@ export function ProjectList() {
   );
   const filteredProjects = useMemo(() => {
     if (filter === 'all') return sortedProjects;
-    return sortedProjects.filter((project) => project.item_status === filter);
+    return sortedProjects.filter((project) => (project.status ?? project.item_status) === filter);
   }, [filter, sortedProjects]);
 
   const createProject = async () => {
@@ -101,7 +105,10 @@ export function ProjectList() {
     const timestamp = nowIso();
     await insertItem({
       id: uuidv4(),
-      type: 'project',
+      type: 'action',
+      subtype: 'project',
+      status: 'backlog',
+      date_trashed: null,
       parent_id: null,
       title: trimmed,
       content: null,
@@ -135,20 +142,22 @@ export function ProjectList() {
     updates: {
       title: string;
       content: string;
-      item_status: 'backlog' | 'active' | 'someday' | 'archived';
+      status: 'backlog' | 'active' | 'someday' | 'archived';
       startDate: string | null;
-      dueDate: string | null;
+      endDate: string | null;
       parentId: string | null;
     }
   ) => {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
     await patchItem(projectId, {
+      status: updates.status,
       title: trimmedTitle,
       content: updates.content.trim() || null,
-      item_status: updates.item_status,
+      item_status: updates.status,
       start_date: updates.startDate,
-      due_date: updates.dueDate,
+      due_date: updates.endDate,
+      end_date: updates.endDate,
       parent_id: updates.parentId,
       updated_at: nowIso(),
     });
@@ -157,12 +166,12 @@ export function ProjectList() {
 
   const handleDeleteProject = async (projectId: string) => {
     const timestamp = nowIso();
-    await patchItem(projectId, { is_trashed: true, trashed_at: timestamp, updated_at: timestamp });
+    await patchItem(projectId, { is_trashed: true, trashed_at: timestamp, date_trashed: timestamp, updated_at: timestamp });
     invalidateProjects();
   };
 
   const handleToggleTaskComplete = async (taskId: string, nextValue: boolean) => {
-    await patchItem(taskId, { completed: nextValue, updated_at: nowIso() });
+    await patchItem(taskId, { completed: nextValue, status: nextValue ? 'done' : 'active', updated_at: nowIso() });
     invalidateTasks();
   };
 
@@ -172,27 +181,28 @@ export function ProjectList() {
       title: string;
       description: string;
       parentId: string | null;
-      isNext: boolean;
+      status: CanonicalTaskStatus;
       startDate: string | null;
-      dueDate: string | null;
-      isSomeday: boolean;
-      isWaiting: boolean;
-      waitingNote: string | null;
+      endDate: string | null;
       tags: string[];
     }
   ) => {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) return;
+    const legacyFields = getLegacyTaskFields(updates.status);
     await patchItem(taskId, {
+      status: updates.status,
       title: trimmedTitle,
       content: updates.description.trim() || null,
       parent_id: updates.parentId,
-      is_next: updates.isNext,
+      is_next: legacyFields.is_next,
       start_date: updates.startDate,
-      due_date: updates.dueDate,
-      is_someday: updates.isSomeday,
-      is_waiting: updates.isWaiting,
-      waiting_note: updates.waitingNote,
+      due_date: updates.endDate,
+      end_date: updates.endDate,
+      completed: legacyFields.completed,
+      is_someday: legacyFields.is_someday,
+      is_waiting: legacyFields.is_waiting,
+      waiting_note: null,
       tags: updates.tags,
       updated_at: nowIso(),
     });
@@ -211,7 +221,10 @@ export function ProjectList() {
     const timestamp = nowIso();
     await insertItem({
       id: uuidv4(),
-      type: 'task',
+      type: 'action',
+      subtype: 'task',
+      status: 'active',
+      date_trashed: null,
       parent_id: projectId,
       title: trimmed,
       content: null,
@@ -275,8 +288,8 @@ export function ProjectList() {
             >
               <div className={styles.itemTitle}>{project.title}</div>
               <div className={styles.itemMeta}>
-                <span className={styles.itemStatus}>{project.item_status}</span>
-                <span>{activeTaskCounts.get(project.id) ?? 0} open tasks</span>
+                <span>{project.status ?? project.item_status}</span>
+                <span>{activeTaskCounts.get(project.id) ?? 0} active tasks</span>
               </div>
             </button>
           ))}

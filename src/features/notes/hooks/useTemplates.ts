@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { DocumentRow } from '@/lib/db';
 
-export type TemplateItem = Pick<DocumentRow, 'id' | 'title' | 'subtype'>;
+export type TemplateItem = Pick<DocumentRow, 'id' | 'type' | 'title' | 'subtype'>;
 
 /**
  * Shared hook for fetching the list of global template documents.
@@ -15,9 +15,10 @@ export function useTemplates(options: { enabled?: boolean } = {}) {
     queryFn: async (): Promise<TemplateItem[]> => {
       const { data, error } = await supabase
         .from('items')
-        .select('id, title, subtype')
-        .eq('type', 'template')
+        .select('id, type, title, subtype')
+        .eq('is_template', true)
         .is('date_trashed', null)
+        .order('type', { ascending: true })
         .order('title', { ascending: true });
       if (error) throw error;
       return (data ?? []) as TemplateItem[];

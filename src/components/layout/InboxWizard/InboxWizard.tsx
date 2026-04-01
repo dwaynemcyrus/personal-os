@@ -117,7 +117,10 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     const taskId = uuidv4();
     await insertItem({
       id: taskId,
-      type: 'task',
+      type: 'action',
+      subtype: 'task',
+      status: 'active',
+      date_trashed: null,
       parent_id: null,
       title: editTitle.trim() || 'Untitled',
       content: currentContent ?? null,
@@ -172,7 +175,10 @@ export function InboxWizard({ open, onOpenChange }: InboxWizardProps) {
     const projectId = uuidv4();
     await insertItem({
       id: projectId,
-      type: 'project',
+      type: 'action',
+      subtype: 'project',
+      status: 'backlog',
+      date_trashed: null,
       parent_id: null,
       title: editTitle.trim() || 'Untitled',
       item_status: 'backlog',

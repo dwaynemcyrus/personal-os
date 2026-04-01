@@ -1,7 +1,3 @@
-import { createDocument } from './db';
-import { generateCuid } from './cuid';
-import { supabase } from './supabase';
-
 export type DefaultTemplate = {
   subtype: string;
   title: string;
@@ -11,23 +7,19 @@ export type DefaultTemplate = {
 export const TEMPLATE_TYPE_ORDER = [
   'journal',
   'creation',
-  'transmission',
   'reference',
   'log',
   'review',
   'action',
-  'inbox',
 ] as const;
 
 export const TEMPLATE_TYPE_LABELS: Record<(typeof TEMPLATE_TYPE_ORDER)[number], string> = {
   journal: 'Journal',
   creation: 'Creation',
-  transmission: 'Transmission',
   reference: 'Reference',
   log: 'Log',
   review: 'Review',
   action: 'Action',
-  inbox: 'Inbox',
 };
 
 const DEFAULT_TEMPLATE_CONTENT: Record<string, string> = {
@@ -234,7 +226,7 @@ What was the result?
 ## Lessons
 
 What did you learn?`,
-  'transmission:workshop': `
+  'creation:workshop': `
 ## Objective
 
 What is the goal of this workshop?
@@ -256,7 +248,7 @@ What is the goal of this workshop?
 ## Notes
 
 Post-event additions and observations.`,
-  'transmission:script': `
+  'creation:script': `
 ## Hook
 
 
@@ -264,44 +256,6 @@ Post-event additions and observations.`,
 
 
 ## Call To Action
-
-
-## Resources
-
--
-
-## Notes`,
-  'transmission:podcast': `
-## Summary
-
-What is this episode about in one paragraph?
-
-## Outline
-
--
--
--
-
-## Show Notes
-
-
-## Resources
-
--
-
-## Notes`,
-  'transmission:lecture': `
-## Objective
-
-What should the audience learn from this lecture?
-
-## Outline
-
--
--
--
-
-## Content
 
 
 ## Resources
@@ -650,8 +604,6 @@ What does done look like?
 - [ ] [[]]
 
 ## Notes`,
-  inbox: `
-## Capture`,
 };
 
 function titleCase(value: string): string {
@@ -664,8 +616,6 @@ function titleCase(value: string): string {
 }
 
 function buildTemplateTitle(subtypeKey: string): string {
-  if (subtypeKey === 'inbox') return 'Inbox';
-
   const [type, subtype] = splitTemplateKey(subtypeKey);
   const label = titleCase(subtype ?? type);
 
@@ -693,60 +643,3 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = Object.entries(DEFAULT_TEMPL
     content,
   })
 );
-
-type ExistingTemplateRow = {
-  subtype: string | null;
-};
-
-export async function seedDefaultTemplates(): Promise<number> {
-  const { data: existing, error } = await supabase
-    .from('items')
-    .select('subtype')
-    .eq('type', 'template')
-    .is('date_trashed', null);
-
-  if (error) throw error;
-
-  const existingKeys = new Set(
-    ((existing ?? []) as ExistingTemplateRow[])
-      .map((row) => row.subtype)
-      .filter((value): value is string => Boolean(value))
-  );
-
-  let inserted = 0;
-
-  for (const template of DEFAULT_TEMPLATES) {
-    if (existingKeys.has(template.subtype)) continue;
-
-    await createDocument({
-      cuid: generateCuid(),
-      type: 'template',
-      subtype: template.subtype,
-      title: template.title,
-      status: 'active',
-      access: 'private',
-      area: null,
-      workbench: false,
-      resources: [],
-      dependencies: [],
-      blocked: false,
-      slug: null,
-      published: false,
-      tier: null,
-      growth: null,
-      rating: null,
-      start_date: null,
-      end_date: null,
-      date_created: new Date().toISOString(),
-      date_modified: null,
-      date_trashed: null,
-      tags: [],
-      content: template.content,
-      frontmatter: null,
-    });
-
-    inserted += 1;
-  }
-
-  return inserted;
-}

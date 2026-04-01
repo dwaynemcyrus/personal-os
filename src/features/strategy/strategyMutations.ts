@@ -4,7 +4,7 @@
  * All writes go directly through supabase.from('items').insert/update because
  * the generic insertItem/patchItem helpers in db.ts don't expose strategy-specific
  * columns (period_start, period_end, progress, frequency, target, sort_order,
- * description). Content is mirrored to item_content per the app convention.
+ * description).
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -29,14 +29,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-/** Mirrors content to item_content table (same as insertItem does). */
 async function mirrorContent(itemId: string, content: string, owner: string | null): Promise<void> {
-  const now = nowIso();
-  const { error } = await supabase.from('item_content').upsert(
-    { item_id: itemId, content, updated_at: now, owner },
-    { onConflict: 'item_id' },
-  );
-  if (error) console.error('[strategy] item_content mirror error:', error);
+  void itemId;
+  void content;
+  void owner;
 }
 
 /** Base row shape common to all strategy items. */
@@ -800,9 +796,4 @@ export async function patchStrategyItem(id: string, patch: StrategyPatch): Promi
 
   const { error } = await supabase.from('items').update(update).eq('id', id);
   if (error) throw error;
-
-  if (patch.content !== undefined) {
-    const owner = await getCurrentUserId();
-    await mirrorContent(id, patch.content ?? '', owner);
-  }
 }

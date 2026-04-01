@@ -186,6 +186,11 @@ Rebuild against:
 
 - [ ] in progress
 - progress:
+  - schema 3 templates are now seeded as real typed `items` rows with `is_template = true`
+  - runtime template queries now read canonical seeded template rows instead of `type = template`
+  - document creation now instantiates new documents from resolved template frontmatter plus body, not body-only content
+  - document template application now merges missing schema defaults into the current document while replacing the body
+- progress:
   - template creation and insertion now use global `type = template` rows
   - active note content reads/writes now use `items.content`
   - notes now open through `document-detail` while preserving the notes shell layout
@@ -238,6 +243,31 @@ Rebuild against:
   - daily note open/create
   - command capture to inbox
   - open document from recent/search
+
+---
+
+## Chunk 3 - Align Items To Schema 3
+
+**Goal:** Bring the canonical `items` schema and default templates into line with `Schema Reference 3.0`.
+
+### Focus Areas
+
+- add schema 3 frontmatter-mapped columns to `items`
+- normalize `frontmatter` and access-aware RLS
+- keep `habit_logs` and `finance_entries` aligned as companion tables
+- seed one default template row per schema subtype using `is_template = true`
+- point runtime template queries at real typed template rows
+
+### Verification
+
+- `supabase db push`
+- `npm run type-check`
+- `npm run lint`
+- `npm run test`
+
+### Status
+
+- [ ] in progress
   - open inbox list
   - open actions/writing/reference
 
@@ -350,7 +380,22 @@ Rebuild against:
 
 ### Status
 
-- [ ] pending
+- [ ] in progress
+- progress:
+  - the `tasks` route now renders the canonical action-backed list surface instead of the legacy task list
+  - context-sheet task counts now read canonical `action:task` rows
+  - the current task bucket labels are preserved while mapping onto canonical action filters
+  - the legacy task detail/editor stack remains in the repo but is no longer the active list entry path
+  - active task creation now defaults to `status = active`
+  - live task buckets now read canonical statuses `active | next | waiting | someday | done`
+  - task detail now saves canonical task status semantics while preserving the existing tags UI
+  - project/context nested task saves now translate canonical task status back through the remaining legacy task callers
+  - project list and project detail now read/write canonical `action:project` rows
+  - the context-sheet project launcher now uses canonical `action:project` and `action:task` rows
+  - the standalone `actions` navigation layer has been removed; `/actions/*` now restores to equivalent task buckets
+  - inbox task/project conversion now creates canonical `action:*` rows instead of legacy `task/project` rows
+  - the sources tab now owns reference creation/listing, and the standalone `reference` route has been removed
+  - the active strategy editor now reads and writes `items.content` instead of depending on `item_content`
 
 ---
 

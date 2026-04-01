@@ -4,7 +4,6 @@ import { fetchAllDocumentTemplates } from '@/hooks/useDocumentTemplate';
 import {
   TEMPLATE_TYPE_LABELS,
   TEMPLATE_TYPE_ORDER,
-  splitTemplateKey,
 } from '@/lib/templateSeed';
 import { Sheet, SheetContent } from '@/components/ui/Sheet';
 import styles from './TemplatePicker.module.css';
@@ -34,16 +33,14 @@ export function TemplatePicker({ open, onOpenChange, onSelect }: Props) {
     const grouped = new Map<string, TemplateOption[]>();
 
     for (const template of storedTemplates) {
-      if (!template.subtype) continue;
-      const [type, subtype] = splitTemplateKey(template.subtype);
-      const next = grouped.get(type) ?? [];
+      const next = grouped.get(template.type) ?? [];
       next.push({
-        label: template.title ?? template.subtype,
-        type,
-        subtype,
+        label: template.title ?? template.subtype ?? template.type,
+        type: template.type,
+        subtype: template.subtype,
         content: template.content ?? '',
       });
-      grouped.set(type, next);
+      grouped.set(template.type, next);
     }
 
     const orderedTypes = [
@@ -67,7 +64,7 @@ export function TemplatePicker({ open, onOpenChange, onSelect }: Props) {
         </div>
         <div className={styles.list}>
           {groupedTemplates.length === 0 && (
-            <p className={styles.empty}>No templates available. Seed or create templates in Settings first.</p>
+            <p className={styles.empty}>No templates available. Review the seeded templates in Settings first.</p>
           )}
           {groupedTemplates.map((group) => (
             <section key={group.type} className={styles.group} aria-label={group.label}>
